@@ -124,13 +124,19 @@ impl<'a> Parser<'a> {
                 '!' | '$' | '%' | '&' | '*' | '/' | ':' |
                 '<' | '=' | '>' | '?' | '~' | '_' | '^' => buf.push(c),
                 c if c.is_whitespace() => {
-                    self.tokens.push(Token::Symbol(buf));
-                    return;
+                    if buf == "nil" {
+                        return self.tokens.push(Token::Nil);
+                    } else {
+                        return self.tokens.push(Token::Symbol(buf));
+                    }
                 }
                 ')' => {
-                    self.tokens.push(Token::Symbol(buf));
-                    self.tokens.push(Token::RightParen);
-                    return;
+                    if buf == "nil" {
+                        self.tokens.push(Token::Nil);
+                    } else {
+                        self.tokens.push(Token::Symbol(buf));
+                    }
+                    return self.tokens.push(Token::RightParen);
                 }
                 _ => panic!("unexpected input"),
             }
@@ -143,6 +149,7 @@ pub enum Token {
     LeftParen,
     RightParen,
     Quote,
+    Nil,
     Bool(bool),
     String(String),
     Number(String),
@@ -151,7 +158,6 @@ pub enum Token {
 
 impl Token {
     pub fn build_ast(tokens: Vec<Self>) -> Vec<Object> {
-        println!("{:?}", tokens);
         use self::Token::*;
         let mut exprs = Vec::new();
         let mut tokens = tokens.iter();
@@ -167,6 +173,7 @@ impl Token {
                     let list = Self::parse_quote(&mut tokens);
                     exprs.push(list);
                 }
+                Nil => exprs.push(Object::Nil),
                 Bool(b) => exprs.push(Object::Bool(*b)),
                 Number(i) => exprs.push(Object::Number(i.parse::<i64>().unwrap())),
                 String(s) => exprs.push(Object::String(s.to_owned())),
@@ -216,6 +223,7 @@ impl Token {
                     let l = Self::parse_quote(tokens);
                     *list = list.push(l);
                 },
+                Nil => *list = list.push(Object::Nil),
                 Bool(b) => *list = list.push(Object::Bool(*b)),
                 String(s) => *list = list.push(Object::String(s.to_owned())),
                 Symbol(s) => *list = list.push(Object::Symbol(s.to_owned())),
