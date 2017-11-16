@@ -112,7 +112,7 @@ impl Object {
     pub fn length(&self) -> usize {
         let mut list = self.clone();
         let mut len = 0;
-        while list != Object::Nil {
+        while !list.is_null() {
             len += 1;
             list = list.cdr();
         }

@@ -46,7 +46,7 @@ impl Primitive {
                     _ => return Some(Object::Error("NUMBER expected".to_string())),
                 };
                 let mut args = args.cdr();
-                while args != Object::Nil {
+                while !args.is_null() {
                     match args.car() {
                         Object::Number(m) => if n != m {
                             return Some(Object::Bool(false));
@@ -60,7 +60,7 @@ impl Primitive {
             "+" => {
                 let mut sum = 0;
                 let mut args = args;
-                while args != Object::Nil {
+                while !args.is_null() {
                     match args.car() {
                         Object::Number(n) => sum += n,
                         _ => return Some(Object::Error("NUMBER expected".to_string())),
@@ -82,7 +82,7 @@ impl Primitive {
                 } else {
                     let mut sum = args.car().unwrap_number();
                     let mut args = args.cdr();
-                    while args != Object::Nil {
+                    while !args.is_null() {
                         match args.car() {
                             Object::Number(n) => sum -= n,
                             _ => return Some(Object::Error("NUMBER expected".to_string())),
@@ -95,7 +95,7 @@ impl Primitive {
             "*" => {
                 let mut prod = 1;
                 let mut args = args;
-                while args != Object::Nil {
+                while !args.is_null() {
                     match args.car() {
                         Object::Number(n) => prod *= n,
                         _ => return Some(Object::Error("NUMBER expected".to_string())),
