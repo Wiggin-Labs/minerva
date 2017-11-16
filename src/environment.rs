@@ -21,6 +21,7 @@ pub fn init_env() -> Environment {
         ("cons", Some(2)),
         ("car", Some(1)),
         ("cdr", Some(1)),
+        ("=", None::<usize>),
         ("+", None::<usize>),
         ("-", None::<usize>),
         ("*", None::<usize>),
@@ -68,6 +69,17 @@ impl Environment {
     pub fn define_variable(&self, name: String, value: Object) {
         let mut env = self.env.borrow_mut();
         env.define_variable(name, value);
+    }
+
+    pub fn procedure_local(&self) -> Self {
+        let env = self.env.borrow();
+        let local = _Environment {
+            bindings: env.bindings.clone(),
+            parent: env.parent.clone(),
+        };
+        Environment {
+            env: Rc::new(RefCell::new(local)),
+        }
     }
 }
 

@@ -42,9 +42,7 @@ impl<'a> Parser<'a> {
                 '#' => self.parse_bool(),
                 c if c.is_whitespace() => {}
                 '0' ... '9' => self.parse_number(c),
-                'A' ... 'Z' | 'a' ... 'z' |
-                '!' | '$' | '%' | '&' | '*' | '/' | ':' |
-                '<' | '=' | '>' | '?' | '~' | '_' | '^' => self.parse_symbol(c),
+                c if is_symbol_char(c, true) => self.parse_symbol(c),
                 _ => panic!("unexpected input {} at {}", c, self.position),
             }
         }
@@ -120,9 +118,7 @@ impl<'a> Parser<'a> {
         buf.push(first);
         while let Some(c) = self.next() {
             match c {
-                'A' ... 'Z' | 'a' ... 'z' | '0' ... '9' |
-                '!' | '$' | '%' | '&' | '*' | '/' | ':' |
-                '<' | '=' | '>' | '?' | '~' | '_' | '^' => buf.push(c),
+                c if is_symbol_char(c, false) => buf.push(c),
                 c if c.is_whitespace() => {
                     if buf == "nil" {
                         return self.tokens.push(Token::Nil);
@@ -141,6 +137,16 @@ impl<'a> Parser<'a> {
                 _ => panic!("unexpected input"),
             }
         }
+    }
+}
+
+fn is_symbol_char(c: char, start: bool) -> bool {
+    match c {
+        'a' ... 'z' | 'A' ... 'Z' | '-' |
+        '!' | '$' | '%' | '&' | '*' | '/' | ':' |
+        '<' | '=' | '>' | '?' | '~' | '_' | '^' => true,
+        '0' ... '9' => !start,
+        _ => false,
     }
 }
 

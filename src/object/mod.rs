@@ -82,18 +82,17 @@ impl Object {
 
     pub fn procedure_env(&self) -> Environment {
         match self.cdr() {
-            Object::Lambda(procedure) => procedure.env.clone(),
+            Object::Lambda(procedure) => procedure.env.procedure_local(),
             _ => panic!("compiler error in procedure_env"),
         }
     }
 
     pub fn eval_sequence(self, env: &Environment) -> Option<Object> {
-        let actions = self.begin_actions();
-        if actions.is_last_exp() {
-            eval(actions.first_exp(), env)
+        if self.is_last_exp() {
+            eval(self.first_exp(), env)
         } else {
-            eval(actions.first_exp(), env);
-            actions.rest_exps().eval_sequence(env)
+            eval(self.first_exp(), env);
+            self.rest_exps().eval_sequence(env)
         }
     }
 
@@ -105,7 +104,8 @@ impl Object {
                 car: eval(self.first_operand(), env).unwrap(),
                 cdr: self.rest_operands().list_of_values(env),
             };
-            Object::Pair(Rc::new(pair))
+            let p = Object::Pair(Rc::new(pair));
+            p
         }
     }
 
@@ -128,7 +128,7 @@ impl Object {
 
     pub fn is_false(&self) -> bool {
         match *self {
-            Object::Bool(b) => b,
+            Object::Bool(b) => !b,
             _ => false,
         }
     }
@@ -274,6 +274,7 @@ impl Object {
     }
 
     pub fn lambda_body(&self) -> Object {
+        // TODO: maybe caddr here?
         self.cddr()
     }
 

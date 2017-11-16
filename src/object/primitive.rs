@@ -37,6 +37,26 @@ impl Primitive {
                 let arg = args.car();
                 Some(arg.cdr())
             }
+            "=" => {
+                if args.is_null() {
+                    return Some(Object::Bool(true));
+                }
+                let n = match args.car() {
+                    Object::Number(n) => n,
+                    _ => return Some(Object::Error("NUMBER expected".to_string())),
+                };
+                let mut args = args.cdr();
+                while args != Object::Nil {
+                    match args.car() {
+                        Object::Number(m) => if n != m {
+                            return Some(Object::Bool(false));
+                        }
+                        _ => return Some(Object::Error("NUMBER expected".to_string())),
+                    }
+                    args = args.cdr();
+                }
+                Some(Object::Bool(true))
+            }
             "+" => {
                 let mut sum = 0;
                 let mut args = args;

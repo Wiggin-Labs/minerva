@@ -82,5 +82,16 @@ mod test {
         assert_eq!(Some(Object::Number(1)), run(input, &env));
         let input = "(cons 1 '())";
         assert_eq!(Some(Object::cons(Object::Number(1), Object::Nil)), run(input, &env));
+        let input = r"
+(define (factorial n)
+  (if (= n 1)
+      1
+      (* (factorial (- n 1)) n)))
+";
+        assert!(run(input, &env).is_none());
+        let input = "(factorial 1)";
+        assert_eq!(Some(Object::Number(1)), run(input, &env));
+        let input = "(factorial 3)";
+        assert_eq!(Some(Object::Number(6)), run(input, &env));
     }
 }
