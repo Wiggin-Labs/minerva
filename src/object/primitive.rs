@@ -1,5 +1,7 @@
 use super::Object;
 
+use num::{BigInt, One, Zero};
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Primitive {
     pub name: String,
@@ -58,11 +60,11 @@ impl Primitive {
                 Some(Object::Bool(true))
             }
             "+" => {
-                let mut sum = 0;
+                let mut sum = BigInt::zero();
                 let mut args = args;
                 while !args.is_null() {
                     match args.car() {
-                        Object::Number(n) => sum += n,
+                        Object::Number(n) => sum = sum + n,
                         _ => return Some(Object::Error("NUMBER expected".to_string())),
                     }
                     args = args.cdr();
@@ -84,7 +86,7 @@ impl Primitive {
                     let mut args = args.cdr();
                     while !args.is_null() {
                         match args.car() {
-                            Object::Number(n) => sum -= n,
+                            Object::Number(n) => sum = sum - n,
                             _ => return Some(Object::Error("NUMBER expected".to_string())),
                         }
                         args = args.cdr();
@@ -93,11 +95,11 @@ impl Primitive {
                 }
             }
             "*" => {
-                let mut prod = 1;
+                let mut prod = BigInt::one();
                 let mut args = args;
                 while !args.is_null() {
                     match args.car() {
-                        Object::Number(n) => prod *= n,
+                        Object::Number(n) => prod = prod * n,
                         _ => return Some(Object::Error("NUMBER expected".to_string())),
                     }
                     args = args.cdr();

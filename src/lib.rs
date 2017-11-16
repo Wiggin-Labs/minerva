@@ -2,6 +2,7 @@
 
 #[macro_use]
 extern crate maplit;
+extern crate num;
 
 //mod bytecode;
 mod environment;
@@ -60,6 +61,9 @@ pub fn apply(procedure: Object, arguments: Object) -> Option<Object> {
 #[cfg(test)]
 mod test {
     use super::{eval, init_env, Environment, Object, Parser, Token};
+
+    use num::BigInt;
+
     fn run(input: &str, env: &Environment) -> Option<Object> {
         let tokens = Parser::parse(input);
         let objects = Token::build_ast(tokens);
@@ -72,16 +76,16 @@ mod test {
         let env = init_env();
         let input = "(cons 1 2)";
         let ans = run(input, &env);
-        let expected = Object::cons(Object::Number(1), Object::Number(2));
+        let expected = Object::cons(Object::Number(BigInt::from(1)), Object::Number(BigInt::from(2)));
         assert_eq!(Some(expected), ans);
 
         let input = "(define a (cons 1 2))";
         assert!(run(input, &env).is_none());
 
         let input = "(car a)";
-        assert_eq!(Some(Object::Number(1)), run(input, &env));
+        assert_eq!(Some(Object::Number(BigInt::from(1))), run(input, &env));
         let input = "(cons 1 '())";
-        assert_eq!(Some(Object::cons(Object::Number(1), Object::Nil)), run(input, &env));
+        assert_eq!(Some(Object::cons(Object::Number(BigInt::from(1)), Object::Nil)), run(input, &env));
         let input = r"
 (define (factorial n)
   (if (= n 1)
@@ -90,8 +94,8 @@ mod test {
 ";
         assert!(run(input, &env).is_none());
         let input = "(factorial 1)";
-        assert_eq!(Some(Object::Number(1)), run(input, &env));
+        assert_eq!(Some(Object::Number(BigInt::from(1))), run(input, &env));
         let input = "(factorial 3)";
-        assert_eq!(Some(Object::Number(6)), run(input, &env));
+        assert_eq!(Some(Object::Number(BigInt::from(6))), run(input, &env));
     }
 }

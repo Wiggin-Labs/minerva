@@ -1,5 +1,7 @@
 use Object;
 
+use num::BigInt;
+
 use std::iter::Peekable;
 use std::slice::Iter;
 use std::str::Chars;
@@ -181,7 +183,7 @@ impl Token {
                 }
                 Nil => exprs.push(Object::Nil),
                 Bool(b) => exprs.push(Object::Bool(*b)),
-                Number(i) => exprs.push(Object::Number(i.parse::<i64>().unwrap())),
+                Number(i) => exprs.push(Object::Number(i.parse::<BigInt>().unwrap())),
                 String(s) => exprs.push(Object::String(s.to_owned())),
                 Symbol(s) => exprs.push(Object::Symbol(s.to_owned())),
             }
@@ -195,7 +197,7 @@ impl Token {
         let quoted = match *tokens.next().unwrap() {
             Symbol(ref s) => Object::Symbol(s.to_owned()),
             Number(ref i) => {
-                return Object::Number(i.parse::<i64>().unwrap());
+                return Object::Number(i.parse::<BigInt>().unwrap());
             },
             String(ref s) => {
                 return Object::String(s.to_owned());
@@ -233,7 +235,7 @@ impl Token {
                 Bool(b) => *list = list.push(Object::Bool(*b)),
                 String(s) => *list = list.push(Object::String(s.to_owned())),
                 Symbol(s) => *list = list.push(Object::Symbol(s.to_owned())),
-                Number(i) => *list = list.push(Object::Number(i.parse::<i64>().unwrap())),
+                Number(i) => *list = list.push(Object::Number(i.parse::<BigInt>().unwrap())),
             }
         }
         assert!(parens == 0);

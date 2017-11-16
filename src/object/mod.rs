@@ -4,6 +4,8 @@ pub use self::primitive::Primitive;
 
 use {Environment, eval};
 
+use num::BigInt;
+
 use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
 
@@ -43,7 +45,7 @@ impl Lambda {
 pub enum Object {
     Nil,
     Bool(bool),
-    Number(i64),
+    Number(BigInt),
     String(String),
     Symbol(String),
     Pair(Rc<Pair>),
@@ -454,7 +456,7 @@ impl Object {
         self.cadr()
     }
 
-    pub fn unwrap_number(self) -> i64 {
+    pub fn unwrap_number(self) -> BigInt {
         match self {
             Object::Number(n) => n,
             _ => panic!("compiler error in unwrap_number"),
