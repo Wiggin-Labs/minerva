@@ -42,15 +42,23 @@ pub fn eval(exp: Object, env: &Environment) -> Option<Object> {
     }
 }
 
-pub fn apply(procedure: Object, arguments: Object) -> Option<Object> {
+pub fn apply(procedure: Object, mut arguments: Object) -> Option<Object> {
     if procedure.is_primitive_procedure() {
         procedure.apply_primitive_procedure(arguments)
     } else if procedure.is_compound_procedure() {
         let mut env = procedure.procedure_env();
         let mut parameters = procedure.procedure_parameters();
+
+        if arguments.length() < parameters.length() {
+            return Some(Object::Error("Too few argument provided".to_string()));
+        } else if parameters.length() > arguments.length() {
+            return Some(Object::Error("Too many argument provided".to_string()));
+        }
+
         while !parameters.is_null() {
             env.define_variable(parameters.car().symbol_value(), arguments.car());
             parameters = parameters.cdr();
+            arguments = arguments.cdr();
         }
         procedure.procedure_body().eval_sequence(&mut env)
     } else {
@@ -108,11 +116,6 @@ mod test {
 ";
         assert!(run(input, &env).is_none());
         let input = "(sum 5)";
-        //assert_eq!(Some(Object::Number(BigInt::from(10))), run(input, &env));
-        let input = "(define (loop a count) (if (= a 5) count (loop (+ a 1) (+ count a))))";
-        run(input, &env);
-        println!("start");
-        let input = "(loop 1 0)";
         assert_eq!(Some(Object::Number(BigInt::from(10))), run(input, &env));
     }
 }
