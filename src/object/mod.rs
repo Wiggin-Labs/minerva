@@ -6,6 +6,7 @@ use {Environment, eval};
 
 use num::BigInt;
 
+use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
 
@@ -48,7 +49,7 @@ pub enum Object {
     Number(BigInt),
     String(String),
     Symbol(String),
-    Pair(Rc<Pair>),
+    Pair(Rc<RefCell<Pair>>),
     Lambda(Rc<Lambda>),
     Primitive(Primitive),
     Error(String),
@@ -102,11 +103,8 @@ impl Object {
         if self.has_no_operands() {
             Object::Nil
         } else {
-            let pair = Pair {
-                car: eval(self.first_operand(), env).unwrap(),
-                cdr: self.rest_operands().list_of_values(env),
-            };
-            Object::Pair(Rc::new(pair))
+            Object::cons(eval(self.first_operand(), env).unwrap(),
+                         self.rest_operands().list_of_values(env))
         }
     }
 
@@ -149,13 +147,11 @@ impl Object {
         }
     }
 
-    /*
-    pub fn eval_assignment(self, env: &Environment) {
+    pub fn eval_assignment(self, env: &Environment) -> Option<Object> {
         let var = self.assignment_variable().symbol_value();
         let val = eval(self.assignment_value(), env).unwrap();
-        env.set_variable_value(var, val);
+        env.set_variable_value(var, val)
     }
-    */
 
     pub fn eval_definition(self, env: &Environment) {
         let var = self.definition_variable().symbol_value();
@@ -187,7 +183,7 @@ impl Object {
 
     pub fn is_tagged_list(&self, tag: String) -> bool {
         match self {
-            Object::Pair(pair) => pair.car == Object::Symbol(tag),
+            Object::Pair(pair) => pair.borrow().car == Object::Symbol(tag),
             _ => false,
         }
     }
@@ -210,14 +206,14 @@ impl Object {
 
     pub fn car(&self) -> Object {
         match self {
-            Object::Pair(pair) => pair.car.clone(),
+            Object::Pair(pair) => pair.borrow().car.clone(),
             _ => Object::Error("PAIR expected".to_string()),
         }
     }
 
     pub fn cdr(&self) -> Object {
         match self {
-            Object::Pair(pair) => pair.cdr.clone(),
+            Object::Pair(pair) => pair.borrow().cdr.clone(),
             _ => Object::Error("PAIR expected".to_string()),
         }
     }
@@ -284,7 +280,7 @@ impl Object {
             car,
             cdr,
         };
-        Object::Pair(Rc::new(pair))
+        Object::Pair(Rc::new(RefCell::new(pair)))
     }
 
     pub fn make_lambda(parameters: Object, body: Object) -> Object {
@@ -489,13 +485,15 @@ impl Display for Object {
             Object::String(s) => write!(f, "\"{}\"", s),
             Object::Symbol(s) => write!(f, "{}", s),
             Object::Pair(p) => {
+                let p = p.borrow();
                 write!(f, "({}", p.car)?;
-                let mut pair = &p.cdr;
-                while *pair != Object::Nil {
+                let mut pair = p.cdr.clone();
+                while !pair.is_null() {
                     match pair {
                         Object::Pair(p) => {
+                            let p = p.borrow();
                             write!(f, " {}", p.car)?;
-                            pair = &p.cdr;
+                            pair = p.cdr.clone();
                         },
                         _ => return write!(f, " . {})", pair),
                     }

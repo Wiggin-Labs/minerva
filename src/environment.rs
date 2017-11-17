@@ -62,13 +62,15 @@ impl Environment {
     }
 
     pub fn lookup_variable_value(&self, name: &str) -> Option<Object> {
-        let env = self.env.borrow();
-        env.lookup_variable_value(name)
+        self.env.borrow().lookup_variable_value(name)
     }
 
     pub fn define_variable(&self, name: String, value: Object) {
-        let mut env = self.env.borrow_mut();
-        env.define_variable(name, value);
+        self.env.borrow_mut().define_variable(name, value);
+    }
+
+    pub fn set_variable_value(&self, name: String, value: Object) -> Option<Object> {
+        self.env.borrow_mut().set_variable_value(name, value)
     }
 
     pub fn procedure_local(&self) -> Self {
@@ -114,9 +116,14 @@ impl _Environment {
         self.bindings.insert(name, value);
     }
 
-    /*
     pub fn set_variable_value(&mut self, name: String, value: Object) -> Option<Object> {
-        self.bindings.insert(name, value)
+        if self.bindings.contains_key(&name) {
+            self.bindings.insert(name, value);
+            None
+        } else if let Some(ref env) = self.parent {
+            env.set_variable_value(name, value)
+        } else {
+            Some(Object::Error(format!("Unbound variable: {}", name)))
+        }
     }
-    */
 }

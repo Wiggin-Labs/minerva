@@ -21,9 +21,8 @@ pub fn eval(exp: Object, env: &Environment) -> Option<Object> {
         exp.lookup_variable_value(env)
     } else if exp.is_quoted() {
         exp.text_of_quotation()
-    //} else if exp.is_assignment() {
-        //exp.eval_assignment(env);
-        //None
+    } else if exp.is_assignment() {
+        exp.eval_assignment(env)
     } else if exp.is_definition() {
         exp.eval_definition(env);
         None
@@ -117,5 +116,12 @@ mod test {
         assert!(run(input, &env).is_none());
         let input = "(sum 5)";
         assert_eq!(Some(Object::Number(BigInt::from(10))), run(input, &env));
+
+        let input = "(define a 5)";
+        assert!(run(input, &env).is_none());
+        assert_eq!(Some(Object::Number(BigInt::from(5))), run("a", &env));
+        let input = "(set! a 6)";
+        assert!(run(input, &env).is_none());
+        assert_eq!(Some(Object::Number(BigInt::from(6))), run("a", &env));
     }
 }

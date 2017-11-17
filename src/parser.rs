@@ -86,7 +86,7 @@ impl<'a> Parser<'a> {
             Some(c) if c.is_whitespace() => {}
             Some('(') => self.tokens.push(Token::LeftParen),
             Some(')') => self.tokens.push(Token::RightParen),
-            _ => panic!("unexpected input"),
+            _ => {}
         }
     }
 
@@ -113,6 +113,7 @@ impl<'a> Parser<'a> {
                 _ => panic!("unexpected input"),
             }
         }
+        self.tokens.push(Token::Number(buf));
     }
 
     pub fn parse_symbol(&mut self, first: char) {
@@ -139,6 +140,7 @@ impl<'a> Parser<'a> {
                 _ => panic!("unexpected input"),
             }
         }
+        self.tokens.push(Token::Symbol(buf));
     }
 }
 
