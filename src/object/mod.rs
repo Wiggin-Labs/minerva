@@ -106,8 +106,7 @@ impl Object {
                 car: eval(self.first_operand(), env).unwrap(),
                 cdr: self.rest_operands().list_of_values(env),
             };
-            let p = Object::Pair(Rc::new(pair));
-            p
+            Object::Pair(Rc::new(pair))
         }
     }
 

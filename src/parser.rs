@@ -144,7 +144,7 @@ impl<'a> Parser<'a> {
 
 fn is_symbol_char(c: char, start: bool) -> bool {
     match c {
-        'a' ... 'z' | 'A' ... 'Z' | '-' |
+        'a' ... 'z' | 'A' ... 'Z' | '-' | '+' |
         '!' | '$' | '%' | '&' | '*' | '/' | ':' |
         '<' | '=' | '>' | '?' | '~' | '_' | '^' => true,
         '0' ... '9' => !start,

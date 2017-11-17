@@ -97,5 +97,22 @@ mod test {
         assert_eq!(Some(Object::Number(BigInt::from(1))), run(input, &env));
         let input = "(factorial 3)";
         assert_eq!(Some(Object::Number(BigInt::from(6))), run(input, &env));
+
+        let input = r"
+(define (sum b)
+  (define (loop a count)
+    (if (= a b)
+        count
+        (loop (+ a 1) (+ count a))))
+  (loop 1 0))
+";
+        assert!(run(input, &env).is_none());
+        let input = "(sum 5)";
+        //assert_eq!(Some(Object::Number(BigInt::from(10))), run(input, &env));
+        let input = "(define (loop a count) (if (= a 5) count (loop (+ a 1) (+ count a))))";
+        run(input, &env);
+        println!("start");
+        let input = "(loop 1 0)";
+        assert_eq!(Some(Object::Number(BigInt::from(10))), run(input, &env));
     }
 }
