@@ -16,7 +16,7 @@ fn main() {
         {
             stdin().read_line(&mut input).unwrap();
         }
-        let tokens = scheme::Parser::parse(&input);
+        let tokens = scheme::Parser::parse(&input).unwrap();
         let objects = scheme::Token::build_ast(tokens);
         for object in objects {
             if let Some(value) = scheme::eval(object, &env) {

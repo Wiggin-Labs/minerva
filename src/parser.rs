@@ -2,9 +2,27 @@ use Object;
 
 use num::BigInt;
 
+use std::fmt::{self, Display, Formatter};
 use std::iter::Peekable;
 use std::slice::Iter;
 use std::str::Chars;
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum ParseError {
+    EOF,
+    Input,
+    Token,
+}
+
+impl Display for ParseError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            ParseError::EOF => write!(f, "Unexpected end of input"),
+            ParseError::Input => write!(f, "Unexpected input"),
+            ParseError::Token => write!(f, "Unexpected token"),
+        }
+    }
+}
 
 pub struct Parser<'a> {
     position: usize,
@@ -13,16 +31,16 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn parse(input: &'a str) -> Vec<Token> {
+    pub fn parse(input: &'a str) -> Result<Vec<Token>, ParseError> {
         let input = input.chars().peekable();
         let mut parser = Parser {
             position: 0,
             input: input,
             tokens: Vec::new(),
         };
-        parser._parse();
+        parser._parse()?;
 
-        parser.tokens
+        Ok(parser.tokens)
     }
 
     fn next(&mut self) -> Option<char> {
@@ -34,23 +52,24 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn _parse(&mut self) {
+    fn _parse(&mut self) -> Result<(), ParseError> {
         while let Some(c) = self.next() {
             match c {
                 '(' => self.tokens.push(Token::LeftParen),
                 ')' => self.tokens.push(Token::RightParen),
                 '\'' => self.tokens.push(Token::Quote),
-                '"' => self.parse_string(),
-                '#' => self.parse_bool(),
+                '"' => self.parse_string()?,
+                '#' => self.parse_bool()?,
                 c if c.is_whitespace() => {}
-                '0' ... '9' => self.parse_number(c),
-                c if is_symbol_char(c, true) => self.parse_symbol(c),
+                '0' ... '9' => self.parse_number(c)?,
+                c if is_symbol_char(c, true) => self.parse_symbol(c)?,
                 _ => panic!("unexpected input {} at {}", c, self.position),
             }
         }
+        Ok(())
     }
 
-    pub fn parse_string(&mut self) {
+    pub fn parse_string(&mut self) -> Result<(), ParseError> {
         let mut buf = String::new();
         while let Some(c) = self.next() {
             match c {
@@ -62,61 +81,66 @@ impl<'a> Parser<'a> {
                         _ => buf.push(c),
                     }
                 } else {
-                    panic!("unexpected end of input");
+                    return Err(ParseError::EOF);
                 },
                 '"' => {
                     self.tokens.push(Token::String(buf));
-                    return;
+                    return Ok(());
                 }
                 _ => buf.push(c),
             }
         }
-        panic!("unexpected end of input");
+        Err(ParseError::EOF)
     }
 
-    pub fn parse_bool(&mut self) {
+    pub fn parse_bool(&mut self) -> Result<(), ParseError> {
         match self.next() {
             Some('t') => self.tokens.push(Token::Bool(true)),
             Some('f') => self.tokens.push(Token::Bool(false)),
-            Some(_) => panic!("unexpected input"),
-            _ => panic!("unexpected end of input"),
+            Some(_) => return Err(ParseError::Input),
+            _ => return Err(ParseError::EOF),
         }
 
         match self.next() {
-            Some(c) if c.is_whitespace() => {}
+            Some(c) if c.is_whitespace() => {},
             Some('(') => self.tokens.push(Token::LeftParen),
             Some(')') => self.tokens.push(Token::RightParen),
-            _ => {}
+            _ => {
+                // TODO
+                panic!("unexpected input");
+            }
         }
+        Ok(())
     }
 
-    pub fn parse_number(&mut self, first: char) {
+    pub fn parse_number(&mut self, first: char) -> Result<(), ParseError> {
         let mut buf = String::new();
         buf.push(first);
         while let Some(c) = self.next() {
             match c {
                 c if c.is_whitespace() => {
                     self.tokens.push(Token::Number(buf));
-                    return;
+                    return Ok(());
                 }
                 '0' ... '9' => buf.push(c),
                 '(' => {
                     self.tokens.push(Token::Number(buf));
                     self.tokens.push(Token::LeftParen);
-                    return;
+                    return Ok(());
                 }
                 ')' => {
                     self.tokens.push(Token::Number(buf));
                     self.tokens.push(Token::RightParen);
-                    return;
+                    return Ok(());
                 }
-                _ => panic!("unexpected input"),
+                _ => return Err(ParseError::Input),
             }
         }
         self.tokens.push(Token::Number(buf));
+        Ok(())
     }
 
-    pub fn parse_symbol(&mut self, first: char) {
+    pub fn parse_symbol(&mut self, first: char) -> Result<(), ParseError> {
         let mut buf = String::new();
         buf.push(first);
         while let Some(c) = self.next() {
@@ -124,9 +148,11 @@ impl<'a> Parser<'a> {
                 c if is_symbol_char(c, false) => buf.push(c),
                 c if c.is_whitespace() => {
                     if buf == "nil" {
-                        return self.tokens.push(Token::Nil);
+                        self.tokens.push(Token::Nil);
+                        return Ok(());
                     } else {
-                        return self.tokens.push(Token::Symbol(buf));
+                        self.tokens.push(Token::Symbol(buf));
+                        return Ok(());
                     }
                 }
                 ')' => {
@@ -135,12 +161,14 @@ impl<'a> Parser<'a> {
                     } else {
                         self.tokens.push(Token::Symbol(buf));
                     }
-                    return self.tokens.push(Token::RightParen);
+                    self.tokens.push(Token::RightParen);
+                    return Ok(())
                 }
-                _ => panic!("unexpected input"),
+                _ => return Err(ParseError::Input),
             }
         }
         self.tokens.push(Token::Symbol(buf));
+        Ok(())
     }
 }
 
