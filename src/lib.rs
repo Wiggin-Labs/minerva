@@ -6,11 +6,13 @@ extern crate num;
 
 //mod bytecode;
 mod environment;
+mod error;
 mod object;
 mod parser;
 //pub mod vm;
 
 pub use environment::{Environment, init_env};
+pub use error::Error;
 pub use object::{Lambda, Object, Pair, Primitive};
 pub use parser::{Parser, Token};
 
@@ -37,7 +39,7 @@ pub fn eval(exp: Object, env: &Environment) -> Option<Object> {
     } else if exp.is_application() {
         apply(eval(exp.operator(), env).unwrap(), exp.operands().list_of_values(env))
     } else {
-        Some(Object::Error(format!("Unknown expression type {}", exp)))
+        Some(Object::Error(Error::UserDefined(format!("Unknown expression type {}", exp))))
     }
 }
 
@@ -48,10 +50,8 @@ pub fn apply(procedure: Object, mut arguments: Object) -> Option<Object> {
         let mut env = procedure.procedure_env();
         let mut parameters = procedure.procedure_parameters();
 
-        if arguments.length() < parameters.length() {
-            return Some(Object::Error("Too few argument provided".to_string()));
-        } else if parameters.length() > arguments.length() {
-            return Some(Object::Error("Too many argument provided".to_string()));
+        if arguments.length() != parameters.length() {
+            return Some(Object::Error(Error::WrongArgs));
         }
 
         while !parameters.is_null() {
@@ -61,7 +61,7 @@ pub fn apply(procedure: Object, mut arguments: Object) -> Option<Object> {
         }
         procedure.procedure_body().eval_sequence(&mut env)
     } else {
-        Some(Object::Error(format!("Unbound variable: {}", procedure)))
+        Some(Object::Error(Error::UserDefined("Unknown procedure type".to_string())))
     }
 }
 

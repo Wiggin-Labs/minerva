@@ -1,5 +1,7 @@
 use super::Object;
 
+use Error;
+
 use num::{BigInt, One, Zero};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -21,7 +23,8 @@ impl Primitive {
         let len = args.length();
         if let Some(n) = self.args {
             if len != n {
-                return Some(Object::Error("Wrong number of arguments passed to procedure".to_string()));
+                //TODO
+                //return Some(Object::Error("Wrong number of arguments passed to procedure".to_string()));
             }
         }
 
@@ -45,7 +48,7 @@ impl Primitive {
                 }
                 let n = match args.car() {
                     Object::Number(n) => n,
-                    _ => return Some(Object::Error("NUMBER expected".to_string())),
+                    _ => return Some(Object::Error(Error::NumberExpected)),
                 };
                 let mut args = args.cdr();
                 while !args.is_null() {
@@ -53,7 +56,7 @@ impl Primitive {
                         Object::Number(m) => if n != m {
                             return Some(Object::Bool(false));
                         }
-                        _ => return Some(Object::Error("NUMBER expected".to_string())),
+                        _ => return Some(Object::Error(Error::NumberExpected)),
                     }
                     args = args.cdr();
                 }
@@ -65,7 +68,7 @@ impl Primitive {
                 while !args.is_null() {
                     match args.car() {
                         Object::Number(n) => sum = sum + n,
-                        _ => return Some(Object::Error("NUMBER expected".to_string())),
+                        _ => return Some(Object::Error(Error::NumberExpected)),
                     }
                     args = args.cdr();
                 }
@@ -79,7 +82,7 @@ impl Primitive {
                     if let Object::Number(n) = args.car() {
                         Some(Object::Number(-n))
                     } else {
-                        Some(Object::Error("NUMBER expected".to_string()))
+                        Some(Object::Error(Error::NumberExpected))
                     }
                 } else {
                     let mut sum = args.car().unwrap_number();
@@ -87,7 +90,7 @@ impl Primitive {
                     while !args.is_null() {
                         match args.car() {
                             Object::Number(n) => sum = sum - n,
-                            _ => return Some(Object::Error("NUMBER expected".to_string())),
+                            _ => return Some(Object::Error(Error::NumberExpected)),
                         }
                         args = args.cdr();
                     }
@@ -100,14 +103,14 @@ impl Primitive {
                 while !args.is_null() {
                     match args.car() {
                         Object::Number(n) => prod = prod * n,
-                        _ => return Some(Object::Error("NUMBER expected".to_string())),
+                        _ => return Some(Object::Error(Error::NumberExpected)),
                     }
                     args = args.cdr();
                 }
                 Some(Object::Number(prod))
             }
             "/" => None,
-            _ => Some(Object::Error(format!("Unbound variable {}", self.name))),
+            _ => Some(Object::Error(Error::UnboundVariable(self.name))),
         }
     }
 }

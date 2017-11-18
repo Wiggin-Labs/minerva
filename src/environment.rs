@@ -1,3 +1,4 @@
+use Error;
 use object::{Object, Primitive};
 
 use std::cell::RefCell;
@@ -123,7 +124,7 @@ impl _Environment {
         } else if let Some(ref env) = self.parent {
             env.set_variable_value(name, value)
         } else {
-            Some(Object::Error(format!("Unbound variable: {}", name)))
+            Some(Object::Error(Error::UnboundVariable(name)))
         }
     }
 }

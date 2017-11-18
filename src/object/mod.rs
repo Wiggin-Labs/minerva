@@ -2,7 +2,7 @@ mod primitive;
 
 pub use self::primitive::Primitive;
 
-use {Environment, eval};
+use {Environment, Error, eval};
 
 use num::BigInt;
 
@@ -52,7 +52,7 @@ pub enum Object {
     Pair(Rc<RefCell<Pair>>),
     Lambda(Rc<Lambda>),
     Primitive(Primitive),
-    Error(String),
+    Error(Error),
 }
 
 impl Object {
@@ -207,14 +207,14 @@ impl Object {
     pub fn car(&self) -> Object {
         match self {
             Object::Pair(pair) => pair.borrow().car.clone(),
-            _ => Object::Error("PAIR expected".to_string()),
+            _ => Object::Error(Error::PairExpected),
         }
     }
 
     pub fn cdr(&self) -> Object {
         match self {
             Object::Pair(pair) => pair.borrow().cdr.clone(),
-            _ => Object::Error("PAIR expected".to_string()),
+            _ => Object::Error(Error::PairExpected),
         }
     }
 
