@@ -1,6 +1,6 @@
 [package]
 authors = ["Hunter Praska <hunter@wiggin-labs.com>"]
-name = "scheme"
+name = "r7-rs"
 version = "0.1.0"
 
 [dependencies]

@@ -1,9 +1,9 @@
-extern crate scheme;
+extern crate r7_rs;
 
 use std::io::{stdin, stdout, Write};
 
 fn main() {
-    let env = scheme::init_env();
+    let env = r7_rs::init_env();
     loop {
         // Print prompt
         print!(">> ");
@@ -16,10 +16,10 @@ fn main() {
         {
             stdin().read_line(&mut input).unwrap();
         }
-        let tokens = scheme::Parser::parse(&input).unwrap();
-        let objects = scheme::Token::build_ast(tokens);
+        let tokens = r7_rs::Parser::parse(&input).unwrap();
+        let objects = r7_rs::Token::build_ast(tokens);
         for object in objects {
-            if let Some(value) = scheme::eval(object, &env) {
+            if let Some(value) = r7_rs::eval(object, &env) {
                 println!("{}", value);
             }
         }
