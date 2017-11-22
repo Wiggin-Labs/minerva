@@ -103,8 +103,15 @@ impl Object {
         if self.has_no_operands() {
             Object::Nil
         } else {
-            Object::cons(eval(self.first_operand(), env).unwrap(),
-                         self.rest_operands().list_of_values(env))
+            let car = eval(self.first_operand(), env).unwrap();
+            if car.is_error() {
+                return car;
+            }
+            let cdr = self.rest_operands().list_of_values(env);
+            if cdr.is_error() {
+                return cdr;
+            }
+            Object::cons(car, cdr)
         }
     }
 
@@ -439,8 +446,13 @@ impl Object {
         }
     }
 
-    pub fn lookup_variable_value(self, env: &Environment) -> Option<Object> {
-        env.lookup_variable_value(&self.symbol_value())
+    pub fn lookup_variable_value(self, env: &Environment) -> Object {
+        let var = self.symbol_value();
+        if let Some(value) = env.lookup_variable_value(&var) {
+            value
+        } else {
+            Object::Error(Error::UnboundVariable(var))
+        }
     }
 
     pub fn is_primitive_procedure(&self) -> bool {
@@ -472,6 +484,13 @@ impl Object {
             Object::cons(next, Object::Nil)
         } else {
             Object::cons(self.car(), self.cdr().push(next))
+        }
+    }
+
+    pub fn is_error(&self) -> bool {
+        match self {
+            Object::Error(_) => true,
+            _ => false,
         }
     }
 }

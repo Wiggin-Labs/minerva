@@ -20,7 +20,7 @@ pub fn eval(exp: Object, env: &Environment) -> Option<Object> {
     if exp.is_self_evaluating() {
         Some(exp)
     } else if exp.is_variable() {
-        exp.lookup_variable_value(env)
+        Some(exp.lookup_variable_value(env))
     } else if exp.is_quoted() {
         exp.text_of_quotation()
     } else if exp.is_assignment() {
@@ -37,7 +37,15 @@ pub fn eval(exp: Object, env: &Environment) -> Option<Object> {
     } else if exp.is_cond() {
         eval(exp.cond_to_if(), env)
     } else if exp.is_application() {
-        apply(eval(exp.operator(), env).unwrap(), exp.operands().list_of_values(env))
+        let operator = eval(exp.operator(), env).unwrap();
+        if operator.is_error() {
+            return Some(operator);
+        }
+        let operands = exp.operands().list_of_values(env);
+        if operands.is_error() {
+            return Some(operands);
+        }
+        apply(operator, operands)
     } else {
         Some(Object::Error(Error::UserDefined(format!("Unknown expression type {}", exp))))
     }
@@ -72,8 +80,8 @@ mod test {
     use num::BigInt;
 
     fn run(input: &str, env: &Environment) -> Option<Object> {
-        let tokens = Parser::parse(input);
-        let objects = Token::build_ast(tokens);
+        let tokens = Parser::parse(input).unwrap();
+        let objects = Token::build_ast(tokens).unwrap();
         let object = objects[0].clone();
         eval(object, env)
     }
@@ -123,5 +131,11 @@ mod test {
         let input = "(set! a 6)";
         assert!(run(input, &env).is_none());
         assert_eq!(Some(Object::Number(BigInt::from(6))), run("a", &env));
+
+        let input = "(Car '(a b c))";
+        assert!(run(input, &env).is_some());
+
+        let input = "(car b)";
+        assert!(run(input, &env).is_some());
     }
 }

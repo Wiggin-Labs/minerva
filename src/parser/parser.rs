@@ -42,7 +42,7 @@ impl<'a> Parser<'a> {
                 c if c.is_whitespace() => {}
                 '0' ... '9' => self.parse_number(c)?,
                 c if is_symbol_char(c, true) => self.parse_symbol(c)?,
-                _ => panic!("unexpected input {} at {}", c, self.position),
+                _ => return Err(ParseError::Input),
             }
         }
         Ok(())
@@ -84,10 +84,8 @@ impl<'a> Parser<'a> {
             Some(c) if c.is_whitespace() => {},
             Some('(') => self.tokens.push(Token::LeftParen),
             Some(')') => self.tokens.push(Token::RightParen),
-            _ => {
-                // TODO
-                panic!("unexpected input");
-            }
+            Some(_) => return Err(ParseError::Input),
+            None => {},
         }
         Ok(())
     }

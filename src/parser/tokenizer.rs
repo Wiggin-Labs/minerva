@@ -54,11 +54,11 @@ impl Token {
         };
 
         let quoted = match next {
-            Symbol(ref s) => Object::Symbol(s.to_owned()),
-            Number(ref i) => {
+            Symbol(s) => Object::Symbol(s.to_owned()),
+            Number(i) => {
                 return Ok(Object::Number(i.parse::<BigInt>().unwrap()));
             },
-            String(ref s) => {
+            String(s) => {
                 return Ok(Object::String(s.to_owned()));
             },
             LeftParen => {
