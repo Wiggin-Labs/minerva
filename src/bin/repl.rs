@@ -16,8 +16,21 @@ fn main() {
         {
             stdin().read_line(&mut input).unwrap();
         }
-        let tokens = r7_rs::Parser::parse(&input).unwrap();
-        let objects = r7_rs::Token::build_ast(tokens);
+        let tokens = match r7_rs::Parser::parse(&input) {
+            Ok(t) => t,
+            Err(e) => {
+                println!("ERROR: {}", e);
+                continue;
+            }
+        };
+        let objects = match r7_rs::Token::build_ast(tokens) {
+            Ok(o) => o,
+            Err(e) => {
+                println!("ERROR: {}", e);
+                continue;
+            }
+        };
+
         for object in objects {
             if let Some(value) = r7_rs::eval(object, &env) {
                 println!("{}", value);

@@ -1,3 +1,4 @@
+use super::ParseError;
 use Object;
 
 use num::BigInt;
@@ -17,7 +18,7 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn build_ast(tokens: Vec<Self>) -> Vec<Object> {
+    pub fn build_ast(tokens: Vec<Self>) -> Result<Vec<Object>, ParseError> {
         use self::Token::*;
         let mut exprs = Vec::new();
         let mut tokens = tokens.iter();
@@ -25,12 +26,12 @@ impl Token {
             match token {
                 LeftParen => {
                     let mut list = Object::Nil;
-                    Self::parse_expr(&mut tokens, &mut list);
+                    Self::parse_expr(&mut tokens, &mut list)?;
                     exprs.push(list);
                 }
-                RightParen => panic!("unexpected right paren"),
+                RightParen => return Err(ParseError::UnexpectedCloseParen),
                 Quote => {
-                    let list = Self::parse_quote(&mut tokens);
+                    let list = Self::parse_quote(&mut tokens)?;
                     exprs.push(list);
                 }
                 Nil => exprs.push(Object::Nil),
@@ -41,38 +42,48 @@ impl Token {
             }
         }
 
-        exprs
+        Ok(exprs)
     }
 
-    fn parse_quote<'a>(tokens: &mut Iter<'a, Self>) -> Object {
+    fn parse_quote<'a>(tokens: &mut Iter<'a, Self>) -> Result<Object, ParseError> {
         use self::Token::*;
-        let quoted = match *tokens.next().unwrap() {
+        let next = if let Some(t) = tokens.next() {
+            t
+        } else {
+            return Err(ParseError::BadQuote);
+        };
+
+        let quoted = match next {
             Symbol(ref s) => Object::Symbol(s.to_owned()),
             Number(ref i) => {
-                return Object::Number(i.parse::<BigInt>().unwrap());
+                return Ok(Object::Number(i.parse::<BigInt>().unwrap()));
             },
             String(ref s) => {
-                return Object::String(s.to_owned());
+                return Ok(Object::String(s.to_owned()));
             },
             LeftParen => {
                 let mut list = Object::Nil;
-                Self::parse_expr(tokens, &mut list);
+                Self::parse_expr(tokens, &mut list)?;
                 list
             },
-            _ => panic!("unexpected token in quote"),
+            Nil => return Ok(Object::Nil),
+            Bool(b) => return Ok(Object::Bool(*b)),
+            RightParen => return Err(ParseError::UnexpectedCloseParen),
+            // TODO: what should happen on `''a`?
+            _ => return Err(ParseError::BadQuote),
         };
-        Object::cons(Object::Symbol("quote".to_string()),
-                     Object::cons(quoted, Object::Nil))
+        Ok(Object::cons(Object::Symbol("quote".to_string()),
+                        Object::cons(quoted, Object::Nil)))
     }
 
-    fn parse_expr<'a>(tokens: &mut Iter<'a, Self>, list: &mut Object) {
+    fn parse_expr<'a>(tokens: &mut Iter<'a, Self>, list: &mut Object) -> Result<(), ParseError> {
         use self::Token::*;
         let mut parens = 1;
         while let Some(token) = tokens.next() {
             match token {
                 LeftParen => {
                     let mut l = Object::Nil;
-                    Self::parse_expr(tokens, &mut l);
+                    Self::parse_expr(tokens, &mut l)?;
                     *list = list.push(l);
                 },
                 RightParen => {
@@ -80,7 +91,7 @@ impl Token {
                     break;
                 }
                 Quote => {
-                    let l = Self::parse_quote(tokens);
+                    let l = Self::parse_quote(tokens)?;
                     *list = list.push(l);
                 },
                 Nil => *list = list.push(Object::Nil),
@@ -90,6 +101,11 @@ impl Token {
                 Number(i) => *list = list.push(Object::Number(i.parse::<BigInt>().unwrap())),
             }
         }
-        assert!(parens == 0);
+
+        if parens != 0 {
+            Err(ParseError::UnbalancedParen)
+        } else {
+            Ok(())
+        }
     }
 }
