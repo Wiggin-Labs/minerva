@@ -4,7 +4,7 @@ use num::{BigInt, One, Zero};
 use std::fmt::{self, Display, Formatter};
 use std::ops::{Add, Mul, Neg, Sub};
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, is_enum_variant)]
 pub enum Number {
     Integer(BigInt),
     Rational,
@@ -36,34 +36,6 @@ impl Number {
 
     pub fn one() -> Self {
         Number::Integer(BigInt::one())
-    }
-
-    pub fn is_integer(&self) -> bool {
-        match self {
-            Number::Integer(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_rational(&self) -> bool {
-        match self {
-            Number::Rational => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_real(&self) -> bool {
-        match self {
-            Number::Real => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_complex(&self) -> bool {
-        match self {
-            Number::Complex => true,
-            _ => false,
-        }
     }
 }
 
