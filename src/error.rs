@@ -6,6 +6,7 @@ pub enum Error {
     PairExpected,
     NumberExpected,
     WrongArgs,
+    ElseNotLast,
     UserDefined(String),
 }
 
@@ -16,6 +17,7 @@ impl Display for Error {
             Error::PairExpected => write!(f, "PAIR expected"),
             Error::NumberExpected => write!(f, "NUMBER expected"),
             Error::WrongArgs => write!(f, "Incorrect number of arguments passed to procedure"),
+            Error::ElseNotLast => write!(f, "Else expression not last"),
             Error::UserDefined(e) => write!(f, "{}", e),
         }
     }

@@ -8,6 +8,5 @@ this because it returns when it finds that 1 != 2. Is this only the = function o
 are all primitives type checked?
 - Support other scheme types, rat, floating point, complex, vectors
   - This mostly requires improving the parser
-  - Will probably require a Number enum for generic operations
 - Implement more primitives
 - Support more of r7rs
