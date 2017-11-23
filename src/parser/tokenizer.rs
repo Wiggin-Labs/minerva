@@ -1,6 +1,7 @@
 use super::ParseError;
 use Object;
 
+use std::mem;
 use std::slice::Iter;
 
 #[derive(Debug)]
@@ -23,22 +24,6 @@ impl Token {
         }
     }
 
-    pub fn build_list(tokens: Vec<Self>) -> Result<Vec<Object>, ParseError> {
-        use self::Token::*;
-        let mut exprs = Vec::new();
-        let mut tokens = tokens.iter();
-        let mut stack = Vec::new();
-
-        let mut parens = 0;
-        while let Some(token) = tokens.next() {
-            match token {
-                LeftParen => {
-                }
-            }
-        }
-        Ok(exprs)
-    }
-
     pub fn build_ast(tokens: Vec<Self>) -> Result<Vec<Object>, ParseError> {
         use self::Token::*;
         let mut exprs = Vec::new();
@@ -46,8 +31,7 @@ impl Token {
         while let Some(token) = tokens.next() {
             match token {
                 LeftParen => {
-                    let mut list = Object::Nil;
-                    Self::parse_expr(&mut tokens, &mut list)?;
+                    let list = Self::parse_expr(&mut tokens)?;
                     exprs.push(list);
                 }
                 RightParen => return Err(ParseError::UnexpectedCloseParen),
@@ -80,9 +64,7 @@ impl Token {
             num if next.is_number() => return Ok(Object::Number(::Number::from_token(num))),
             String(s) => return Ok(Object::String(s.to_owned())),
             LeftParen => {
-                let mut list = Object::Nil;
-                Self::parse_expr(tokens, &mut list)?;
-                list
+                Self::parse_expr(tokens)?
             },
             Nil => return Ok(Object::Nil),
             Bool(b) => return Ok(Object::Bool(*b)),
@@ -94,60 +76,44 @@ impl Token {
                         Object::cons(quoted, Object::Nil)))
     }
 
-    fn parse_expr<'a>(tokens: &mut Iter<'a, Self>, list: &mut Object) -> Result<(), ParseError> {
+    fn parse_expr<'a>(tokens: &mut Iter<'a, Self>) -> Result<Object, ParseError> {
         use self::Token::*;
         let mut parens = 1;
         let mut stack = Vec::new();
-        let mut l = Object::Nil;
+        let mut list = Object::Nil;
 
-        while parens > 0 {
-            let token = if let Some(t) = tokens.next() {
-                t
-            } else {
-                return Err(ParseError::UnbalancedParen);
-            };
-
+        while let Some(token) = tokens.next() {
             match token {
                 LeftParen => {
                     parens += 1;
                     let mut new = Object::Nil;
-                    mem::swap(new, l);
+                    mem::swap(&mut new, &mut list);
                     stack.push(new);
                 }
                 RightParen => {
                     parens -= 1;
-                }
-            }
-        }
-        while let Some(token) = tokens.next() {
-            match token {
-                LeftParen => {
-                    let mut l = Object::Nil;
-                    Self::parse_expr(tokens, &mut l)?;
-                    *list = list.push(l);
-                },
-                RightParen => {
-                    parens -= 1;
-                    break;
+                    if parens == 0 {
+                        debug_assert!(stack.is_empty());
+                        return Ok(list);
+                    }
+                    let mut old = stack.pop().unwrap();
+                    mem::swap(&mut list, &mut old);
+                    list = list.push(old);
                 }
                 Quote => {
                     let l = Self::parse_quote(tokens)?;
-                    *list = list.push(l);
+                    list = list.push(l);
                 },
-                Nil => *list = list.push(Object::Nil),
-                Bool(b) => *list = list.push(Object::Bool(*b)),
-                String(s) => *list = list.push(Object::String(s.to_owned())),
-                Symbol(s) => *list = list.push(Object::Symbol(s.to_owned())),
+                Nil => list = list.push(Object::Nil),
+                Bool(b) => list = list.push(Object::Bool(*b)),
+                String(s) => list = list.push(Object::String(s.to_owned())),
+                Symbol(s) => list = list.push(Object::Symbol(s.to_owned())),
                 num if token.is_number() =>
-                    *list = list.push(Object::Number(::Number::from_token(num))),
+                    list = list.push(Object::Number(::Number::from_token(num))),
                 _ => unreachable!(),
             }
         }
 
-        if parens != 0 {
-            Err(ParseError::UnbalancedParen)
-        } else {
-            Ok(())
-        }
+        Err(ParseError::UnbalancedParen)
     }
 }

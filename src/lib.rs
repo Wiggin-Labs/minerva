@@ -143,8 +143,5 @@ mod test {
 
         let input = "((/ 1 2 3) /41 2 3)";
         assert!(!run(input, &env).is_void());
-
-        let input = include_str!("../tests/input.scm");
-        assert!(!run(input, &env).is_void());
     }
 }
