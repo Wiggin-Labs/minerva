@@ -23,6 +23,22 @@ impl Token {
         }
     }
 
+    pub fn build_list(tokens: Vec<Self>) -> Result<Vec<Object>, ParseError> {
+        use self::Token::*;
+        let mut exprs = Vec::new();
+        let mut tokens = tokens.iter();
+        let mut stack = Vec::new();
+
+        let mut parens = 0;
+        while let Some(token) = tokens.next() {
+            match token {
+                LeftParen => {
+                }
+            }
+        }
+        Ok(exprs)
+    }
+
     pub fn build_ast(tokens: Vec<Self>) -> Result<Vec<Object>, ParseError> {
         use self::Token::*;
         let mut exprs = Vec::new();
@@ -81,6 +97,28 @@ impl Token {
     fn parse_expr<'a>(tokens: &mut Iter<'a, Self>, list: &mut Object) -> Result<(), ParseError> {
         use self::Token::*;
         let mut parens = 1;
+        let mut stack = Vec::new();
+        let mut l = Object::Nil;
+
+        while parens > 0 {
+            let token = if let Some(t) = tokens.next() {
+                t
+            } else {
+                return Err(ParseError::UnbalancedParen);
+            };
+
+            match token {
+                LeftParen => {
+                    parens += 1;
+                    let mut new = Object::Nil;
+                    mem::swap(new, l);
+                    stack.push(new);
+                }
+                RightParen => {
+                    parens -= 1;
+                }
+            }
+        }
         while let Some(token) = tokens.next() {
             match token {
                 LeftParen => {
