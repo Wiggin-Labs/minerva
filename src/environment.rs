@@ -1,5 +1,5 @@
 use Error;
-use object::{Object, Primitive};
+use object::{Arity, Object, Primitive};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -19,14 +19,14 @@ macro_rules! init_env {
 
 pub fn init_env() -> Environment {
     let bindings = init_env!{
-        ("cons", Some(2)),
-        ("car", Some(1)),
-        ("cdr", Some(1)),
-        ("=", None::<usize>),
-        ("+", None::<usize>),
-        ("-", None::<usize>),
-        ("*", None::<usize>),
-        ("/", None::<usize>)
+        ("cons", Arity::Exactly(2)),
+        ("car", Arity::Exactly(1)),
+        ("cdr", Arity::Exactly(1)),
+        ("=", Arity::AtLeast(0)),
+        ("+", Arity::AtLeast(0)),
+        ("-", Arity::AtLeast(1)),
+        ("*", Arity::AtLeast(0)),
+        ("/", Arity::AtLeast(1))
     };
     Environment::from_hashmap(bindings)
 }

@@ -1,6 +1,6 @@
 mod primitive;
 
-pub use self::primitive::Primitive;
+pub use self::primitive::{Arity, Primitive};
 
 use {Environment, Error, eval};
 
@@ -521,13 +521,7 @@ impl Display for Object {
             }
             // TODO: print proc name and number of args
             Object::Lambda(_l) => write!(f, "#<procedure TODO>"),
-            Object::Primitive(l) => {
-                write!(f, "#<procedure {}", l.name)?;
-                if let Some(n) = l.args {
-                    write!(f, " {} args", n)?;
-                }
-                write!(f, ">")
-            }
+            Object::Primitive(l) => write!(f, "#<procedure {} {} args>", l.name, l.args),
             Object::Error(e) => write!(f, "ERROR: {}", e),
         }
     }

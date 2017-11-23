@@ -1,18 +1,48 @@
 use super::Object;
-
 use Error;
 
 use num::{BigInt, One, Zero};
 
+use std::fmt::{self, Display, Formatter};
+
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq)]
+pub enum Arity {
+    /// Thunk
+    None,
+    /// Normal procedure
+    Exactly(usize),
+    /// Variadic procedure
+    AtLeast(usize),
+}
+
+impl Arity {
+    pub fn correct_number_of_args(&self, args: usize) -> bool {
+        match self {
+            Arity::None => args == 0,
+            Arity::Exactly(n) => args == *n,
+            Arity::AtLeast(n) => args >= *n,
+        }
+    }
+}
+
+impl Display for Arity {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Arity::None => Ok(()),
+            Arity::Exactly(n) => write!(f, "{}", n),
+            Arity::AtLeast(n) => write!(f, ">={}", n),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Primitive {
     pub name: String,
-    // None means that the procedure is a variadic
-    pub args: Option<usize>,
+    pub args: Arity,
 }
 
 impl Primitive {
-    pub fn new(name: String, args: Option<usize>) -> Self {
+    pub fn new(name: String, args: Arity) -> Self {
         Primitive {
             name,
             args,
@@ -21,11 +51,8 @@ impl Primitive {
 
     pub fn run(self, args: Object) -> Option<Object> {
         let len = args.length();
-        if let Some(n) = self.args {
-            if len != n {
-                //TODO
-                //return Some(Object::Error("Wrong number of arguments passed to procedure".to_string()));
-            }
+        if !self.args.correct_number_of_args(len) {
+            return Some(Object::Error(Error::WrongArgs));
         }
 
         match self.name.as_str() {
@@ -75,10 +102,7 @@ impl Primitive {
                 Some(Object::Number(sum))
             }
             "-" => {
-                if len < 1 {
-                    // TODO
-                    panic!("TODO");
-                } else if len == 1 {
+                if len == 1 {
                     if let Object::Number(n) = args.car() {
                         Some(Object::Number(-n))
                     } else {
