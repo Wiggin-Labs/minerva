@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cargo afl build
+AFL_SKIP_CPUFREQ=1 cargo afl fuzz -i in -o out target/debug/r7-rs-fuzz

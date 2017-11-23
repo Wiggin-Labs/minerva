@@ -1,0 +1,8 @@
+[package]
+authors = ["Hunter Praska <hunter@wiggin-labs.com>"]
+name = "r7-rs-fuzz"
+version = "0.1.0"
+
+[dependencies]
+afl = "0.2.2"
+r7-rs = { path = "../" }
