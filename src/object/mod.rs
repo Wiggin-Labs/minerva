@@ -42,7 +42,7 @@ impl Lambda {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, is_enum_variant)]
 pub enum Object {
     Void,
     Nil,
@@ -51,6 +51,7 @@ pub enum Object {
     String(String),
     Symbol(String),
     Pair(Rc<RefCell<Pair>>),
+    #[is_enum_variant(skip)]
     Lambda(Rc<Lambda>),
     Primitive(Primitive),
     Error(Error),
@@ -247,13 +248,6 @@ impl Object {
         self.cadr().cdr()
     }
 
-    pub fn is_symbol(&self) -> bool {
-        match self {
-            Object::Symbol(_) => true,
-            _ => false,
-        }
-    }
-
     pub fn definition_variable(&self) -> Object {
         let cadr = self.cadr();
         if cadr.is_symbol() {
@@ -377,13 +371,6 @@ impl Object {
         self.is_pair()
     }
 
-    pub fn is_pair(&self) -> bool {
-        match self {
-            Object::Pair(_) => true,
-            _ => false,
-        }
-    }
-
     pub fn operator(&self) -> Object {
         self.car()
     }
@@ -486,27 +473,6 @@ impl Object {
             Object::cons(next, Object::Nil)
         } else {
             Object::cons(self.car(), self.cdr().push(next))
-        }
-    }
-
-    pub fn is_error(&self) -> bool {
-        match self {
-            Object::Error(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_number(&self) -> bool {
-        match self {
-            Object::Number(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_void(&self) -> bool {
-        match self {
-            Object::Void => true,
-            _ => false,
         }
     }
 }

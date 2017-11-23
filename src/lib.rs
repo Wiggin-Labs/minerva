@@ -1,6 +1,8 @@
 #![feature(match_default_bindings)]
 
 #[macro_use]
+extern crate derive_is_enum_variant;
+#[macro_use]
 extern crate maplit;
 extern crate num;
 
