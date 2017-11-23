@@ -70,7 +70,7 @@ impl Environment {
         self.env.borrow_mut().define_variable(name, value);
     }
 
-    pub fn set_variable_value(&self, name: String, value: Object) -> Option<Object> {
+    pub fn set_variable_value(&self, name: String, value: Object) -> Object {
         self.env.borrow_mut().set_variable_value(name, value)
     }
 
@@ -117,14 +117,14 @@ impl _Environment {
         self.bindings.insert(name, value);
     }
 
-    pub fn set_variable_value(&mut self, name: String, value: Object) -> Option<Object> {
+    pub fn set_variable_value(&mut self, name: String, value: Object) -> Object {
         if self.bindings.contains_key(&name) {
             self.bindings.insert(name, value);
-            None
+            Object::Void
         } else if let Some(ref env) = self.parent {
             env.set_variable_value(name, value)
         } else {
-            Some(Object::Error(Error::UnboundVariable(name)))
+            Object::Error(Error::UnboundVariable(name))
         }
     }
 }

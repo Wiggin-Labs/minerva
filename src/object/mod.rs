@@ -44,6 +44,7 @@ impl Lambda {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Object {
+    Void,
     Nil,
     Bool(bool),
     Number(Number),
@@ -56,13 +57,13 @@ pub enum Object {
 }
 
 impl Object {
-    pub fn make_procedure(self, env: &Environment) -> Option<Object> {
+    pub fn make_procedure(self, env: &Environment) -> Object {
         let parameters = self.lambda_parameters();
         let body = self.lambda_body();
         let env = env.extend();
         let procedure = Lambda::new(parameters, body, env);
-        Some(Object::cons(Object::Symbol("procedure".to_string()),
-                          Object::Lambda(Rc::new(procedure))))
+        Object::cons(Object::Symbol("procedure".to_string()),
+                     Object::Lambda(Rc::new(procedure)))
     }
 
     pub fn is_compound_procedure(&self) -> bool {
@@ -90,7 +91,7 @@ impl Object {
         }
     }
 
-    pub fn eval_sequence(self, env: &Environment) -> Option<Object> {
+    pub fn eval_sequence(self, env: &Environment) -> Object {
         if self.is_last_exp() {
             eval(self.first_exp(), env)
         } else {
@@ -103,7 +104,7 @@ impl Object {
         if self.has_no_operands() {
             Object::Nil
         } else {
-            let car = eval(self.first_operand(), env).unwrap();
+            let car = eval(self.first_operand(), env);
             if car.is_error() {
                 return car;
             }
@@ -139,8 +140,8 @@ impl Object {
         }
     }
 
-    pub fn eval_if(self, env: &Environment) -> Option<Object> {
-        if eval(self.if_predicate(), env).unwrap().is_true() {
+    pub fn eval_if(self, env: &Environment) -> Object {
+        if eval(self.if_predicate(), env).is_true() {
             eval(self.if_consequent(), env)
         } else {
             eval(self.if_alternative(), env)
@@ -154,16 +155,17 @@ impl Object {
         }
     }
 
-    pub fn eval_assignment(self, env: &Environment) -> Option<Object> {
+    pub fn eval_assignment(self, env: &Environment) -> Object {
         let var = self.assignment_variable().symbol_value();
-        let val = eval(self.assignment_value(), env).unwrap();
+        let val = eval(self.assignment_value(), env);
         env.set_variable_value(var, val)
     }
 
-    pub fn eval_definition(self, env: &Environment) {
+    pub fn eval_definition(self, env: &Environment) -> Object {
         let var = self.definition_variable().symbol_value();
-        let val = eval(self.definition_value(), env).unwrap();
+        let val = eval(self.definition_value(), env);
         env.define_variable(var, val);
+        Object::Void
     }
 
     pub fn is_self_evaluating(&self) -> bool {
@@ -184,8 +186,8 @@ impl Object {
         self.is_tagged_list("quote".to_string())
     }
 
-    pub fn text_of_quotation(self) -> Option<Object> {
-        Some(self.cadr())
+    pub fn text_of_quotation(self) -> Object {
+        self.cadr()
     }
 
     pub fn is_tagged_list(&self, tag: String) -> bool {
@@ -470,7 +472,7 @@ impl Object {
         }
     }
 
-    pub fn apply_primitive_procedure(self, args: Object) -> Option<Object> {
+    pub fn apply_primitive_procedure(self, args: Object) -> Object {
         let procedure = self.primitive_implementation();
         let primitive = match procedure {
             Object::Primitive(p) => p,
@@ -500,12 +502,20 @@ impl Object {
             _ => false,
         }
     }
+
+    pub fn is_void(&self) -> bool {
+        match self {
+            Object::Void => true,
+            _ => false,
+        }
+    }
 }
 
 impl Display for Object {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Object::Nil => write!(f, "()"),
+            Object::Void => Ok(()),
             Object::Bool(b) => write!(f, "#{}", if *b { "t" } else { "f" }),
             Object::Number(n) => write!(f, "{}", n),
             Object::String(s) => write!(f, "\"{}\"", s),

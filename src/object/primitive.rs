@@ -47,45 +47,45 @@ impl Primitive {
         }
     }
 
-    pub fn run(self, args: Object) -> Option<Object> {
+    pub fn run(self, args: Object) -> Object {
         let len = args.length();
         if !self.args.correct_number_of_args(len) {
-            return Some(Object::Error(Error::WrongArgs));
+            return Object::Error(Error::WrongArgs);
         }
 
         match self.name.as_str() {
             "cons" => {
                 let car = args.car();
                 let cdr = args.cadr();
-                Some(Object::cons(car, cdr))
+                Object::cons(car, cdr)
             }
             "car" => {
                 let arg = args.car();
-                Some(arg.car())
+                arg.car()
             }
             "cdr" => {
                 let arg = args.car();
-                Some(arg.cdr())
+                arg.cdr()
             }
             "=" => {
                 if args.is_null() {
-                    return Some(Object::Bool(true));
+                    return Object::Bool(true);
                 }
                 let n = match args.car() {
                     Object::Number(n) => n,
-                    _ => return Some(Object::Error(Error::NumberExpected)),
+                    _ => return Object::Error(Error::NumberExpected),
                 };
                 let mut args = args.cdr();
                 while !args.is_null() {
                     match args.car() {
                         Object::Number(m) => if n != m {
-                            return Some(Object::Bool(false));
+                            return Object::Bool(false);
                         }
-                        _ => return Some(Object::Error(Error::NumberExpected)),
+                        _ => return Object::Error(Error::NumberExpected),
                     }
                     args = args.cdr();
                 }
-                Some(Object::Bool(true))
+                Object::Bool(true)
             }
             "+" => {
                 let mut sum = Number::zero();
@@ -93,35 +93,35 @@ impl Primitive {
                 while !args.is_null() {
                     match args.car() {
                         Object::Number(n) => sum = sum + n,
-                        _ => return Some(Object::Error(Error::NumberExpected)),
+                        _ => return Object::Error(Error::NumberExpected),
                     }
                     args = args.cdr();
                 }
-                Some(Object::Number(sum))
+                Object::Number(sum)
             }
             "-" => {
                 if len == 1 {
                     if let Object::Number(n) = args.car() {
-                        Some(Object::Number(-n))
+                        Object::Number(-n)
                     } else {
-                        Some(Object::Error(Error::NumberExpected))
+                        Object::Error(Error::NumberExpected)
                     }
                 } else {
                     let mut sum = if let Object::Number(n) = args.car() {
                         n
                     } else {
-                        return Some(Object::Error(Error::NumberExpected));
+                        return Object::Error(Error::NumberExpected);
                     };
 
                     let mut args = args.cdr();
                     while !args.is_null() {
                         match args.car() {
                             Object::Number(n) => sum = sum - n,
-                            _ => return Some(Object::Error(Error::NumberExpected)),
+                            _ => return Object::Error(Error::NumberExpected),
                         }
                         args = args.cdr();
                     }
-                    Some(Object::Number(sum))
+                    Object::Number(sum)
                 }
             }
             "*" => {
@@ -130,14 +130,14 @@ impl Primitive {
                 while !args.is_null() {
                     match args.car() {
                         Object::Number(n) => prod = prod * n,
-                        _ => return Some(Object::Error(Error::NumberExpected)),
+                        _ => return Object::Error(Error::NumberExpected),
                     }
                     args = args.cdr();
                 }
-                Some(Object::Number(prod))
+                Object::Number(prod)
             }
-            "/" => None,
-            _ => Some(Object::Error(Error::UnboundVariable(self.name))),
+            "/" => Object::Void,
+            _ => Object::Error(Error::UnboundVariable(self.name)),
         }
     }
 }

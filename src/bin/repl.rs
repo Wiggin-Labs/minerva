@@ -32,9 +32,7 @@ fn main() {
         };
 
         for object in objects {
-            if let Some(value) = r7_rs::eval(object, &env) {
-                println!("{}", value);
-            }
+            println!("{}", r7_rs::eval(object, &env));
         }
     }
 }

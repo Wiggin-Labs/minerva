@@ -16,18 +16,17 @@ pub use error::Error;
 pub use object::{Lambda, Number, Object, Pair, Primitive};
 pub use parser::{Parser, Token};
 
-pub fn eval(exp: Object, env: &Environment) -> Option<Object> {
+pub fn eval(exp: Object, env: &Environment) -> Object {
     if exp.is_self_evaluating() {
-        Some(exp)
+        exp
     } else if exp.is_variable() {
-        Some(exp.lookup_variable_value(env))
+        exp.lookup_variable_value(env)
     } else if exp.is_quoted() {
         exp.text_of_quotation()
     } else if exp.is_assignment() {
         exp.eval_assignment(env)
     } else if exp.is_definition() {
-        exp.eval_definition(env);
-        None
+        exp.eval_definition(env)
     } else if exp.is_if() {
         exp.eval_if(env)
     } else if exp.is_lambda() {
@@ -37,21 +36,21 @@ pub fn eval(exp: Object, env: &Environment) -> Option<Object> {
     } else if exp.is_cond() {
         eval(exp.cond_to_if(), env)
     } else if exp.is_application() {
-        let operator = eval(exp.operator(), env).unwrap();
+        let operator = eval(exp.operator(), env);
         if operator.is_error() {
-            return Some(operator);
+            return operator;
         }
         let operands = exp.operands().list_of_values(env);
         if operands.is_error() {
-            return Some(operands);
+            return operands;
         }
         apply(operator, operands)
     } else {
-        Some(Object::Error(Error::UserDefined(format!("Unknown expression type {}", exp))))
+        Object::Error(Error::UserDefined(format!("Unknown expression type {}", exp)))
     }
 }
 
-pub fn apply(procedure: Object, mut arguments: Object) -> Option<Object> {
+pub fn apply(procedure: Object, mut arguments: Object) -> Object {
     if procedure.is_primitive_procedure() {
         procedure.apply_primitive_procedure(arguments)
     } else if procedure.is_compound_procedure() {
@@ -59,7 +58,7 @@ pub fn apply(procedure: Object, mut arguments: Object) -> Option<Object> {
         let mut parameters = procedure.procedure_parameters();
 
         if arguments.length() != parameters.length() {
-            return Some(Object::Error(Error::WrongArgs));
+            return Object::Error(Error::WrongArgs);
         }
 
         while !parameters.is_null() {
@@ -69,7 +68,7 @@ pub fn apply(procedure: Object, mut arguments: Object) -> Option<Object> {
         }
         procedure.procedure_body().eval_sequence(&mut env)
     } else {
-        Some(Object::Error(Error::UserDefined("Unknown procedure type".to_string())))
+        Object::Error(Error::UserDefined("Unknown procedure type".to_string()))
     }
 }
 
@@ -77,7 +76,7 @@ pub fn apply(procedure: Object, mut arguments: Object) -> Option<Object> {
 mod test {
     use super::{eval, init_env, Environment, Number, Object, Parser, Token};
 
-    fn run(input: &str, env: &Environment) -> Option<Object> {
+    fn run(input: &str, env: &Environment) -> Object {
         let tokens = Parser::parse(input).unwrap();
         let objects = Token::build_ast(tokens).unwrap();
         let object = objects[0].clone();
@@ -91,26 +90,26 @@ mod test {
         let ans = run(input, &env);
         let expected = Object::cons(Object::Number(Number::from(1)),
                                     Object::Number(Number::from(2)));
-        assert_eq!(Some(expected), ans);
+        assert_eq!(expected, ans);
 
         let input = "(define a (cons 1 2))";
-        assert!(run(input, &env).is_none());
+        assert!(run(input, &env).is_void());
 
         let input = "(car a)";
-        assert_eq!(Some(Object::Number(Number::from(1))), run(input, &env));
+        assert_eq!(Object::Number(Number::from(1)), run(input, &env));
         let input = "(cons 1 '())";
-        assert_eq!(Some(Object::cons(Object::Number(Number::from(1)), Object::Nil)), run(input, &env));
+        assert_eq!(Object::cons(Object::Number(Number::from(1)), Object::Nil), run(input, &env));
         let input = r"
 (define (factorial n)
   (if (= n 1)
       1
       (* (factorial (- n 1)) n)))
 ";
-        assert!(run(input, &env).is_none());
+        assert!(run(input, &env).is_void());
         let input = "(factorial 1)";
-        assert_eq!(Some(Object::Number(Number::from(1))), run(input, &env));
+        assert_eq!(Object::Number(Number::from(1)), run(input, &env));
         let input = "(factorial 3)";
-        assert_eq!(Some(Object::Number(Number::from(6))), run(input, &env));
+        assert_eq!(Object::Number(Number::from(6)), run(input, &env));
 
         let input = r"
 (define (sum b)
@@ -120,24 +119,27 @@ mod test {
         (loop (+ a 1) (+ count a))))
   (loop 1 0))
 ";
-        assert!(run(input, &env).is_none());
+        assert!(run(input, &env).is_void());
         let input = "(sum 5)";
-        assert_eq!(Some(Object::Number(Number::from(10))), run(input, &env));
+        assert_eq!(Object::Number(Number::from(10)), run(input, &env));
 
         let input = "(define a 5)";
-        assert!(run(input, &env).is_none());
-        assert_eq!(Some(Object::Number(Number::from(5))), run("a", &env));
+        assert!(run(input, &env).is_void());
+        assert_eq!(Object::Number(Number::from(5)), run("a", &env));
         let input = "(set! a 6)";
-        assert!(run(input, &env).is_none());
-        assert_eq!(Some(Object::Number(Number::from(6))), run("a", &env));
+        assert!(run(input, &env).is_void());
+        assert_eq!(Object::Number(Number::from(6)), run("a", &env));
 
         let input = "(Car '(a b c))";
-        assert!(run(input, &env).is_some());
+        assert!(!run(input, &env).is_void());
 
         let input = "(car b)";
-        assert!(run(input, &env).is_some());
+        assert!(!run(input, &env).is_void());
 
         let input = "(- = 2 3)";
-        assert!(run(input, &env).is_some());
+        assert!(!run(input, &env).is_void());
+
+        let input = "((/ 1 2 3) /41 2 3)";
+        assert!(!run(input, &env).is_void());
     }
 }
