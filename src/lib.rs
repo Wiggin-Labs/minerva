@@ -76,7 +76,7 @@ pub fn apply(procedure: Object, mut arguments: Object) -> Object {
 
 #[cfg(test)]
 mod test {
-    use super::{eval, init_env, Environment, Number, Object, Parser, Token};
+    use super::{eval, init_env, Environment, Object, Parser, Token};
 
     fn run(input: &str, env: &Environment) -> Object {
         let tokens = Parser::parse(input).unwrap();
@@ -90,17 +90,22 @@ mod test {
         let env = init_env();
         let input = "(cons 1 2)";
         let ans = run(input, &env);
-        let expected = Object::cons(Object::Number(Number::from(1)),
-                                    Object::Number(Number::from(2)));
+        let expected = Object::cons(Object::from(1),
+                                    Object::from(2));
         assert_eq!(expected, ans);
 
         let input = "(define a (cons 1 2))";
         assert!(run(input, &env).is_void());
 
         let input = "(car a)";
-        assert_eq!(Object::Number(Number::from(1)), run(input, &env));
+        assert_eq!(Object::from(1), run(input, &env));
+        let input = "(set-car! a 3)";
+        assert!(run(input, &env).is_void());
+        let input = "(car a)";
+        assert_eq!(Object::from(3), run(input, &env));
+
         let input = "(cons 1 '())";
-        assert_eq!(Object::cons(Object::Number(Number::from(1)), Object::Nil), run(input, &env));
+        assert_eq!(Object::cons(Object::from(1), Object::Nil), run(input, &env));
         let input = r"
 (define (factorial n)
   (if (= n 1)
@@ -109,9 +114,9 @@ mod test {
 ";
         assert!(run(input, &env).is_void());
         let input = "(factorial 1)";
-        assert_eq!(Object::Number(Number::from(1)), run(input, &env));
+        assert_eq!(Object::from(1), run(input, &env));
         let input = "(factorial 3)";
-        assert_eq!(Object::Number(Number::from(6)), run(input, &env));
+        assert_eq!(Object::from(6), run(input, &env));
 
         let input = r"
 (define (sum b)
@@ -123,14 +128,14 @@ mod test {
 ";
         assert!(run(input, &env).is_void());
         let input = "(sum 5)";
-        assert_eq!(Object::Number(Number::from(10)), run(input, &env));
+        assert_eq!(Object::from(10), run(input, &env));
 
         let input = "(define a 5)";
         assert!(run(input, &env).is_void());
-        assert_eq!(Object::Number(Number::from(5)), run("a", &env));
+        assert_eq!(Object::from(5), run("a", &env));
         let input = "(set! a 6)";
         assert!(run(input, &env).is_void());
-        assert_eq!(Object::Number(Number::from(6)), run("a", &env));
+        assert_eq!(Object::from(6), run("a", &env));
 
         let input = "(Car '(a b c))";
         assert!(!run(input, &env).is_void());
@@ -143,5 +148,18 @@ mod test {
 
         let input = "((/ 1 2 3) /41 2 3)";
         assert!(!run(input, &env).is_void());
+
+        let input = "'(5 . 6)";
+        assert_eq!(Object::cons(Object::from(5), Object::from(6)), run(input, &env));
+
+        let input = "'(5 . ())";
+        assert_eq!(Object::cons(Object::from(5), Object::Nil), run(input, &env));
+
+        let input = "'(5 . (a b))";
+        let expected = Object::cons(Object::from(5),
+                                    Object::cons(Object::Symbol("a".into()),
+                                                 Object::cons(Object::Symbol("b".into()),
+                                                              Object::Nil)));
+        assert_eq!(expected, run(input, &env));
     }
 }

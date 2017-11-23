@@ -8,6 +8,7 @@ pub enum ParseError {
     UnbalancedParen,
     BadQuote,
     UnexpectedCloseParen,
+    IllegalUse,
 }
 
 impl Display for ParseError {
@@ -19,6 +20,7 @@ impl Display for ParseError {
             ParseError::UnbalancedParen => write!(f, "Expected a `)` to close `(`"),
             ParseError::BadQuote => write!(f, "Expected an element for quoting, found EOF"),
             ParseError::UnexpectedCloseParen => write!(f, "Unexpected `)`"),
+            ParseError::IllegalUse => write!(f, "Illegal use of `.`"),
         }
     }
 }

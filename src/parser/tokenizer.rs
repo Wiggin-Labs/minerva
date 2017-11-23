@@ -1,13 +1,15 @@
 use super::ParseError;
 use Object;
 
+use std::iter::Peekable;
 use std::mem;
 use std::slice::Iter;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq)]
 pub enum Token {
     LeftParen,
     RightParen,
+    Dot,
     Quote,
     Nil,
     Bool(bool),
@@ -24,10 +26,21 @@ impl Token {
         }
     }
 
+    fn to_object(&self) -> Object {
+        match self {
+            Token::Nil => Object::Nil,
+            Token::Bool(b) => Object::Bool(*b),
+            Token::String(s) => Object::String(s.to_owned()),
+            num if self.is_number() => Object::Number(::Number::from_token(num)),
+            Token::Symbol(s) => Object::Symbol(s.to_owned()),
+            _ => unreachable!(),
+        }
+    }
+
     pub fn build_ast(tokens: Vec<Self>) -> Result<Vec<Object>, ParseError> {
         use self::Token::*;
         let mut exprs = Vec::new();
-        let mut tokens = tokens.iter();
+        let mut tokens = tokens.iter().peekable();
         while let Some(token) = tokens.next() {
             match token {
                 LeftParen => {
@@ -35,23 +48,19 @@ impl Token {
                     exprs.push(list);
                 }
                 RightParen => return Err(ParseError::UnexpectedCloseParen),
+                Dot => return Err(ParseError::IllegalUse),
                 Quote => {
                     let list = Self::parse_quote(&mut tokens)?;
                     exprs.push(list);
                 }
-                Nil => exprs.push(Object::Nil),
-                Bool(b) => exprs.push(Object::Bool(*b)),
-                num if token.is_number() => exprs.push(Object::Number(::Number::from_token(num))),
-                String(s) => exprs.push(Object::String(s.to_owned())),
-                Symbol(s) => exprs.push(Object::Symbol(s.to_owned())),
-                _ => unreachable!(),
+                _ => exprs.push(token.to_object()),
             }
         }
 
         Ok(exprs)
     }
 
-    fn parse_quote<'a>(tokens: &mut Iter<'a, Self>) -> Result<Object, ParseError> {
+    fn parse_quote<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Object, ParseError> {
         use self::Token::*;
         let next = if let Some(t) = tokens.next() {
             t
@@ -61,22 +70,20 @@ impl Token {
 
         let quoted = match next {
             Symbol(s) => Object::Symbol(s.to_owned()),
-            num if next.is_number() => return Ok(Object::Number(::Number::from_token(num))),
-            String(s) => return Ok(Object::String(s.to_owned())),
             LeftParen => {
                 Self::parse_expr(tokens)?
             },
-            Nil => return Ok(Object::Nil),
-            Bool(b) => return Ok(Object::Bool(*b)),
+            Dot => return Err(ParseError::IllegalUse),
             RightParen => return Err(ParseError::UnexpectedCloseParen),
             // TODO: what should happen on `''a`?
-            _ => return Err(ParseError::BadQuote),
+            Quote => return Err(ParseError::BadQuote),
+            _ => return Ok(next.to_object()),
         };
         Ok(Object::cons(Object::Symbol("quote".to_string()),
                         Object::cons(quoted, Object::Nil)))
     }
 
-    fn parse_expr<'a>(tokens: &mut Iter<'a, Self>) -> Result<Object, ParseError> {
+    fn parse_expr<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Object, ParseError> {
         use self::Token::*;
         let mut parens = 1;
         let mut stack = Vec::new();
@@ -99,6 +106,29 @@ impl Token {
                     let mut old = stack.pop().unwrap();
                     mem::swap(&mut list, &mut old);
                     list = list.push(old);
+                }
+                Dot => {
+                    let token = match tokens.next() {
+                        Some(t) => t,
+                        None => return Err(ParseError::EOF),
+                    };
+
+                    match token {
+                        RightParen => return Err(ParseError::UnexpectedCloseParen),
+                        Dot => return Err(ParseError::IllegalUse),
+                        LeftParen => {
+                            let l = Token::parse_expr(tokens)?;
+                            list.set_cdr(l);
+                            //list = Object::cons(list, l);
+                        }
+                        _ => {
+                            if tokens.peek() != Some(&&Token::RightParen)  || list.is_null() {
+                                return Err(ParseError::IllegalUse);
+                            }
+                            list.set_cdr(token.to_object());
+                            //list = Object::cons(list, token.to_object());
+                        }
+                    }
                 }
                 Quote => {
                     let l = Self::parse_quote(tokens)?;

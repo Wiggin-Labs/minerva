@@ -36,6 +36,7 @@ impl<'a> Parser<'a> {
             match c {
                 '(' => self.tokens.push(Token::LeftParen),
                 ')' => self.tokens.push(Token::RightParen),
+                '.' => self.tokens.push(Token::Dot),
                 '\'' => self.tokens.push(Token::Quote),
                 '"' => self.parse_string()?,
                 '#' => self.parse_bool()?,
