@@ -1,8 +1,6 @@
 use super::ParseError;
 use Object;
 
-use num::BigInt;
-
 use std::slice::Iter;
 
 #[derive(Debug)]
@@ -18,6 +16,13 @@ pub enum Token {
 }
 
 impl Token {
+    fn is_number(&self) -> bool {
+        match self {
+            Token::Number(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn build_ast(tokens: Vec<Self>) -> Result<Vec<Object>, ParseError> {
         use self::Token::*;
         let mut exprs = Vec::new();
@@ -36,9 +41,10 @@ impl Token {
                 }
                 Nil => exprs.push(Object::Nil),
                 Bool(b) => exprs.push(Object::Bool(*b)),
-                Number(i) => exprs.push(Object::Number(i.parse::<BigInt>().unwrap())),
+                num if token.is_number() => exprs.push(Object::Number(::Number::from_token(num))),
                 String(s) => exprs.push(Object::String(s.to_owned())),
                 Symbol(s) => exprs.push(Object::Symbol(s.to_owned())),
+                _ => unreachable!(),
             }
         }
 
@@ -55,12 +61,8 @@ impl Token {
 
         let quoted = match next {
             Symbol(s) => Object::Symbol(s.to_owned()),
-            Number(i) => {
-                return Ok(Object::Number(i.parse::<BigInt>().unwrap()));
-            },
-            String(s) => {
-                return Ok(Object::String(s.to_owned()));
-            },
+            num if next.is_number() => return Ok(Object::Number(::Number::from_token(num))),
+            String(s) => return Ok(Object::String(s.to_owned())),
             LeftParen => {
                 let mut list = Object::Nil;
                 Self::parse_expr(tokens, &mut list)?;
@@ -98,7 +100,9 @@ impl Token {
                 Bool(b) => *list = list.push(Object::Bool(*b)),
                 String(s) => *list = list.push(Object::String(s.to_owned())),
                 Symbol(s) => *list = list.push(Object::Symbol(s.to_owned())),
-                Number(i) => *list = list.push(Object::Number(i.parse::<BigInt>().unwrap())),
+                num if token.is_number() =>
+                    *list = list.push(Object::Number(::Number::from_token(num))),
+                _ => unreachable!(),
             }
         }
 

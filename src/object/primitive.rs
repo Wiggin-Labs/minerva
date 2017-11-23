@@ -1,7 +1,5 @@
-use super::Object;
+use super::{Number, Object};
 use Error;
-
-use num::{BigInt, One, Zero};
 
 use std::fmt::{self, Display, Formatter};
 
@@ -90,7 +88,7 @@ impl Primitive {
                 Some(Object::Bool(true))
             }
             "+" => {
-                let mut sum = BigInt::zero();
+                let mut sum = Number::zero();
                 let mut args = args;
                 while !args.is_null() {
                     match args.car() {
@@ -109,7 +107,12 @@ impl Primitive {
                         Some(Object::Error(Error::NumberExpected))
                     }
                 } else {
-                    let mut sum = args.car().unwrap_number();
+                    let mut sum = if let Object::Number(n) = args.car() {
+                        n
+                    } else {
+                        return Some(Object::Error(Error::NumberExpected));
+                    };
+
                     let mut args = args.cdr();
                     while !args.is_null() {
                         match args.car() {
@@ -122,7 +125,7 @@ impl Primitive {
                 }
             }
             "*" => {
-                let mut prod = BigInt::one();
+                let mut prod = Number::one();
                 let mut args = args;
                 while !args.is_null() {
                     match args.car() {

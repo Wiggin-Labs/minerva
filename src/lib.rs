@@ -13,7 +13,7 @@ mod parser;
 
 pub use environment::{Environment, init_env};
 pub use error::Error;
-pub use object::{Lambda, Object, Pair, Primitive};
+pub use object::{Lambda, Number, Object, Pair, Primitive};
 pub use parser::{Parser, Token};
 
 pub fn eval(exp: Object, env: &Environment) -> Option<Object> {
@@ -75,9 +75,7 @@ pub fn apply(procedure: Object, mut arguments: Object) -> Option<Object> {
 
 #[cfg(test)]
 mod test {
-    use super::{eval, init_env, Environment, Object, Parser, Token};
-
-    use num::BigInt;
+    use super::{eval, init_env, Environment, Number, Object, Parser, Token};
 
     fn run(input: &str, env: &Environment) -> Option<Object> {
         let tokens = Parser::parse(input).unwrap();
@@ -91,16 +89,17 @@ mod test {
         let env = init_env();
         let input = "(cons 1 2)";
         let ans = run(input, &env);
-        let expected = Object::cons(Object::Number(BigInt::from(1)), Object::Number(BigInt::from(2)));
+        let expected = Object::cons(Object::Number(Number::from(1)),
+                                    Object::Number(Number::from(2)));
         assert_eq!(Some(expected), ans);
 
         let input = "(define a (cons 1 2))";
         assert!(run(input, &env).is_none());
 
         let input = "(car a)";
-        assert_eq!(Some(Object::Number(BigInt::from(1))), run(input, &env));
+        assert_eq!(Some(Object::Number(Number::from(1))), run(input, &env));
         let input = "(cons 1 '())";
-        assert_eq!(Some(Object::cons(Object::Number(BigInt::from(1)), Object::Nil)), run(input, &env));
+        assert_eq!(Some(Object::cons(Object::Number(Number::from(1)), Object::Nil)), run(input, &env));
         let input = r"
 (define (factorial n)
   (if (= n 1)
@@ -109,9 +108,9 @@ mod test {
 ";
         assert!(run(input, &env).is_none());
         let input = "(factorial 1)";
-        assert_eq!(Some(Object::Number(BigInt::from(1))), run(input, &env));
+        assert_eq!(Some(Object::Number(Number::from(1))), run(input, &env));
         let input = "(factorial 3)";
-        assert_eq!(Some(Object::Number(BigInt::from(6))), run(input, &env));
+        assert_eq!(Some(Object::Number(Number::from(6))), run(input, &env));
 
         let input = r"
 (define (sum b)
@@ -123,19 +122,22 @@ mod test {
 ";
         assert!(run(input, &env).is_none());
         let input = "(sum 5)";
-        assert_eq!(Some(Object::Number(BigInt::from(10))), run(input, &env));
+        assert_eq!(Some(Object::Number(Number::from(10))), run(input, &env));
 
         let input = "(define a 5)";
         assert!(run(input, &env).is_none());
-        assert_eq!(Some(Object::Number(BigInt::from(5))), run("a", &env));
+        assert_eq!(Some(Object::Number(Number::from(5))), run("a", &env));
         let input = "(set! a 6)";
         assert!(run(input, &env).is_none());
-        assert_eq!(Some(Object::Number(BigInt::from(6))), run("a", &env));
+        assert_eq!(Some(Object::Number(Number::from(6))), run("a", &env));
 
         let input = "(Car '(a b c))";
         assert!(run(input, &env).is_some());
 
         let input = "(car b)";
+        assert!(run(input, &env).is_some());
+
+        let input = "(- = 2 3)";
         assert!(run(input, &env).is_some());
     }
 }

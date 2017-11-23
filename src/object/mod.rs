@@ -1,10 +1,10 @@
+mod number;
 mod primitive;
 
+pub use self::number::Number;
 pub use self::primitive::{Arity, Primitive};
 
 use {Environment, Error, eval};
-
-use num::BigInt;
 
 use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
@@ -46,7 +46,7 @@ impl Lambda {
 pub enum Object {
     Nil,
     Bool(bool),
-    Number(BigInt),
+    Number(Number),
     String(String),
     Symbol(String),
     Pair(Rc<RefCell<Pair>>),
@@ -463,7 +463,7 @@ impl Object {
         self.cadr()
     }
 
-    pub fn unwrap_number(self) -> BigInt {
+    pub fn unwrap_number(self) -> Number {
         match self {
             Object::Number(n) => n,
             _ => panic!("compiler error in unwrap_number"),
@@ -490,6 +490,13 @@ impl Object {
     pub fn is_error(&self) -> bool {
         match self {
             Object::Error(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_number(&self) -> bool {
+        match self {
+            Object::Number(_) => true,
             _ => false,
         }
     }
