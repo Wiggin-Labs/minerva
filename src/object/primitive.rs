@@ -67,6 +67,16 @@ impl Primitive {
                 let arg = args.car();
                 arg.cdr()
             }
+            "set-car!" => {
+                let pair = args.car();
+                let car = args.cadr();
+                pair.set_car(car)
+            }
+            "set-cdr!" => {
+                let pair = args.car();
+                let cdr = args.cadr();
+                pair.set_cdr(cdr)
+            }
             "=" => {
                 if args.is_null() {
                     return Object::Bool(true);

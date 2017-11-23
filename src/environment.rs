@@ -22,6 +22,8 @@ pub fn init_env() -> Environment {
         ("cons", Arity::Exactly(2)),
         ("car", Arity::Exactly(1)),
         ("cdr", Arity::Exactly(1)),
+        ("set-car!", Arity::Exactly(2)),
+        ("set-cdr!", Arity::Exactly(2)),
         ("=", Arity::AtLeast(0)),
         ("+", Arity::AtLeast(0)),
         ("-", Arity::AtLeast(1)),

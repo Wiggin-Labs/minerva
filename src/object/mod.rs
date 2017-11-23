@@ -27,6 +27,8 @@ impl Pair {
 
 #[derive(Debug, PartialEq)]
 pub struct Lambda {
+    //pub arity: Arity,
+    //pub parameters: Vec<String>,
     pub parameters: Object,
     pub body: Object,
     pub env: Environment,
@@ -490,6 +492,24 @@ impl Object {
             _ => false,
         }
     }
+
+    pub fn set_car(&self, car: Object) -> Object {
+        if let Object::Pair(p) = self {
+            p.borrow_mut().car = car;
+            Object::Void
+        } else {
+            Object::Error(Error::PairExpected)
+        }
+    }
+
+    pub fn set_cdr(&self, cdr: Object) -> Object {
+        if let Object::Pair(p) = self {
+            p.borrow_mut().cdr = cdr;
+            Object::Void
+        } else {
+            Object::Error(Error::PairExpected)
+        }
+    }
 }
 
 impl Display for Object {
@@ -522,5 +542,11 @@ impl Display for Object {
             Object::Primitive(l) => write!(f, "#<procedure {} {} args>", l.name, l.args),
             Object::Error(e) => write!(f, "ERROR: {}", e),
         }
+    }
+}
+
+impl From<i64> for Object {
+    fn from(n: i64) -> Object {
+        Object::Number(Number::from(n))
     }
 }
