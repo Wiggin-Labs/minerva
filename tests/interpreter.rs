@@ -116,6 +116,17 @@ fn dotted_list() {
 }
 
 #[test]
+fn lambda() {
+    let env = init_env();
+
+    let input = "(lambda (x) x)";
+    assert!(run(input, &env).is_procedure());
+
+    let input = "((lambda (x) x) 5)";
+    assert_eq!(Object::from(5), run(input, &env));
+}
+
+#[test]
 fn variadic() {
     let env = init_env();
 
@@ -127,6 +138,9 @@ fn variadic() {
                                 Object::cons(Object::from(2),
                                              Object::cons(Object::from(3),
                                                           Object::Nil)));
+    assert_eq!(expected, run(input, &env));
+
+    let input = "((lambda x x) 1 2 3)";
     assert_eq!(expected, run(input, &env));
 }
 

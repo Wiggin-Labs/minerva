@@ -516,6 +516,11 @@ impl Object {
         }
     }
 
+    pub fn is_procedure(&self) -> bool {
+        self.is_tagged_list("primitive".to_string()) ||
+        self.is_tagged_list("procedure".to_string())
+    }
+
     pub fn is_true(&self) -> bool {
         match *self {
             Object::Bool(b) => b,
