@@ -97,24 +97,24 @@ impl<'a> Parser<'a> {
         while let Some(c) = self.next() {
             match c {
                 c if c.is_whitespace() => {
-                    self.tokens.push(Token::Number(buf));
+                    self.tokens.push(Token::Integer(buf));
                     return Ok(());
                 }
                 '0' ... '9' => buf.push(c),
                 '(' => {
-                    self.tokens.push(Token::Number(buf));
+                    self.tokens.push(Token::Integer(buf));
                     self.tokens.push(Token::LeftParen);
                     return Ok(());
                 }
                 ')' => {
-                    self.tokens.push(Token::Number(buf));
+                    self.tokens.push(Token::Integer(buf));
                     self.tokens.push(Token::RightParen);
                     return Ok(());
                 }
                 _ => return Err(ParseError::Input),
             }
         }
-        self.tokens.push(Token::Number(buf));
+        self.tokens.push(Token::Integer(buf));
         Ok(())
     }
 

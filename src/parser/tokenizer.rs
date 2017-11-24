@@ -14,14 +14,18 @@ pub enum Token {
     Nil,
     Bool(bool),
     String(String),
-    Number(String),
+    Integer(String),
+    Rational(String),
+    Real(String),
+    Complex(String),
     Symbol(String),
 }
 
 impl Token {
     fn is_number(&self) -> bool {
         match self {
-            Token::Number(_) => true,
+            Token::Integer(_) | Token::Rational(_) |
+            Token::Real(_) | Token::Complex(_) => true,
             _ => false,
         }
     }
@@ -119,14 +123,12 @@ impl Token {
                         LeftParen => {
                             let l = Token::parse_expr(tokens)?;
                             list.set_cdr(l);
-                            //list = Object::cons(list, l);
                         }
                         _ => {
                             if tokens.peek() != Some(&&Token::RightParen)  || list.is_null() {
                                 return Err(ParseError::IllegalUse);
                             }
                             list.set_cdr(token.to_object());
-                            //list = Object::cons(list, token.to_object());
                         }
                     }
                 }
