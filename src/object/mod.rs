@@ -6,6 +6,8 @@ pub use self::primitive::{Arity, Primitive};
 
 use {Environment, Error, eval};
 
+use num::ToPrimitive;
+
 use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
@@ -27,19 +29,37 @@ impl Pair {
 
 #[derive(Debug, PartialEq)]
 pub struct Lambda {
-    //pub arity: Arity,
-    //pub parameters: Vec<String>,
-    pub parameters: Object,
+    pub parameters: Vec<String>,
+    pub arity: Arity,
     pub body: Object,
     pub env: Environment,
 }
 
 impl Lambda {
-    pub fn new(parameters: Object, body: Object, env: Environment) -> Self {
+    pub fn new(mut parameters: Object, body: Object, env: Environment) -> Self {
+        let mut params = Vec::new();
+        let mut variadic = false;
+        while !parameters.is_null() {
+            if !parameters.is_pair() {
+                params.push(parameters.symbol_value());
+                variadic = true;
+                break;
+            }
+            params.push(parameters.car().symbol_value());
+            parameters = parameters.cdr();
+        }
+
+        let arity = if variadic {
+            Arity::AtLeast(params.len())
+        } else {
+            Arity::Exactly(params.len())
+        };
+
         Lambda {
-            parameters,
-            body,
-            env,
+            parameters: params,
+            arity: arity,
+            body: body,
+            env: env,
         }
     }
 }
@@ -366,9 +386,16 @@ impl Object {
         }
     }
 
-    pub(crate) fn procedure_parameters(&self) -> Object {
+    pub(crate) fn procedure_parameters(&self) -> Vec<String> {
         match self.cdr() {
             Object::Lambda(procedure) => procedure.parameters.clone(),
+            _ => panic!("compiler error in procedure_parameters"),
+        }
+    }
+
+    pub(crate) fn procedure_arity(&self) -> Arity {
+        match self.cdr() {
+            Object::Lambda(procedure) => procedure.arity,
             _ => panic!("compiler error in procedure_parameters"),
         }
     }
@@ -469,14 +496,24 @@ impl Object {
         }
     }
 
-    pub fn length(&self) -> usize {
+    pub fn length(&self) -> Object {
+        if !self.is_pair() {
+            return Object::Error(Error::UserDefined("Expected list?".into()));
+        }
         let mut list = self.clone();
         let mut len = 0;
         while !list.is_null() {
             len += 1;
             list = list.cdr();
         }
-        len
+        Object::from(len)
+    }
+
+    pub(crate) fn as_usize(&self) -> usize {
+        match self {
+            Object::Number(Number::Integer(i)) => i.to_i64().unwrap() as usize,
+            _ => panic!("compiler error"),
+        }
     }
 
     pub fn is_true(&self) -> bool {

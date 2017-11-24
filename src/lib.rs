@@ -57,17 +57,28 @@ pub fn apply(procedure: Object, mut arguments: Object) -> Object {
         procedure.apply_primitive_procedure(arguments)
     } else if procedure.is_compound_procedure() {
         let mut env = procedure.procedure_env();
-        let mut parameters = procedure.procedure_parameters();
+        let parameters = procedure.procedure_parameters();
 
-        if arguments.length() != parameters.length() {
+        let arity = procedure.procedure_arity();
+        let number_of_args = arguments.length().as_usize();
+        if !arity.correct_number_of_args(number_of_args) {
             return Object::Error(Error::WrongArgs);
         }
 
-        while !parameters.is_null() {
-            env.define_variable(parameters.car().symbol_value(), arguments.car());
-            parameters = parameters.cdr();
+        let variadic = arity.is_variadic();
+        let arity = arity.as_usize();
+        for i in 0..arity - 1 {
+            env.define_variable(parameters[i].clone(), arguments.car());
             arguments = arguments.cdr();
         }
+
+        // Handle the last argument
+        if variadic {
+            env.define_variable(parameters[arity-1].clone(), arguments);
+        } else {
+            env.define_variable(parameters[arity-1].clone(), arguments.car());
+        }
+
         procedure.procedure_body().eval_sequence(&mut env)
     } else {
         Object::Error(Error::UserDefined("Unknown procedure type".to_string()))

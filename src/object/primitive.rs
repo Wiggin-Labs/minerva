@@ -5,8 +5,6 @@ use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq)]
 pub enum Arity {
-    /// Thunk
-    None,
     /// Normal procedure
     Exactly(usize),
     /// Variadic procedure
@@ -14,9 +12,22 @@ pub enum Arity {
 }
 
 impl Arity {
+    pub fn as_usize(&self) -> usize {
+        match self {
+            Arity::Exactly(n) => *n,
+            Arity::AtLeast(n) => *n,
+        }
+    }
+
+    pub fn is_variadic(&self) -> bool {
+        match self {
+            Arity::AtLeast(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn correct_number_of_args(&self, args: usize) -> bool {
         match self {
-            Arity::None => args == 0,
             Arity::Exactly(n) => args == *n,
             Arity::AtLeast(n) => args >= *n,
         }
@@ -26,8 +37,11 @@ impl Arity {
 impl Display for Arity {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Arity::None => Ok(()),
-            Arity::Exactly(n) => write!(f, "{}", n),
+            Arity::Exactly(n) => if *n > 0 {
+                write!(f, "{}", n)
+            } else {
+                Ok(())
+            },
             Arity::AtLeast(n) => write!(f, ">={}", n),
         }
     }
@@ -49,7 +63,7 @@ impl Primitive {
 
     pub fn run(self, args: Object) -> Object {
         let len = args.length();
-        if !self.args.correct_number_of_args(len) {
+        if !self.args.correct_number_of_args(len.as_usize()) {
             return Object::Error(Error::WrongArgs);
         }
 
@@ -110,7 +124,7 @@ impl Primitive {
                 Object::Number(sum)
             }
             "-" => {
-                if len == 1 {
+                if len.as_usize() == 1 {
                     if let Object::Number(n) = args.car() {
                         Object::Number(-n)
                     } else {
