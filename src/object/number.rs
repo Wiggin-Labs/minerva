@@ -1,15 +1,15 @@
 use parser::Token;
-use num::{BigInt, One, Zero};
+use num::{BigInt, BigRational, One, Zero};
 
 use std::fmt::{self, Display, Formatter};
 use std::ops::{Add, Mul, Neg, Sub};
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, is_enum_variant)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, is_enum_variant)]
 pub enum Number {
     Integer(BigInt),
-    Rational,
-    Real,
-    Complex,
+    Rational(BigRational),
+    Real(f64),
+    Complex(Box<Complex>),
 }
 
 impl Display for Number {
@@ -17,7 +17,9 @@ impl Display for Number {
         use self::Number::*;
         match self {
             Integer(n) => write!(f, "{}", n),
-            _ => unimplemented!(),
+            Rational(n) => write!(f, "{}", n),
+            Real(n) => write!(f, "{}", n),
+            Complex(n) => write!(f, "{}", n),
         }
     }
 }
@@ -25,7 +27,10 @@ impl Display for Number {
 impl Number {
     pub fn from_token(t: &Token) -> Self {
         match t {
-            Token::Number(s) => Number::Integer(s.parse().unwrap()),
+            Token::Integer(s) => Number::Integer(s.parse().unwrap()),
+            Token::Rational(s) => unimplemented!(),
+            Token::Real(s) => unimplemented!(),
+            Token::Complex(s) => unimplemented!(),
             _ => panic!("compiler error"),
         }
     }
@@ -58,7 +63,9 @@ impl Neg for Number {
         use self::Number::*;
         match self {
             Integer(n) => Integer(-n),
-            _ => unimplemented!(),
+            Rational(n) => Rational(-n),
+            Real(n) => Real(-n),
+            Complex(n) => Complex(Box::new(-*n)),
         }
     }
 }
@@ -90,5 +97,27 @@ impl Mul for Number {
 impl From<i64> for Number {
     fn from(n: i64) -> Number {
         Number::Integer(BigInt::from(n))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct Complex {
+    real: Number,
+    imaginary: Number,
+}
+
+impl Display for Complex {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}+{}i", self.real, self.imaginary)
+    }
+}
+
+impl Neg for Complex {
+    type Output = Complex;
+
+    fn neg(mut self) -> Complex {
+        self.real = -self.real;
+        self.imaginary = -self.imaginary;
+        self
     }
 }
