@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
                 '.' => match self.peek() {
                     Some(c) => match c {
                         c if is_delimiter(c) => self.tokens.push(Token::Dot),
-                        c => self.parse_ambiguous('.')?,
+                        _ => self.parse_ambiguous('.')?,
                     },
                     None => self.tokens.push(Token::Dot),
                 },
@@ -125,9 +125,9 @@ impl<'a> Parser<'a> {
             static ref INTEGER: Regex = Regex::new(&format!("^[+-]?{}$", _INT)).expect("1");
             static ref RATIONAL: Regex = Regex::new(&format!("^[+-]?{}$", _RAT)).expect("2");
             static ref REAL: Regex = Regex::new(&format!("^[+-]?{}$", _REAL)).unwrap();
-            static ref COMPLEX_INT: Regex = Regex::new(&format!("^[+-]?{}[+-]{0}i$", _INT)).unwrap();
-            static ref COMPLEX_RAT: Regex = Regex::new(&format!("^[+-]?{}[+-]{0}i$", _RAT)).unwrap();
-            static ref COMPLEX_REAL: Regex = Regex::new(&format!("^[+-]?(?:{}|{})[+-](?:{0}|{1})i$", _REAL, _RAT)).unwrap();
+            static ref COMPLEX_INT: Regex = Regex::new(&format!("^(?:[+-]?{})?[+-](?:{0})?i$", _INT)).unwrap();
+            static ref COMPLEX_RAT: Regex = Regex::new(&format!("^(?:[+-]?{})?[+-](?:{0})?i$", _RAT)).unwrap();
+            static ref COMPLEX_REAL: Regex = Regex::new(&format!("^(?:[+-]?(?:{}|{}))?[+-](?:{0}|{1})?i$", _REAL, _RAT)).unwrap();
         }
 
         if INTEGER.is_match(&buf) {
