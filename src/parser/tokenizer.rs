@@ -5,7 +5,7 @@ use std::iter::Peekable;
 use std::mem;
 use std::slice::Iter;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, is_enum_variant)]
 pub enum Token {
     Comment(String),
     BlockComment(String),

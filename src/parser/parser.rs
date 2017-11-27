@@ -121,7 +121,7 @@ impl<'a> Parser<'a> {
             static ref REAL: Regex = Regex::new(&format!("^[+-]?{}$", _REAL)).unwrap();
             static ref COMPLEX_INT: Regex = Regex::new(&format!("^[+-]?{}[+-]{0}i$", _INT)).unwrap();
             static ref COMPLEX_RAT: Regex = Regex::new(&format!("^[+-]?{}[+-]{0}i$", _RAT)).unwrap();
-            static ref COMPLEX_REAL: Regex = Regex::new(&format!("^[+-]?({}|{})[+-]({0}|{1})i$", _REAL, _RAT)).unwrap();
+            static ref COMPLEX_REAL: Regex = Regex::new(&format!("^[+-]?(?:{}|{})[+-](?:{0}|{1})i$", _REAL, _RAT)).unwrap();
         }
 
         if INTEGER.is_match(&buf) {
