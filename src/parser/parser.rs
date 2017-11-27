@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
                 '.' => match self.peek() {
                     Some(c) => match c {
                         c if is_delimiter(c) => self.tokens.push(Token::Dot),
-                        c => self.parse_ambiguous(c)?,
+                        c => self.parse_ambiguous('.')?,
                     },
                     None => self.tokens.push(Token::Dot),
                 },
