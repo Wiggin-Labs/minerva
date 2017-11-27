@@ -49,8 +49,15 @@ fn symbol() {
     assert!(run("+1.0-3.0i").is_complex_real());
     assert!(run("+1.0-3.0").is_symbol());
     assert!(run("+1.03.0i").is_symbol());
+    assert!(run("+1e3+3e3i").is_complex_real());
+    assert!(run("+1e-3+3e+3i").is_complex_real());
     assert!(run("1030i").is_symbol());
     assert!(run("1+").is_symbol());
     assert!(run("+").is_symbol());
     assert!(run("-").is_symbol());
+    assert!(run("|1|").is_symbol());
+    assert_eq!(run("|1|"), Token::Symbol("1".into()));
+    assert!(run("|1/2|").is_symbol());
+    assert!(run("|1.2|").is_symbol());
+    assert!(run("|1+2i|").is_symbol());
 }
