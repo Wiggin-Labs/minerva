@@ -60,4 +60,8 @@ fn symbol() {
     assert!(run("|1/2|").is_symbol());
     assert!(run("|1.2|").is_symbol());
     assert!(run("|1+2i|").is_symbol());
+    assert_eq!(run("||"), Token::Symbol(String::new()));
+    assert_eq!(run("|\n|"), Token::Symbol("\n".into()));
+    assert_eq!(run("\\\n"), Token::Symbol("\n".into()));
+    assert_eq!(run("\\\n"), run("|\n|"));
 }

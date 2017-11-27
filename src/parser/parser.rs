@@ -69,7 +69,13 @@ impl<'a> Parser<'a> {
                 '0' ... '9' | '+' | '-' => self.parse_ambiguous(c)?,
                 _ => {
                     let mut buf = String::new();
-                    buf.push(c);
+                    match c {
+                        '\\' => match self.next() {
+                            Some(c) => buf.push(c),
+                            None => return Err(ParseError::EOF),
+                        },
+                        _ => buf.push(c),
+                    }
                     self.parse_identifier(buf, false)?;
                 }
             }
