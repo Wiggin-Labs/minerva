@@ -30,7 +30,9 @@ impl Number {
             Token::Integer(s) => Number::Integer(s.parse().unwrap()),
             Token::Rational(s) => unimplemented!(),
             Token::Real(s) => unimplemented!(),
-            Token::Complex(s) => unimplemented!(),
+            Token::ComplexInt(s) => unimplemented!(),
+            Token::ComplexRat(s) => unimplemented!(),
+            Token::ComplexReal(s) => unimplemented!(),
             _ => panic!("compiler error"),
         }
     }

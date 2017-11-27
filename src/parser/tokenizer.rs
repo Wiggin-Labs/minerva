@@ -7,6 +7,8 @@ use std::slice::Iter;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq)]
 pub enum Token {
+    Comment(String),
+    BlockComment(String),
     LeftParen,
     RightParen,
     Dot,
@@ -17,7 +19,9 @@ pub enum Token {
     Integer(String),
     Rational(String),
     Real(String),
-    Complex(String),
+    ComplexInt(String),
+    ComplexRat(String),
+    ComplexReal(String),
     Symbol(String),
 }
 
@@ -25,7 +29,8 @@ impl Token {
     fn is_number(&self) -> bool {
         match self {
             Token::Integer(_) | Token::Rational(_) |
-            Token::Real(_) | Token::Complex(_) => true,
+            Token::Real(_) | Token::ComplexInt(_) |
+            Token::ComplexRat(_) | Token::ComplexReal(_) => true,
             _ => false,
         }
     }

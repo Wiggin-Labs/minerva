@@ -5,5 +5,7 @@ version = "0.1.0"
 
 [dependencies]
 derive_is_enum_variant = "0.1.1"
+lazy_static = "0.2.11"
 maplit = "1.0.0"
 num = "0.1.40"
+regex = "0.2.2"

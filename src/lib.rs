@@ -3,8 +3,11 @@
 #[macro_use]
 extern crate derive_is_enum_variant;
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate maplit;
 extern crate num;
+extern crate regex;
 
 //mod bytecode;
 mod environment;

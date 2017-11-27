@@ -1,7 +1,11 @@
 use super::{ParseError, Token};
 
+use regex::Regex;
+
 use std::iter::Peekable;
 use std::str::Chars;
+
+type ParseResult = Result<(), ParseError>;
 
 pub struct Parser<'a> {
     position: usize,
@@ -31,25 +35,142 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn _parse(&mut self) -> Result<(), ParseError> {
+    fn peek(&mut self) -> Option<char> {
+        match self.input.peek() {
+            Some(c) => Some(*c),
+            None => None,
+        }
+    }
+
+    fn _parse(&mut self) -> ParseResult {
         while let Some(c) = self.next() {
             match c {
-                '(' => self.tokens.push(Token::LeftParen),
-                ')' => self.tokens.push(Token::RightParen),
-                '.' => self.tokens.push(Token::Dot),
+                c if is_pair_start(c) => self.tokens.push(Token::LeftParen),
+                c if is_pair_end(c) => self.tokens.push(Token::RightParen),
                 '\'' => self.tokens.push(Token::Quote),
                 '"' => self.parse_string()?,
-                '#' => self.parse_bool()?,
+                '|' => self.parse_identifier(String::new(), true)?,
+                ';' => self.parse_comment(c)?,
+                '#' => {
+                    match self.peek() {
+                        Some('|') => self.parse_block_comment()?,
+                        _ => {},
+                    }
+                    //self.parse_bool()?,
+                }
                 c if c.is_whitespace() => {}
-                '0' ... '9' => self.parse_number(c)?,
-                c if is_symbol_char(c, true) => self.parse_symbol(c)?,
-                _ => return Err(ParseError::Input),
+                '.' => match self.peek() {
+                    Some(c) => match c {
+                        c if is_delimiter(c) => self.tokens.push(Token::Dot),
+                        c => self.parse_ambiguous(c)?,
+                    },
+                    None => self.tokens.push(Token::Dot),
+                },
+                '0' ... '9' | '+' | '-' => self.parse_ambiguous(c)?,
+                _ => {
+                    let mut buf = String::new();
+                    buf.push(c);
+                    self.parse_identifier(buf, false)?;
+                }
             }
         }
         Ok(())
     }
 
-    pub fn parse_string(&mut self) -> Result<(), ParseError> {
+    fn parse_ambiguous(&mut self, c: char) -> ParseResult {
+        let mut buf = String::new();
+        buf.push(c);
+
+        while let Some(c) = self.next() {
+            match c {
+                '0' ... '9' | '+' | '-' | '/' | '.' | 'e' | 'i' => buf.push(c),
+                c if is_pair_start(c) => {
+                    self.distinguish_ambiguous(buf)?;
+                    self.tokens.push(Token::LeftParen);
+                    return Ok(());
+                }
+                c if is_pair_end(c) => {
+                    self.distinguish_ambiguous(buf)?;
+                    self.tokens.push(Token::RightParen);
+                    return Ok(());
+                }
+                c if c.is_whitespace() => break,
+                '\\' => match self.next() {
+                    Some(c) => {
+                        buf.push(c);
+                        return self.parse_identifier(buf, false);
+                    }
+                    None => return Err(ParseError::EOF),
+                },
+                _ => {
+                    buf.push(c);
+                    return self.parse_identifier(buf, c == '|');
+                }
+            }
+        }
+        self.distinguish_ambiguous(buf)
+    }
+
+    fn distinguish_ambiguous(&mut self, buf: String) -> ParseResult {
+        const _INT: &'static str = r"\d+";
+        const _RAT: &'static str = r"\d+(?:/\d+)?";
+        const _REAL: &'static str = r"\d*\.?\d+(?:[eE][-+]?\d+)?";
+        lazy_static! {
+            static ref INTEGER: Regex = Regex::new(&format!("^[+-]?{}$", _INT)).expect("1");
+            static ref RATIONAL: Regex = Regex::new(&format!("^[+-]?{}$", _RAT)).expect("2");
+            static ref REAL: Regex = Regex::new(&format!("^[+-]?{}$", _REAL)).unwrap();
+            static ref COMPLEX_INT: Regex = Regex::new(&format!("^[+-]?{}[+-]{0}i$", _INT)).unwrap();
+            static ref COMPLEX_RAT: Regex = Regex::new(&format!("^[+-]?{}[+-]{0}i$", _RAT)).unwrap();
+            static ref COMPLEX_REAL: Regex = Regex::new(&format!("^[+-]?({}|{})[+-]({0}|{1})i$", _REAL, _RAT)).unwrap();
+        }
+
+        if INTEGER.is_match(&buf) {
+            self.tokens.push(Token::Integer(buf));
+        } else if RATIONAL.is_match(&buf) {
+            self.tokens.push(Token::Rational(buf));
+        } else if REAL.is_match(&buf) {
+            self.tokens.push(Token::Real(buf));
+        } else if COMPLEX_INT.is_match(&buf) {
+            self.tokens.push(Token::ComplexInt(buf));
+        } else if COMPLEX_RAT.is_match(&buf) {
+            self.tokens.push(Token::ComplexRat(buf));
+        } else if COMPLEX_REAL.is_match(&buf) {
+            self.tokens.push(Token::ComplexReal(buf));
+        } else {
+            self.tokens.push(Token::Symbol(buf));
+        }
+        Ok(())
+    }
+
+    fn parse_identifier(&mut self, mut buf: String, mut in_bar: bool) -> ParseResult {
+        while let Some(c) = self.next() {
+            match c {
+                '\\' => match self.next() {
+                    Some(c) => buf.push(c),
+                    None => return Err(ParseError::EOF),
+                },
+                '|' => in_bar = !in_bar,
+                c if is_delimiter(c) => if in_bar {
+                    buf.push(c);
+                } else {
+                    self.tokens.push(Token::Symbol(buf));
+                    return match c {
+                        c if c.is_whitespace() => Ok(()),
+                        c if is_pair_start(c) => Ok(self.tokens.push(Token::LeftParen)),
+                        c if is_pair_end(c) => Ok(self.tokens.push(Token::RightParen)),
+                        '"' => self.parse_string(),
+                        ';' => self.parse_comment(c),
+                        _ => panic!("Parser error"),
+                    };
+                },
+                _ => buf.push(c),
+            }
+        }
+        self.tokens.push(Token::Symbol(buf));
+        Ok(())
+    }
+
+    pub fn parse_string(&mut self) -> ParseResult {
         let mut buf = String::new();
         while let Some(c) = self.next() {
             match c {
@@ -73,6 +194,7 @@ impl<'a> Parser<'a> {
         Err(ParseError::EOF)
     }
 
+    /*
     pub fn parse_bool(&mut self) -> Result<(), ParseError> {
         match self.next() {
             Some('t') => self.tokens.push(Token::Bool(true)),
@@ -90,72 +212,83 @@ impl<'a> Parser<'a> {
         }
         Ok(())
     }
+    */
 
-    pub fn parse_number(&mut self, first: char) -> Result<(), ParseError> {
-        let mut buf = String::new();
-        buf.push(first);
+    fn parse_block_comment(&mut self) -> ParseResult {
+        let mut buf = String::from("#|");
+        let mut nesting = 1;
         while let Some(c) = self.next() {
             match c {
-                c if c.is_whitespace() => {
-                    self.tokens.push(Token::Integer(buf));
-                    return Ok(());
-                }
-                '0' ... '9' => buf.push(c),
-                '(' => {
-                    self.tokens.push(Token::Integer(buf));
-                    self.tokens.push(Token::LeftParen);
-                    return Ok(());
-                }
-                ')' => {
-                    self.tokens.push(Token::Integer(buf));
-                    self.tokens.push(Token::RightParen);
-                    return Ok(());
-                }
-                _ => return Err(ParseError::Input),
+                '|' => match self.next() {
+                    Some('#') => {
+                        nesting -= 1;
+                        buf.push('|');
+                        buf.push('#');
+                        if nesting == 0 {
+                            self.tokens.push(Token::BlockComment(buf));
+                            return Ok(());
+                        }
+                    }
+                    Some(c) => buf.push(c),
+                    None => return Err(ParseError::EOF),
+                },
+                '#' => match self.next() {
+                    Some('|') => {
+                        nesting += 1;
+                        buf.push('#');
+                        buf.push('|');
+                    }
+                    Some(c) => buf.push(c),
+                    None => return Err(ParseError::EOF),
+                },
+                _ => buf.push(c),
             }
         }
-        self.tokens.push(Token::Integer(buf));
-        Ok(())
+        Err(ParseError::EOF)
     }
 
-    pub fn parse_symbol(&mut self, first: char) -> Result<(), ParseError> {
-        let mut buf = String::new();
-        buf.push(first);
+    // TODO
+    fn parse_comment(&mut self, c: char) -> ParseResult {
+        let mut buf = String::from(";");
+
         while let Some(c) = self.next() {
             match c {
-                c if is_symbol_char(c, false) => buf.push(c),
-                c if c.is_whitespace() => {
-                    if buf == "nil" {
-                        self.tokens.push(Token::Nil);
-                        return Ok(());
-                    } else {
-                        self.tokens.push(Token::Symbol(buf));
-                        return Ok(());
+                '\\' => match self.next() {
+                    Some(c) => {
+                        buf.push('\\');
+                        buf.push(c);
                     }
-                }
-                ')' => {
-                    if buf == "nil" {
-                        self.tokens.push(Token::Nil);
-                    } else {
-                        self.tokens.push(Token::Symbol(buf));
-                    }
-                    self.tokens.push(Token::RightParen);
-                    return Ok(())
-                }
-                _ => return Err(ParseError::Input),
+                    None => break,
+                },
+                '\n' => break,
+                _ => buf.push(c),
             }
         }
-        self.tokens.push(Token::Symbol(buf));
+        self.tokens.push(Token::Comment(buf));
         Ok(())
     }
 }
 
-fn is_symbol_char(c: char, start: bool) -> bool {
+fn is_delimiter(c: char) -> bool {
     match c {
-        'a' ... 'z' | 'A' ... 'Z' | '-' | '+' |
-        '!' | '$' | '%' | '&' | '*' | '/' | ':' |
-        '<' | '=' | '>' | '?' | '~' | '_' | '^' => true,
-        '0' ... '9' => !start,
+        c if is_pair_start(c) => true,
+        c if is_pair_end(c) => true,
+        c if c.is_whitespace() => true,
+        '"' | ';' => true,
+        _ => false,
+    }
+}
+
+fn is_pair_start(c: char) -> bool {
+    match c {
+        '(' | '[' | '{' => true,
+        _ => false,
+    }
+}
+
+fn is_pair_end(c: char) -> bool {
+    match c {
+        ')' | ']' | '}' => true,
         _ => false,
     }
 }
