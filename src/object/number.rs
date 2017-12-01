@@ -170,7 +170,20 @@ impl Sub for Number {
     type Output = Number;
 
     fn sub(self, other: Number) -> Number {
-        unimplemented!();
+        match (self, other) {
+            (Number::Exact(a), Number::Exact(b)) => {
+                Number::Exact(a - b)
+            }
+            (Number::Exact(a), Number::Floating(b)) => {
+                Number::Floating(a.to_floating() - b)
+            }
+            (Number::Floating(a), Number::Exact(b)) => {
+                Number::Floating(a - b.to_floating())
+            }
+            (Number::Floating(a), Number::Floating(b)) => {
+                Number::Floating(a - b)
+            }
+        }
     }
 }
 
@@ -178,7 +191,20 @@ impl Mul for Number {
     type Output = Number;
 
     fn mul(self, other: Number) -> Number {
-        unimplemented!();
+        match (self, other) {
+            (Number::Exact(a), Number::Exact(b)) => {
+                Number::Exact(a * b)
+            }
+            (Number::Exact(a), Number::Floating(b)) => {
+                Number::Floating(a.to_floating() * b)
+            }
+            (Number::Floating(a), Number::Exact(b)) => {
+                Number::Floating(a * b.to_floating())
+            }
+            (Number::Floating(a), Number::Floating(b)) => {
+                Number::Floating(a * b)
+            }
+        }
     }
 }
 
@@ -270,6 +296,26 @@ impl Neg for ComplexExact {
     }
 }
 
+impl Sub for ComplexExact {
+    type Output = ComplexExact;
+
+    fn sub(self, other: ComplexExact) -> ComplexExact {
+        ComplexExact::new(self.real - other.real,
+                          self.imaginary - other.imaginary)
+    }
+}
+
+impl Mul for ComplexExact {
+    type Output = ComplexExact;
+
+    fn mul(self, other: ComplexExact) -> ComplexExact {
+        let real = (self.real.clone() * other.real.clone())
+                   - (self.imaginary.clone() * other.imaginary.clone());
+        let imaginary = (self.real * other.imaginary) + (self.imaginary * other.real);
+        ComplexExact::new(real, imaginary)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct ComplexFloating {
     real: f64,
@@ -306,6 +352,25 @@ impl Neg for ComplexFloating {
             real: -self.real,
             imaginary: -self.imaginary
         }
+    }
+}
+
+impl Sub for ComplexFloating {
+    type Output = ComplexFloating;
+
+    fn sub(self, other: ComplexFloating) -> ComplexFloating {
+        ComplexFloating::new(self.real - other.real,
+                             self.imaginary - other.imaginary)
+    }
+}
+
+impl Mul for ComplexFloating {
+    type Output = ComplexFloating;
+
+    fn mul(self, other: ComplexFloating) -> ComplexFloating {
+        let real = (self.real * other.real) - (self.imaginary * other.imaginary);
+        let imaginary = (self.real * other.imaginary) + (self.imaginary * other.real);
+        ComplexFloating::new(real, imaginary)
     }
 }
 

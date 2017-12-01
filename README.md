@@ -10,3 +10,5 @@ are all primitives type checked?
   - This mostly requires improving the parser
 - Implement more primitives
 - Support more of r7rs
+- Add quasiquoting with unquoting
+- Emulate racket when displaying quoted values

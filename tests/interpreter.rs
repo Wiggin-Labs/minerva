@@ -145,6 +145,14 @@ fn variadic() {
 }
 
 #[test]
+fn numbers() {
+    let env = init_env();
+    //run("1.0+1i", &env);
+    //run("1.0+i", &env);
+    //run("1.0+1/2i", &env);
+}
+
+#[test]
 fn fuzz_tests() {
     let env = init_env();
 
