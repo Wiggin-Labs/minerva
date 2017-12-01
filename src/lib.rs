@@ -1,4 +1,9 @@
 #![feature(match_default_bindings)]
+#![cfg_attr(feature="flame_it", feature(plugin, custom_attribute))]
+#![cfg_attr(feature="flame_it", plugin(flamer))]
+#![cfg_attr(feature="flame_it", flame)]
+#[cfg(feature="flame_it")]
+extern crate flame;
 
 #[macro_use]
 extern crate derive_is_enum_variant;
@@ -18,7 +23,7 @@ mod parser;
 
 pub use environment::{Environment, init_env};
 pub use error::Error;
-pub use object::{Lambda, Number, Object, Pair, Primitive};
+pub use object::{Lambda, Number, ComplexExact, ComplexFloating, Object, Pair, Primitive};
 pub use parser::{Parser, Token};
 
 pub fn eval(exp: Object, env: &Environment) -> Object {

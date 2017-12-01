@@ -1,7 +1,7 @@
 mod number;
 mod primitive;
 
-pub use self::number::Number;
+pub use self::number::{ComplexExact, ComplexFloating, Number};
 pub use self::primitive::{Arity, Primitive};
 
 use {Environment, Error, eval};
@@ -510,10 +510,13 @@ impl Object {
     }
 
     pub(crate) fn as_usize(&self) -> usize {
+        // TODO
+        0
+        /*
         match self {
             Object::Number(Number::Integer(i)) => i.to_i64().unwrap() as usize,
             _ => panic!("compiler error"),
-        }
+        }*/
     }
 
     pub fn is_procedure(&self) -> bool {

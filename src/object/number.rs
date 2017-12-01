@@ -1,9 +1,240 @@
 use parser::Token;
 use num::{BigInt, BigRational, One, Zero};
 
+use regex::Regex;
+
 use std::fmt::{self, Display, Formatter};
 use std::ops::{Add, Mul, Neg, Sub};
 
+#[derive(Debug, Clone, PartialEq, PartialOrd, is_enum_variant)]
+pub enum Number {
+    Exact(ComplexExact),
+    Floating(ComplexFloating),
+}
+
+impl Number {
+    pub fn from_token(t: &Token) -> Self {
+        match t {
+            Token::Integer(s) => {
+                let real = s.parse().unwrap();
+                Number::Exact(ComplexExact::new(real, BigRational::zero()))
+            }
+            Token::Rational(s) => {
+                let real = s.parse().unwrap();
+                Number::Exact(ComplexExact::new(real, BigRational::zero()))
+            }
+            Token::Real(s) => {
+                Number::Floating(ComplexFloating::new(s.parse().unwrap(), 0f64))
+            }
+            Token::ComplexInt(real, imaginary) => {
+                let real = if let Some(real) = real {
+                    real.parse().unwrap()
+                } else {
+                    BigRational::zero()
+                };
+                let imaginary = if let Some(imaginary) = imaginary {
+                    if imaginary.len() == 1{
+                        if imaginary == "-" {
+                            -BigRational::one()
+                        } else {
+                            BigRational::one()
+                        }
+                    } else {
+                        imaginary.parse().unwrap()
+                    }
+                } else {
+                    BigRational::zero()
+                };
+                Number::Exact(ComplexExact::new(real, imaginary))
+            }
+            Token::ComplexRat(real, imaginary) => {
+                let real = if let Some(real) = real {
+                    real.parse().unwrap()
+                } else {
+                    BigRational::zero()
+                };
+                let imaginary = if let Some(imaginary) = imaginary {
+                    if imaginary.len() == 1{
+                        if imaginary == "-" {
+                            -BigRational::one()
+                        } else {
+                            BigRational::one()
+                        }
+                    } else {
+                        imaginary.parse().unwrap()
+                    }
+                } else {
+                    BigRational::zero()
+                };
+                Number::Exact(ComplexExact::new(real, imaginary))
+            }
+            Token::ComplexReal(real, imaginary) => {
+                const _RAT: &'static str = r"[+-]?\d+/\d+";
+                lazy_static! {
+                    static ref RATIONAL: Regex = Regex::new(_RAT).unwrap();
+                }
+
+                let real = if let Some(real) = real {
+                    if RATIONAL.is_match(real) {
+                        Self::rat_to_f64(real)
+                    } else {
+                        real.parse().unwrap()
+                    }
+                } else {
+                    0f64
+                };
+                let imaginary = if let Some(imaginary) = imaginary {
+                    if imaginary.len() == 1{
+                        if imaginary == "-" {
+                            -1.0
+                        } else {
+                            1.0
+                        }
+                    } else if RATIONAL.is_match(imaginary) {
+                        Self::rat_to_f64(imaginary)
+                    } else {
+                        imaginary.parse().unwrap()
+                    }
+                } else {
+                    0f64
+                };
+                Number::Floating(ComplexFloating::new(real, imaginary))
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn rat_to_f64(buf: &str) -> f64 {
+        let i = buf.find('/').unwrap();
+        let (numerator, denominator) = buf.split_at(i);
+        let denominator = denominator.trim_left_matches('/');
+        numerator.parse::<f64>().unwrap() / denominator.parse::<f64>().unwrap()
+    }
+
+    pub fn zero() -> Self {
+        Number::Exact(ComplexExact::new(BigRational::zero(), BigRational::zero()))
+    }
+
+    pub fn one() -> Self {
+        Number::Exact(ComplexExact::new(BigRational::one(), BigRational::zero()))
+    }
+}
+
+impl Display for Number {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Number::Exact(n) => if !n.is_complex() {
+                write!(f, "{}", n.real)
+            } else {
+                write!(f, "{}+{}i", n.real, n.imaginary)
+            },
+            Number::Floating(n) => write!(f, ""),
+        }
+    }
+}
+
+impl Add for Number {
+    type Output = Number;
+
+    fn add(self, other: Number) -> Number {
+        unimplemented!();
+    }
+}
+
+impl Neg for Number {
+    type Output = Number;
+
+    fn neg(self) -> Number {
+        unimplemented!();
+    }
+}
+
+impl Sub for Number {
+    type Output = Number;
+
+    fn sub(self, other: Number) -> Number {
+        unimplemented!();
+    }
+}
+
+impl Mul for Number {
+    type Output = Number;
+
+    fn mul(self, other: Number) -> Number {
+        unimplemented!();
+    }
+}
+
+impl From<ComplexExact> for Number {
+    fn from(n: ComplexExact) -> Number {
+        Number::Exact(n)
+    }
+}
+
+impl From<ComplexFloating> for Number {
+    fn from(n: ComplexFloating) -> Number {
+        Number::Floating(n)
+    }
+}
+
+impl From<i64> for Number {
+    fn from(n: i64) -> Number {
+        let numerator = BigRational::from_integer(BigInt::from(n));
+        Number::Exact(ComplexExact::new(numerator, BigRational::zero()))
+    }
+}
+
+impl From<BigRational> for Number {
+    fn from(n: BigRational) -> Number {
+        Number::Exact(ComplexExact::new(n, BigRational::zero()))
+    }
+}
+
+impl From<f64> for Number {
+    fn from(n: f64) -> Number {
+        Number::Floating(ComplexFloating::new(n, 0f64))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct ComplexExact {
+    real: BigRational,
+    imaginary: BigRational,
+}
+
+impl ComplexExact {
+    pub fn new(real: BigRational, imaginary: BigRational) -> Self {
+        ComplexExact {
+            real,
+            imaginary,
+        }
+    }
+
+    pub fn is_complex(&self) -> bool {
+        self.imaginary.is_zero()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct ComplexFloating {
+    real: f64,
+    imaginary: f64,
+}
+
+impl ComplexFloating {
+    pub fn new(real: f64, imaginary: f64) -> Self {
+        ComplexFloating {
+            real,
+            imaginary,
+        }
+    }
+
+    pub fn is_complex(&self) -> bool {
+        self.imaginary == 0f64
+    }
+}
+
+/*
 #[derive(Debug, Clone, PartialEq, PartialOrd, is_enum_variant)]
 pub enum Number {
     Integer(BigInt),
@@ -28,12 +259,54 @@ impl Number {
     pub fn from_token(t: &Token) -> Self {
         match t {
             Token::Integer(s) => Number::Integer(s.parse().unwrap()),
-            Token::Rational(s) => unimplemented!(),
-            Token::Real(s) => unimplemented!(),
-            Token::ComplexInt(s) => unimplemented!(),
-            Token::ComplexRat(s) => unimplemented!(),
-            Token::ComplexReal(s) => unimplemented!(),
+            Token::Rational(s) => Self::handle_rat(s),
+            Token::Real(s) => Number::Real(s.parse().unwrap()),
+            Token::ComplexInt(s) => {
+                let (real, imaginary) = Self::split_complex(&s);
+                let real = Number::Integer(real.parse().unwrap());
+                let imaginary = Number::Integer(imaginary.parse().unwrap());
+                Number::Complex(Box::new(Complex::new(real, imaginary)))
+            }
+            Token::ComplexRat(s) => {
+                let (real, imaginary) = Self::split_complex(&s);
+                let real = Self::handle_rat(&real);
+                let imaginary = Self::handle_rat(&imaginary);
+                Number::Complex(Box::new(Complex::new(real, imaginary)))
+            }
+            Token::ComplexReal(s) => {
+                // TODO: test what happens if real or imag is a rational
+                let (real, imaginary) = Self::split_complex(&s);
+                let real = Number::Real(real.parse().unwrap());
+                let imaginary = Number::Real(imaginary.parse().unwrap());
+                Number::Complex(Box::new(Complex::new(real, imaginary)))
+            }
             _ => panic!("compiler error"),
+        }
+    }
+
+    fn split_complex(s: &str) -> (String, String) {
+        let s = &s[..s.len()-1];
+        let index = s.rfind(|c| c == '+' || c == '-').unwrap();
+        let (a, b) = s.split_at(index);
+        if b.len() == 1 {
+            (a.to_string(), b.to_string())
+        } else {
+            (a.to_string(), b.to_string())
+        }
+    }
+
+    fn handle_rat(s: &str) -> Self {
+        let rat = s.parse::<BigRational>().unwrap();
+        if rat.is_integer() {
+            Number::Integer(rat.to_integer())
+        } else {
+            Number::Rational(rat)
+        }
+    }
+
+    pub fn to_real(self) -> Self {
+        match self {
+            Number::Integer(n)
         }
     }
 
@@ -108,6 +381,15 @@ pub struct Complex {
     imaginary: Number,
 }
 
+impl Complex {
+    pub fn new(real: Number, imaginary: Number) -> Self {
+        Complex {
+            real,
+            imaginary,
+        }
+    }
+}
+
 impl Display for Complex {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}+{}i", self.real, self.imaginary)
@@ -123,3 +405,4 @@ impl Neg for Complex {
         self
     }
 }
+*/
