@@ -1,8 +1,9 @@
 use parser::Token;
-use num::{BigInt, BigRational, One, Zero};
+use num::{BigInt, BigRational, One, ToPrimitive, Zero};
 
 use regex::Regex;
 
+use std::f64;
 use std::fmt::{self, Display, Formatter};
 use std::ops::{Add, Mul, Neg, Sub};
 
@@ -137,7 +138,20 @@ impl Add for Number {
     type Output = Number;
 
     fn add(self, other: Number) -> Number {
-        unimplemented!();
+        match (self, other) {
+            (Number::Exact(a), Number::Exact(b)) => {
+                Number::Exact(a + b)
+            }
+            (Number::Exact(a), Number::Floating(b)) => {
+                Number::Floating(a.to_floating() + b)
+            }
+            (Number::Floating(a), Number::Exact(b)) => {
+                Number::Floating(a + b.to_floating())
+            }
+            (Number::Floating(a), Number::Floating(b)) => {
+                Number::Floating(a + b)
+            }
+        }
     }
 }
 
@@ -145,7 +159,10 @@ impl Neg for Number {
     type Output = Number;
 
     fn neg(self) -> Number {
-        unimplemented!();
+        match self {
+            Number::Exact(n) => Number::Exact(-n),
+            Number::Floating(n) => Number::Floating(-n),
+        }
     }
 }
 
@@ -213,6 +230,44 @@ impl ComplexExact {
     pub fn is_complex(&self) -> bool {
         self.imaginary.is_zero()
     }
+
+    pub fn to_floating(self) -> ComplexFloating {
+        fn bigint_to_f64(n: &BigInt) -> f64 {
+            if let Some(n) = n.to_f64() {
+                n
+            } else {
+                if n.sign() == ::num::bigint::Sign::Minus {
+                    f64::NEG_INFINITY
+                } else {
+                    f64::INFINITY
+                }
+            }
+        }
+
+        let real = bigint_to_f64(self.real.numer()) / bigint_to_f64(self.real.denom());
+        let imaginary = bigint_to_f64(self.imaginary.numer()) / bigint_to_f64(self.imaginary.denom());
+        ComplexFloating::new(real, imaginary)
+    }
+}
+
+impl Add for ComplexExact {
+    type Output = ComplexExact;
+
+    fn add(self, other: ComplexExact) -> ComplexExact {
+        ComplexExact::new(self.real + other.real,
+                          self.imaginary + other.imaginary)
+    }
+}
+
+impl Neg for ComplexExact {
+    type Output = ComplexExact;
+
+    fn neg(self) -> ComplexExact {
+        ComplexExact {
+            real: -self.real,
+            imaginary: -self.imaginary
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -231,6 +286,26 @@ impl ComplexFloating {
 
     pub fn is_complex(&self) -> bool {
         self.imaginary == 0f64
+    }
+}
+
+impl Add for ComplexFloating {
+    type Output = ComplexFloating;
+
+    fn add(self, other: ComplexFloating) -> ComplexFloating {
+        ComplexFloating::new(self.real + other.real,
+                          self.imaginary + other.imaginary)
+    }
+}
+
+impl Neg for ComplexFloating {
+    type Output = ComplexFloating;
+
+    fn neg(self) -> ComplexFloating {
+        ComplexFloating {
+            real: -self.real,
+            imaginary: -self.imaginary
+        }
     }
 }
 
