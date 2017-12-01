@@ -32,8 +32,7 @@ fn symbol() {
     assert!(run(".1e+3").is_real());
     assert!(run(".1e3.0").is_symbol());
     assert!(run("1+3i").is_complex_int());
-    //assert!(run("1+i").is_complex_int());
-    assert_eq!(run("1+i"), Token::ComplexInt("1+i".to_string()));
+    assert!(run("1+i").is_complex_int());
     assert!(run("+i").is_complex_int());
     assert!(run("+3i").is_complex_int());
     assert!(run("+1+3i").is_complex_int());
