@@ -19,9 +19,9 @@ pub enum Token {
     Integer(String),
     Rational(String),
     Real(String),
-    ComplexInt(String),
-    ComplexRat(String),
-    ComplexReal(String),
+    ComplexInt(Option<String>, Option<String>),
+    ComplexRat(Option<String>, Option<String>),
+    ComplexReal(Option<String>, Option<String>),
     Symbol(String),
 }
 
@@ -29,8 +29,8 @@ impl Token {
     fn is_number(&self) -> bool {
         match self {
             Token::Integer(_) | Token::Rational(_) |
-            Token::Real(_) | Token::ComplexInt(_) |
-            Token::ComplexRat(_) | Token::ComplexReal(_) => true,
+            Token::Real(_) | Token::ComplexInt(_, _) |
+            Token::ComplexRat(_, _) | Token::ComplexReal(_, _) => true,
             _ => false,
         }
     }
@@ -85,7 +85,7 @@ impl Token {
             Dot => return Err(ParseError::IllegalUse),
             RightParen => return Err(ParseError::UnexpectedCloseParen),
             // TODO: what should happen on `''a`?
-            Quote => return Err(ParseError::BadQuote),
+            Quote => Self::parse_quote(tokens)?,
             _ => return Ok(next.to_object()),
         };
         Ok(Object::cons(Object::Symbol("quote".to_string()),

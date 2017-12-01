@@ -122,12 +122,12 @@ impl<'a> Parser<'a> {
         const _RAT: &'static str = r"\d+(?:/\d+)?";
         const _REAL: &'static str = r"\d*\.?\d+(?:[eE][-+]?\d+)?";
         lazy_static! {
-            static ref INTEGER: Regex = Regex::new(&format!("^[+-]?{}$", _INT)).expect("1");
-            static ref RATIONAL: Regex = Regex::new(&format!("^[+-]?{}$", _RAT)).expect("2");
+            static ref INTEGER: Regex = Regex::new(&format!("^[+-]?{}$", _INT)).unwrap();
+            static ref RATIONAL: Regex = Regex::new(&format!("^[+-]?{}$", _RAT)).unwrap();
             static ref REAL: Regex = Regex::new(&format!("^[+-]?{}$", _REAL)).unwrap();
-            static ref COMPLEX_INT: Regex = Regex::new(&format!("^(?:[+-]?{})?[+-](?:{0})?i$", _INT)).unwrap();
-            static ref COMPLEX_RAT: Regex = Regex::new(&format!("^(?:[+-]?{})?[+-](?:{0})?i$", _RAT)).unwrap();
-            static ref COMPLEX_REAL: Regex = Regex::new(&format!("^(?:[+-]?(?:{}|{}))?[+-](?:{0}|{1})?i$", _REAL, _RAT)).unwrap();
+            static ref COMPLEX_INT: Regex = Regex::new(&format!("^([+-]?{})?([+-](:?{0})?)i$", _INT)).unwrap();
+            static ref COMPLEX_RAT: Regex = Regex::new(&format!("^([+-]?{})?([+-](:?{0})?)i$", _RAT)).unwrap();
+            static ref COMPLEX_REAL: Regex = Regex::new(&format!("^([+-]?(?:{}|{}))?([+-](?:{0}|{1})?)i$", _REAL, _RAT)).unwrap();
         }
 
         if INTEGER.is_match(&buf) {
@@ -137,11 +137,20 @@ impl<'a> Parser<'a> {
         } else if REAL.is_match(&buf) {
             self.tokens.push(Token::Real(buf));
         } else if COMPLEX_INT.is_match(&buf) {
-            self.tokens.push(Token::ComplexInt(buf));
+            let captures = COMPLEX_INT.captures(&buf).unwrap();
+            let real = captures.get(1).map(|s| s.as_str().to_owned());
+            let imaginary = captures.get(2).map(|s| s.as_str().to_owned());
+            self.tokens.push(Token::ComplexInt(real, imaginary));
         } else if COMPLEX_RAT.is_match(&buf) {
-            self.tokens.push(Token::ComplexRat(buf));
+            let captures = COMPLEX_RAT.captures(&buf).unwrap();
+            let real = captures.get(1).map(|s| s.as_str().to_owned());
+            let imaginary = captures.get(2).map(|s| s.as_str().to_owned());
+            self.tokens.push(Token::ComplexRat(real, imaginary));
         } else if COMPLEX_REAL.is_match(&buf) {
-            self.tokens.push(Token::ComplexReal(buf));
+            let captures = COMPLEX_REAL.captures(&buf).unwrap();
+            let real = captures.get(1).map(|s| s.as_str().to_owned());
+            let imaginary = captures.get(2).map(|s| s.as_str().to_owned());
+            self.tokens.push(Token::ComplexReal(real, imaginary));
         } else {
             self.tokens.push(Token::Symbol(buf));
         }
