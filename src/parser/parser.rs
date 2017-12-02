@@ -48,6 +48,14 @@ impl<'a> Parser<'a> {
                 c if is_pair_start(c) => self.tokens.push(Token::LeftParen),
                 c if is_pair_end(c) => self.tokens.push(Token::RightParen),
                 '\'' => self.tokens.push(Token::Quote),
+                '`' => self.tokens.push(Token::Quasiquote),
+                ',' => match self.peek() {
+                    Some('@') => {
+                        self.next();
+                        self.tokens.push(Token::UnquoteSplice);
+                    }
+                    _ => self.tokens.push(Token::Unquote),
+                },
                 '"' => self.parse_string()?,
                 '|' => self.parse_identifier(String::new(), true)?,
                 ';' => self.parse_comment(c)?,
