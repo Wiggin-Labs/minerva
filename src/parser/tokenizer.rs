@@ -16,21 +16,15 @@ pub enum Token {
     Nil,
     Bool(bool),
     String(String),
-    Integer(String),
-    Rational(String),
-    Real(String),
-    ComplexInt(Option<String>, Option<String>),
-    ComplexRat(Option<String>, Option<String>),
-    ComplexReal(Option<String>, Option<String>),
+    ComplexExact(Option<String>, Option<String>),
+    ComplexFloating(Option<String>, Option<String>),
     Symbol(String),
 }
 
 impl Token {
     fn is_number(&self) -> bool {
         match self {
-            Token::Integer(_) | Token::Rational(_) |
-            Token::Real(_) | Token::ComplexInt(_, _) |
-            Token::ComplexRat(_, _) | Token::ComplexReal(_, _) => true,
+            Token::ComplexExact(_, _) | Token::ComplexFloating(_, _) => true,
             _ => false,
         }
     }

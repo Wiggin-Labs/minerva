@@ -16,18 +16,7 @@ pub enum Number {
 impl Number {
     pub fn from_token(t: &Token) -> Self {
         match t {
-            Token::Integer(s) => {
-                let real = s.parse().unwrap();
-                Number::Exact(ComplexExact::new(real, BigRational::zero()))
-            }
-            Token::Rational(s) => {
-                let real = s.parse().unwrap();
-                Number::Exact(ComplexExact::new(real, BigRational::zero()))
-            }
-            Token::Real(s) => {
-                Number::Floating(ComplexFloating::new(s.parse().unwrap(), 0f64))
-            }
-            Token::ComplexInt(real, imaginary) => {
+            Token::ComplexExact(real, imaginary) => {
                 let real = if let Some(real) = real {
                     real.parse().unwrap()
                 } else {
@@ -48,28 +37,7 @@ impl Number {
                 };
                 Number::Exact(ComplexExact::new(real, imaginary))
             }
-            Token::ComplexRat(real, imaginary) => {
-                let real = if let Some(real) = real {
-                    real.parse().unwrap()
-                } else {
-                    BigRational::zero()
-                };
-                let imaginary = if let Some(imaginary) = imaginary {
-                    if imaginary.len() == 1{
-                        if imaginary == "-" {
-                            -BigRational::one()
-                        } else {
-                            BigRational::one()
-                        }
-                    } else {
-                        imaginary.parse().unwrap()
-                    }
-                } else {
-                    BigRational::zero()
-                };
-                Number::Exact(ComplexExact::new(real, imaginary))
-            }
-            Token::ComplexReal(real, imaginary) => {
+            Token::ComplexFloating(real, imaginary) => {
                 const _RAT: &'static str = r"[+-]?\d+/\d+";
                 lazy_static! {
                     static ref RATIONAL: Regex = Regex::new(_RAT).unwrap();
