@@ -32,9 +32,11 @@ fn basics() {
     // test car and cdr
     let input = "(car a)";
     assert_eq!(Object::from(1), run(input, &env));
+    println!("b");
     let input = "(cdr a)";
     assert_eq!(Object::from(2), run(input, &env));
 
+    println!("c");
     // set-car! and set-cdr!
     let input = "(set-car! a 3)";
     assert!(run(input, &env).is_void());
@@ -142,14 +144,6 @@ fn variadic() {
 
     let input = "((lambda x x) 1 2 3)";
     assert_eq!(expected, run(input, &env));
-}
-
-#[test]
-fn numbers() {
-    let env = init_env();
-    //run("1.0+1i", &env);
-    //run("1.0+i", &env);
-    //run("1.0+1/2i", &env);
 }
 
 #[test]

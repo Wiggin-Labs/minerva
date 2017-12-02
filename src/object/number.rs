@@ -225,6 +225,10 @@ impl ComplexExact {
         self.imaginary.is_zero()
     }
 
+    pub(crate) fn as_usize(&self) -> usize {
+        self.real.numer().to_i64().unwrap() as usize
+    }
+
     pub fn to_floating(self) -> ComplexFloating {
         fn bigint_to_f64(n: &BigInt) -> f64 {
             if let Some(n) = n.to_f64() {

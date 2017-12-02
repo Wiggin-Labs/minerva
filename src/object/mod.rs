@@ -6,6 +6,8 @@ pub use self::primitive::{Arity, Primitive};
 
 use {Environment, Error, eval};
 
+use num::ToPrimitive;
+
 use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
@@ -478,12 +480,16 @@ impl Object {
         self.cddr().car()
     }
 
-    pub fn cdadr(&self) -> Object {
-        self.cadr().cdr()
-    }
-
     pub fn cadddr(&self) -> Object {
         self.cdddr().car()
+    }
+
+    pub fn cdar(&self) -> Object {
+        self.car().cdr()
+    }
+
+    pub fn cdadr(&self) -> Object {
+        self.cadr().cdr()
     }
 
     pub fn push(&self, next: Object) -> Object {
@@ -508,13 +514,10 @@ impl Object {
     }
 
     pub(crate) fn as_usize(&self) -> usize {
-        // TODO
-        0
-        /*
         match self {
-            Object::Number(Number::Integer(i)) => i.to_i64().unwrap() as usize,
+            Object::Number(Number::Exact(i)) => i.as_usize(),
             _ => panic!("compiler error"),
-        }*/
+        }
     }
 
     pub fn is_procedure(&self) -> bool {

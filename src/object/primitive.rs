@@ -74,12 +74,10 @@ impl Primitive {
                 Object::cons(car, cdr)
             }
             "car" => {
-                let arg = args.car();
-                arg.car()
+                args.caar()
             }
             "cdr" => {
-                let arg = args.car();
-                arg.cdr()
+                args.cdar()
             }
             "set-car!" => {
                 let pair = args.car();
