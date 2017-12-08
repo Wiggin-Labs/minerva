@@ -6,8 +6,6 @@ pub use self::primitive::{Arity, Primitive};
 
 use {Environment, Error, eval};
 
-use num::ToPrimitive;
-
 use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;

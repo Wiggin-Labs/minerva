@@ -97,7 +97,11 @@ impl Display for Number {
             } else {
                 write!(f, "{}+{}i", n.real, n.imaginary)
             },
-            Number::Floating(n) => write!(f, ""),
+            Number::Floating(n) => if !n.is_complex() {
+                write!(f, "{}", n.real)
+            } else {
+                write!(f, "{}+{}i", n.real, n.imaginary)
+            },
         }
     }
 }

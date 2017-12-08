@@ -13,6 +13,9 @@ pub enum Token {
     RightParen,
     Dot,
     Quote,
+    Quasiquote,
+    Unquote,
+    UnquoteSplice,
     Nil,
     Bool(bool),
     String(String),
@@ -56,6 +59,12 @@ impl Token {
                     let list = Self::parse_quote(&mut tokens)?;
                     exprs.push(list);
                 }
+                Quasiquote => {
+                    let list = Self::parse_unquote(&mut tokens)?;
+                    exprs.push(list);
+                }
+                Unquote => return Err(ParseError::IllegalUse),
+                UnquoteSplice => return Err(ParseError::IllegalUse),
                 _ => exprs.push(token.to_object()),
             }
         }
@@ -77,12 +86,42 @@ impl Token {
                 Self::parse_expr(tokens)?
             },
             Dot => return Err(ParseError::IllegalUse),
+            Unquote => return Err(ParseError::IllegalUse),
+            UnquoteSplice => return Err(ParseError::IllegalUse),
             RightParen => return Err(ParseError::UnexpectedCloseParen),
-            // TODO: what should happen on `''a`?
             Quote => Self::parse_quote(tokens)?,
             _ => return Ok(next.to_object()),
         };
         Ok(Object::cons(Object::Symbol("quote".to_string()),
+                        Object::cons(quoted, Object::Nil)))
+    }
+
+    fn parse_quasiquote<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Object, ParseError> {
+        use self::Token::*;
+        let next = if let Some(t) = tokens.next() {
+            t
+        } else {
+            return Err(ParseError::BadQuote);
+        };
+
+        let quoted = match next {
+            Symbol(s) => Object::Symbol(s.to_owned()),
+            LeftParen => {
+                Self::parse_expr(tokens)?
+            },
+            Dot => return Err(ParseError::IllegalUse),
+            RightParen => return Err(ParseError::UnexpectedCloseParen),
+            Unquote => {
+                // TODO parse next expr
+                Object::cons(Object::Symbol("unquote".to_string()),
+                             Object::cons(Object::Nil, Object::Nil))
+            }
+            UnquoteSplice => return Err(ParseError::IllegalUse),
+            Quote => Self::parse_quote(tokens)?,
+            _ => return Ok(next.to_object()),
+        };
+
+        Ok(Object::cons(Object::Symbol("quasiquote".to_string()),
                         Object::cons(quoted, Object::Nil)))
     }
 
@@ -134,7 +173,11 @@ impl Token {
                 Quote => {
                     let l = Self::parse_quote(tokens)?;
                     list = list.push(l);
-                },
+                }
+                Quasiquote => {
+                    let l = Self::parse_quasiquote(tokens)?;
+                    list = list.push(l);
+                }
                 Nil => list = list.push(Object::Nil),
                 Bool(b) => list = list.push(Object::Bool(*b)),
                 String(s) => list = list.push(Object::String(s.to_owned())),
