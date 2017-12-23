@@ -12,3 +12,10 @@ are all primitives type checked?
 - Support more of r7rs
 - Add quasiquoting with unquoting
 - Emulate racket when displaying quoted values
+
+#### Priority
+- Macros
+- Continuations
+- Bytecode
+- Rust FFI
+- REPL/environment

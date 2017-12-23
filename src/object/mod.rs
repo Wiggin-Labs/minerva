@@ -172,6 +172,14 @@ impl Object {
                    Object::cons(parameters, body))
     }
 
+    pub(crate) fn is_macro(&self) -> bool {
+        self.is_tagged_list("define-macro".to_string())
+    }
+
+    pub(crate) fn eval_macro(self, env: &Environment) -> Object {
+        // TODO
+    }
+
     pub(crate) fn is_if(&self) -> bool {
         self.is_tagged_list("if".to_string())
     }
