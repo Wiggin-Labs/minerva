@@ -594,6 +594,7 @@ impl Display for Object {
                 }
                 write!(f, ")")
             }
+            Object::Macro(_l) => write!(f, "#<procedure TODO>"),
             // TODO: print proc name and number of args
             Object::Lambda(_l) => write!(f, "#<procedure TODO>"),
             Object::Primitive(l) => write!(f, "#<procedure {} {} args>", l.name, l.args),

@@ -3,7 +3,7 @@ extern crate akuma;
 use std::io::{stdin, stdout, Write};
 
 fn main() {
-    let env = r7_rs::init_env();
+    let env = akuma::init_env();
     loop {
         // Print prompt
         print!(">> ");
@@ -16,14 +16,14 @@ fn main() {
         {
             stdin().read_line(&mut input).unwrap();
         }
-        let tokens = match r7_rs::Parser::parse(&input) {
+        let tokens = match akuma::Parser::parse(&input) {
             Ok(t) => t,
             Err(e) => {
                 println!("ERROR: {}", e);
                 continue;
             }
         };
-        let objects = match r7_rs::Token::build_ast(tokens) {
+        let objects = match akuma::Token::build_ast(tokens) {
             Ok(o) => o,
             Err(e) => {
                 println!("ERROR: {}", e);
@@ -32,7 +32,7 @@ fn main() {
         };
 
         for object in objects {
-            println!("{}", r7_rs::eval(object, &env));
+            println!("{}", akuma::eval(object, &env));
         }
     }
 }

@@ -60,7 +60,7 @@ impl Token {
                     exprs.push(list);
                 }
                 Quasiquote => {
-                    let list = Self::parse_unquote(&mut tokens)?;
+                    let list = Self::parse_quasiquote(&mut tokens)?;
                     exprs.push(list);
                 }
                 Unquote => return Err(ParseError::IllegalUse),
