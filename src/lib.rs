@@ -37,7 +37,7 @@ pub fn eval(exp: Object, env: &Environment) -> Object {
         exp.eval_assignment(env)
     } else if exp.is_definition() {
         exp.eval_definition(env)
-    } else if exp.is_macro() {
+    } else if exp.is_macro_def() {
         exp.eval_macro(env)
     } else if exp.is_if() {
         exp.eval_if(env)

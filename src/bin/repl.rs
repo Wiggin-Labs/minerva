@@ -1,4 +1,4 @@
-extern crate r7_rs;
+extern crate akuma;
 
 use std::io::{stdin, stdout, Write};
 

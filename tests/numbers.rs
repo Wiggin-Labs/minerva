@@ -1,8 +1,8 @@
 extern crate num;
-extern crate r7_rs;
+extern crate akuma;
 
 use num::{BigInt, BigRational, One, Zero};
-use r7_rs::{Parser, Token, Object, ComplexExact, ComplexFloating, Number};
+use akuma::{Parser, Token, Object, ComplexExact, ComplexFloating, Number};
 
 fn new_rat(numerator: i64, denominator: i64) -> BigRational {
     BigRational::new(BigInt::from(numerator), BigInt::from(denominator))

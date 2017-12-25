@@ -1,6 +1,8 @@
-# R7.rs
+# Akuma
 
 A scheme interpreter
+
+Dedicated to the Nissan Fairlady S30 240z.
 
 ### TODO
 - real scheme throws error on (= 1 2 't) because of symbol. Our interpreter allows

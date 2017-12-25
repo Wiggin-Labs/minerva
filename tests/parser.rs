@@ -1,6 +1,6 @@
-extern crate r7_rs;
+extern crate akuma;
 
-use r7_rs::{Parser, Token};
+use akuma::{Parser, Token};
 
 fn run(input: &str) -> Token {
     Parser::parse(input).unwrap().remove(0)

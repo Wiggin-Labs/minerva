@@ -62,6 +62,10 @@ impl Lambda {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub struct Macro {
+}
+
 #[derive(Clone, Debug, PartialEq, is_enum_variant)]
 pub enum Object {
     Void,
@@ -74,6 +78,7 @@ pub enum Object {
     Pair(Rc<RefCell<Pair>>),
     #[is_enum_variant(skip)]
     Lambda(Rc<Lambda>),
+    Macro(Rc<Macro>),
     Primitive(Primitive),
     Error(Error),
 }
@@ -172,12 +177,12 @@ impl Object {
                    Object::cons(parameters, body))
     }
 
-    pub(crate) fn is_macro(&self) -> bool {
+    pub(crate) fn is_macro_def(&self) -> bool {
         self.is_tagged_list("define-macro".to_string())
     }
 
     pub(crate) fn eval_macro(self, env: &Environment) -> Object {
-        // TODO
+        unimplemented!()
     }
 
     pub(crate) fn is_if(&self) -> bool {

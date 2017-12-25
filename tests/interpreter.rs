@@ -1,6 +1,6 @@
-extern crate r7_rs;
+extern crate akuma;
 
-use r7_rs::{eval, init_env, Environment, Object, Parser, Token};
+use akuma::{eval, init_env, Environment, Object, Parser, Token};
 
 fn run(input: &str, env: &Environment) -> Object {
     let tokens = Parser::parse(input).unwrap();
