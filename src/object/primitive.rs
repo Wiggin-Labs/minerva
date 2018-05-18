@@ -62,16 +62,27 @@ impl Primitive {
     }
 
     pub fn run(self, args: Object) -> Object {
-        let len = args.length();
-        if !self.args.correct_number_of_args(len.as_usize()) {
+        let len = args.length().as_usize();
+        if !self.args.correct_number_of_args(len) {
             return Object::Error(Error::WrongArgs);
         }
 
         match self.name.as_str() {
+            "eval" => {
+                // TODO
+                Object::Void
+            }
+            "apply" => {
+                // TODO
+                Object::Void
+            }
             "cons" => {
                 let car = args.car();
                 let cdr = args.cadr();
                 Object::cons(car, cdr)
+            }
+            "null?" => {
+                Object::from(args.is_null())
             }
             "car" => {
                 args.caar()
@@ -122,7 +133,7 @@ impl Primitive {
                 Object::Number(sum)
             }
             "-" => {
-                if len.as_usize() == 1 {
+                if len == 1 {
                     if let Object::Number(n) = args.car() {
                         Object::Number(-n)
                     } else {
@@ -158,7 +169,10 @@ impl Primitive {
                 }
                 Object::Number(prod)
             }
-            "/" => Object::Void,
+            "/" => {
+                // TODO
+                Object::Void
+            }
             _ => Object::Error(Error::UnboundVariable(self.name)),
         }
     }

@@ -1,4 +1,4 @@
-#![feature(match_default_bindings)]
+#![feature(match_default_bindings, nll)]
 #![cfg_attr(feature="flame_it", feature(plugin, custom_attribute))]
 #![cfg_attr(feature="flame_it", plugin(flamer))]
 #![cfg_attr(feature="flame_it", flame)]

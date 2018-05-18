@@ -144,6 +144,10 @@ fn variadic() {
 
     let input = "((lambda x x) 1 2 3)";
     assert_eq!(expected, run(input, &env));
+
+    let input = "(define (add . x) (if (null? x) 0 (+ (car x) (apply add (cdr x)))))";
+    run(input, &env);
+    assert_eq!(Object::from(6), run("(add 1 2 3)", &env));
 }
 
 #[test]

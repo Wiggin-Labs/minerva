@@ -19,7 +19,10 @@ macro_rules! init_env {
 
 pub fn init_env() -> Environment {
     let bindings = init_env!{
+        ("eval", Arity::Exactly(1)),
+        ("apply", Arity::Exactly(2)),
         ("cons", Arity::Exactly(2)),
+        ("null?", Arity::Exactly(1)),
         ("car", Arity::Exactly(1)),
         ("cdr", Arity::Exactly(1)),
         ("set-car!", Arity::Exactly(2)),

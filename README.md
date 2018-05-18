@@ -14,6 +14,11 @@ are all primitives type checked?
 - Support more of r7rs
 - Add quasiquoting with unquoting
 - Emulate racket when displaying quoted values
+- Lazy lists
+- Parallel pipelines? https://adamdrake.com/command-line-tools-can-be-235x-faster-than-your-hadoop-cluster.html
+  - https://lparallel.org
+- Browser interaction
+  - Webdriver API
 
 #### Priority
 - Macros

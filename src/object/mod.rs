@@ -512,7 +512,7 @@ impl Object {
     }
 
     pub fn length(&self) -> Object {
-        if !self.is_pair() {
+        if !self.is_pair() && !self.is_null() {
             return Object::Error(Error::UserDefined("Expected list?".into()));
         }
         let mut list = self.clone();
@@ -606,5 +606,11 @@ impl Display for Object {
 impl From<i64> for Object {
     fn from(n: i64) -> Object {
         Object::Number(Number::from(n))
+    }
+}
+
+impl From<bool> for Object {
+    fn from(n: bool) -> Object {
+        Object::Bool(n)
     }
 }
