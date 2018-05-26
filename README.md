@@ -19,10 +19,33 @@ are all primitives type checked?
   - https://lparallel.org
 - Browser interaction
   - Webdriver API
+- Module system
+- JIT compilation
+  - Maybe look at Cretonne
+  - A tiered compiler like SpiderMonkey would be interesting
 
 #### Priority
 - Macros
-- Continuations
-- Bytecode
 - Rust FFI
 - REPL/environment
+- Continuations
+- Bytecode
+
+
+#### stdlib
+- HTTP lib
+  - maybe look at Golang's net/http or Common Lisp's Caveman/ningle
+  - Should be easy to make requests
+  - Should be capable running a server, but maybe doesn't need something akin to RoR
+- Database interaction
+  - Should have easy drivers for common databases, Psql, SQLite, etc
+  - Should have some key/value store like Golang's Boltdb
+- GUI library
+  - Not sure how this will come out, but the picture language in SICP has me interested
+  - Look at Common Lisp's McCLIM
+- Text manipulation
+  - This includes things like RegEx, fuzzy matching, etc.
+  - Important because plaintext is extremely common, useful as a bridge for interacting
+  with UNIX tools
+- De/Serialization
+  - JSON is important for interacting with the web
