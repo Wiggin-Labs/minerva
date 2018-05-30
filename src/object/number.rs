@@ -1,5 +1,6 @@
 use parser::Token;
-use num::{BigInt, BigRational, One, ToPrimitive, Zero};
+use ramp::Int;
+use ramp::rational::Rational;
 
 use regex::Regex;
 
@@ -20,20 +21,20 @@ impl Number {
                 let real = if let Some(real) = real {
                     real.parse().unwrap()
                 } else {
-                    BigRational::zero()
+                    Rational::new(Int::zero(), Int::one())
                 };
                 let imaginary = if let Some(imaginary) = imaginary {
                     if imaginary.len() == 1{
                         if imaginary == "-" {
-                            -BigRational::one()
+                            -Rational::new(Int::one(), Int::one())
                         } else {
-                            BigRational::one()
+                            Rational::new(Int::one(), Int::one())
                         }
                     } else {
                         imaginary.parse().unwrap()
                     }
                 } else {
-                    BigRational::zero()
+                    Rational::new(Int::zero(), Int::one())
                 };
                 Number::Exact(ComplexExact::new(real, imaginary))
             }
@@ -81,11 +82,11 @@ impl Number {
     }
 
     pub fn zero() -> Self {
-        Number::Exact(ComplexExact::new(BigRational::zero(), BigRational::zero()))
+        Number::Exact(ComplexExact::new(rat_zero(), rat_zero()))
     }
 
     pub fn one() -> Self {
-        Number::Exact(ComplexExact::new(BigRational::one(), BigRational::zero()))
+        Number::Exact(ComplexExact::new(rat_one(), rat_zero()))
     }
 }
 
@@ -194,14 +195,14 @@ impl From<ComplexFloating> for Number {
 
 impl From<i64> for Number {
     fn from(n: i64) -> Number {
-        let numerator = BigRational::from_integer(BigInt::from(n));
-        Number::Exact(ComplexExact::new(numerator, BigRational::zero()))
+        let numerator = Rational::new(Int::from(n), Int::one());
+        Number::Exact(ComplexExact::new(numerator, rat_zero()))
     }
 }
 
-impl From<BigRational> for Number {
-    fn from(n: BigRational) -> Number {
-        Number::Exact(ComplexExact::new(n, BigRational::zero()))
+impl From<Rational> for Number {
+    fn from(n: Rational) -> Number {
+        Number::Exact(ComplexExact::new(n, rat_zero()))
     }
 }
 
@@ -213,12 +214,12 @@ impl From<f64> for Number {
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct ComplexExact {
-    real: BigRational,
-    imaginary: BigRational,
+    real: Rational,
+    imaginary: Rational,
 }
 
 impl ComplexExact {
-    pub fn new(real: BigRational, imaginary: BigRational) -> Self {
+    pub fn new(real: Rational, imaginary: Rational) -> Self {
         ComplexExact {
             real,
             imaginary,
@@ -226,28 +227,16 @@ impl ComplexExact {
     }
 
     pub fn is_complex(&self) -> bool {
-        self.imaginary.is_zero()
+        self.imaginary == rat_zero()
     }
 
     pub(crate) fn as_usize(&self) -> usize {
-        self.real.numer().to_i64().unwrap() as usize
+        usize::from(self.real.numenator())
     }
 
     pub fn to_floating(self) -> ComplexFloating {
-        fn bigint_to_f64(n: &BigInt) -> f64 {
-            if let Some(n) = n.to_f64() {
-                n
-            } else {
-                if n.sign() == ::num::bigint::Sign::Minus {
-                    f64::NEG_INFINITY
-                } else {
-                    f64::INFINITY
-                }
-            }
-        }
-
-        let real = bigint_to_f64(self.real.numer()) / bigint_to_f64(self.real.denom());
-        let imaginary = bigint_to_f64(self.imaginary.numer()) / bigint_to_f64(self.imaginary.denom());
+        let real = self.real.to_f64();
+        let imaginary = self.imaginary.to_f64();
         ComplexFloating::new(real, imaginary)
     }
 }
@@ -348,6 +337,16 @@ impl Mul for ComplexFloating {
         let imaginary = (self.real * other.imaginary) + (self.imaginary * other.real);
         ComplexFloating::new(real, imaginary)
     }
+}
+
+#[inline]
+fn rat_zero() -> Rational {
+    Rational::new(Int::zero(), Int::one())
+}
+
+#[inline]
+fn rat_one() -> Rational {
+    Rational::new(Int::one(), Int::one())
 }
 
 /*

@@ -7,5 +7,7 @@ version = "0.1.0"
 derive_is_enum_variant = "0.1.1"
 lazy_static = "1.0.1"
 maplit = "1.0.1"
-num = "0.1.42"
 regex = "1.0.0"
+
+[dependencies.ramp]
+path = "../ramp"
