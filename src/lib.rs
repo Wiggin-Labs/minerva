@@ -1,10 +1,4 @@
-#![feature(match_default_bindings, nll)]
-#![cfg_attr(feature="flame_it", feature(plugin, custom_attribute))]
-#![cfg_attr(feature="flame_it", plugin(flamer))]
-#![cfg_attr(feature="flame_it", flame)]
-#[cfg(feature="flame_it")]
-extern crate flame;
-
+#![feature(nll)]
 #[macro_use]
 extern crate derive_is_enum_variant;
 #[macro_use]
@@ -14,12 +8,10 @@ extern crate maplit;
 extern crate num;
 extern crate regex;
 
-//mod bytecode;
 mod environment;
 mod error;
 mod object;
 mod parser;
-//pub mod vm;
 
 pub use environment::{Environment, init_env};
 pub use error::Error;
