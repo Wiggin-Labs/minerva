@@ -1,14 +1,25 @@
-extern crate num;
 extern crate akuma;
+extern crate ramp;
 
-use num::{BigInt, BigRational, One, Zero};
 use akuma::{Parser, Token, Object, ComplexExact, ComplexFloating, Number};
+use ramp::Int;
+use ramp::rational::Rational;
 
-fn new_rat(numerator: i64, denominator: i64) -> BigRational {
-    BigRational::new(BigInt::from(numerator), BigInt::from(denominator))
+fn new_rat(numerator: i64, denominator: i64) -> Rational {
+    Rational::new(Int::from(numerator), Int::from(denominator))
 }
 
-fn new_exact(real: BigRational, imaginary: BigRational) -> Number {
+#[inline]
+fn rat_zero() -> Rational {
+    Rational::new(Int::zero(), Int::one())
+}
+
+#[inline]
+fn rat_one() -> Rational {
+    Rational::new(Int::one(), Int::one())
+}
+
+fn new_exact(real: Rational, imaginary: Rational) -> Number {
     Number::Exact(ComplexExact::new(real, imaginary))
 }
 
@@ -45,13 +56,13 @@ fn numbers() {
     assert_num!(run("+1e+3"), Number::from(1e3));
     assert_num!(run("1.0e+3"), Number::from(1e3));
     assert_num!(run(".1e+3"), Number::from(0.1e3));
-    assert_num!(run("1+3i"), new_exact(BigRational::one(), new_rat(3, 1)));
-    assert_num!(run("1+i"), new_exact(BigRational::one(), BigRational::one()));
-    assert_num!(run("+i"), new_exact(BigRational::zero(), BigRational::one()));
-    assert_num!(run("+3i"), new_exact(BigRational::zero(), new_rat(3, 1)));
-    assert_num!(run("+1+3i"), new_exact(BigRational::one(), new_rat(3, 1)));
-    assert_num!(run("+1-3i"), new_exact(BigRational::one(), new_rat(-3, 1)));
-    assert_num!(run("1+3/2i"), new_exact(BigRational::one(), new_rat(3, 2)));
+    assert_num!(run("1+3i"), new_exact(rat_one(), new_rat(3, 1)));
+    assert_num!(run("1+i"), new_exact(rat_one(), rat_one()));
+    assert_num!(run("+i"), new_exact(rat_zero(), rat_one()));
+    assert_num!(run("+3i"), new_exact(rat_zero(), new_rat(3, 1)));
+    assert_num!(run("+1+3i"), new_exact(rat_one(), new_rat(3, 1)));
+    assert_num!(run("+1-3i"), new_exact(rat_one(), new_rat(-3, 1)));
+    assert_num!(run("1+3/2i"), new_exact(rat_one(), new_rat(3, 2)));
     assert_num!(run("1/2+3i"), new_exact(new_rat(1, 2), new_rat(3, 1)));
     assert_num!(run("1/2+i"), new_exact(new_rat(1, 2), new_rat(1, 1)));
     assert_num!(run("1/2-i"), new_exact(new_rat(1, 2), new_rat(-1, 1)));

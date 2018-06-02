@@ -1,7 +1,9 @@
 mod number;
+mod pair;
 mod primitive;
 
 pub use self::number::{ComplexExact, ComplexFloating, Number};
+pub use self::pair::Pair;
 pub use self::primitive::{Arity, Primitive};
 
 use {Environment, Error, eval};
@@ -9,21 +11,6 @@ use {Environment, Error, eval};
 use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
-
-#[derive(Debug, PartialEq)]
-pub struct Pair {
-    pub car: Object,
-    pub cdr: Object,
-}
-
-impl Pair {
-    pub fn new(car: Object, cdr: Object) -> Self {
-        Pair {
-            car,
-            cdr,
-        }
-    }
-}
 
 #[derive(Debug, PartialEq)]
 pub struct Lambda {
@@ -80,6 +67,8 @@ pub enum Object {
     Lambda(Rc<Lambda>),
     Macro(Rc<Macro>),
     Primitive(Primitive),
+    // TODO
+    Syntax,
     Error(Error),
 }
 
@@ -178,7 +167,7 @@ impl Object {
     }
 
     pub(crate) fn is_macro_def(&self) -> bool {
-        self.is_tagged_list("define-macro".to_string())
+        self.is_tagged_list("define-syntax".to_string())
     }
 
     pub(crate) fn eval_macro(self, env: &Environment) -> Object {
@@ -598,6 +587,7 @@ impl Display for Object {
             // TODO: print proc name and number of args
             Object::Lambda(_l) => write!(f, "#<procedure TODO>"),
             Object::Primitive(l) => write!(f, "#<procedure {} {} args>", l.name, l.args),
+            Object::Syntax => unimplemented!(), // TODO
             Object::Error(e) => write!(f, "ERROR: {}", e),
         }
     }
