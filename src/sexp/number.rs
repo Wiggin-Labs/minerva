@@ -227,7 +227,7 @@ impl ComplexExact {
     }
 
     pub fn is_complex(&self) -> bool {
-        self.imaginary == rat_zero()
+        self.imaginary != rat_zero()
     }
 
     pub(crate) fn as_usize(&self) -> usize {
@@ -296,7 +296,7 @@ impl ComplexFloating {
     }
 
     pub fn is_complex(&self) -> bool {
-        self.imaginary == 0f64
+        self.imaginary != 0f64
     }
 }
 
