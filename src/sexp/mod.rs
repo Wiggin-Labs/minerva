@@ -8,7 +8,6 @@ pub use self::primitive::{Arity, Primitive};
 
 use {Environment, Error, eval};
 
-use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
 
@@ -16,12 +15,12 @@ use std::rc::Rc;
 pub struct Lambda {
     pub parameters: Vec<String>,
     pub arity: Arity,
-    pub body: Object,
+    pub body: Sexp,
     pub env: Environment,
 }
 
 impl Lambda {
-    pub fn new(mut parameters: Object, body: Object, env: Environment) -> Self {
+    pub fn new(mut parameters: Sexp, body: Sexp, env: Environment) -> Self {
         let mut params = Vec::new();
         let mut variadic = false;
         while !parameters.is_null() {
@@ -49,12 +48,8 @@ impl Lambda {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Macro {
-}
-
 #[derive(Clone, Debug, PartialEq, is_enum_variant)]
-pub enum Object {
+pub enum Sexp {
     Void,
     #[is_enum_variant(name="is_null")]
     Nil,
@@ -62,41 +57,38 @@ pub enum Object {
     Number(Number),
     String(String),
     Symbol(String),
-    Pair(Rc<RefCell<Pair>>),
+    Pair(Pair<Sexp>),
     #[is_enum_variant(skip)]
     Lambda(Rc<Lambda>),
-    Macro(Rc<Macro>),
     Primitive(Primitive),
-    // TODO
-    Syntax,
     Error(Error),
 }
 
-impl Object {
+impl Sexp {
     // -----------------------------------
     // Interpreter procedures
     // -----------------------------------
 
     pub(crate) fn is_self_evaluating(&self) -> bool {
         match self {
-            Object::Nil | Object::Bool(_) | Object::Number(_) | Object::String(_) => true,
+            Sexp::Nil | Sexp::Bool(_) | Sexp::Number(_) | Sexp::String(_) => true,
             _ => false,
         }
     }
 
     pub(crate) fn is_variable(&self) -> bool {
         match self {
-            Object::Symbol(_) => true,
+            Sexp::Symbol(_) => true,
             _ => false,
         }
     }
 
-    pub(crate) fn lookup_variable_value(self, env: &Environment) -> Object {
+    pub(crate) fn lookup_variable_value(self, env: &Environment) -> Sexp {
         let var = self.symbol_value();
         if let Some(value) = env.lookup_variable_value(&var) {
             value
         } else {
-            Object::Error(Error::UnboundVariable(var))
+            Sexp::Error(Error::UnboundVariable(var))
         }
     }
 
@@ -106,12 +98,12 @@ impl Object {
 
     fn is_tagged_list(&self, tag: String) -> bool {
         match self {
-            Object::Pair(pair) => pair.borrow().car == Object::Symbol(tag),
+            Sexp::Pair(pair) => pair.car() == Sexp::Symbol(tag),
             _ => false,
         }
     }
 
-    pub(crate) fn text_of_quotation(self) -> Object {
+    pub(crate) fn text_of_quotation(self) -> Sexp {
         self.cadr()
     }
 
@@ -119,17 +111,17 @@ impl Object {
         self.is_tagged_list("set!".to_string())
     }
 
-    pub(crate) fn eval_assignment(self, env: &Environment) -> Object {
+    pub(crate) fn eval_assignment(self, env: &Environment) -> Sexp {
         let var = self.assignment_variable().symbol_value();
         let val = eval(self.assignment_value(), env);
         env.set_variable_value(var, val)
     }
 
-    fn assignment_variable(&self) -> Object {
+    fn assignment_variable(&self) -> Sexp {
         self.cadr()
     }
 
-    fn assignment_value(&self) -> Object {
+    fn assignment_value(&self) -> Sexp {
         self.caddr()
     }
 
@@ -137,14 +129,14 @@ impl Object {
         self.is_tagged_list("define".to_string())
     }
 
-    pub(crate) fn eval_definition(self, env: &Environment) -> Object {
+    pub(crate) fn eval_definition(self, env: &Environment) -> Sexp {
         let var = self.definition_variable().symbol_value();
         let val = eval(self.definition_value(), env);
         env.define_variable(var, val);
-        Object::Void
+        Sexp::Void
     }
 
-    fn definition_variable(&self) -> Object {
+    fn definition_variable(&self) -> Sexp {
         let cadr = self.cadr();
         if cadr.is_symbol() {
             cadr
@@ -153,32 +145,24 @@ impl Object {
         }
     }
 
-    fn definition_value(&self) -> Object {
+    fn definition_value(&self) -> Sexp {
         if self.cadr().is_symbol() {
             self.caddr()
         } else {
-            Object::make_lambda(self.cdadr(), self.cddr())
+            Sexp::make_lambda(self.cdadr(), self.cddr())
         }
     }
 
-    fn make_lambda(parameters: Object, body: Object) -> Object {
-        Object::cons(Object::Symbol("lambda".to_string()),
-                   Object::cons(parameters, body))
-    }
-
-    pub(crate) fn is_macro_def(&self) -> bool {
-        self.is_tagged_list("define-syntax".to_string())
-    }
-
-    pub(crate) fn eval_macro(self, env: &Environment) -> Object {
-        unimplemented!()
+    fn make_lambda(parameters: Sexp, body: Sexp) -> Sexp {
+        Sexp::cons(Sexp::Symbol("lambda".to_string()),
+                   Sexp::cons(parameters, body))
     }
 
     pub(crate) fn is_if(&self) -> bool {
         self.is_tagged_list("if".to_string())
     }
 
-    pub(crate) fn eval_if(self, env: &Environment) -> Object {
+    pub(crate) fn eval_if(self, env: &Environment) -> Sexp {
         if eval(self.if_predicate(), env).is_true() {
             eval(self.if_consequent(), env)
         } else {
@@ -186,19 +170,19 @@ impl Object {
         }
     }
 
-    fn if_predicate(&self) -> Object {
+    fn if_predicate(&self) -> Sexp {
         self.cadr()
     }
 
-    fn if_consequent(&self) -> Object {
+    fn if_consequent(&self) -> Sexp {
         self.caddr()
     }
 
-    fn if_alternative(&self) -> Object {
+    fn if_alternative(&self) -> Sexp {
         if !self.cdddr().is_null() {
             self.cadddr()
         } else {
-            Object::Bool(false)
+            Sexp::Bool(false)
         }
     }
 
@@ -206,20 +190,20 @@ impl Object {
         self.is_tagged_list("lambda".to_string())
     }
 
-    pub(crate) fn make_procedure(self, env: &Environment) -> Object {
+    pub(crate) fn make_procedure(self, env: &Environment) -> Self {
         let parameters = self.lambda_parameters();
         let body = self.lambda_body();
         let env = env.extend();
         let procedure = Lambda::new(parameters, body, env);
-        Object::cons(Object::Symbol("procedure".to_string()),
-                     Object::Lambda(Rc::new(procedure)))
+        Sexp::cons(Sexp::Symbol("procedure".to_string()),
+                     Sexp::Lambda(Rc::new(procedure)))
     }
 
-    fn lambda_parameters(&self) -> Object {
+    fn lambda_parameters(&self) -> Self {
         self.cadr()
     }
 
-    fn lambda_body(&self) -> Object {
+    fn lambda_body(&self) -> Self {
         self.cddr()
     }
 
@@ -227,7 +211,7 @@ impl Object {
         self.is_tagged_list("begin".to_string())
     }
 
-    pub(crate) fn eval_sequence(self, env: &Environment) -> Object {
+    pub(crate) fn eval_sequence(self, env: &Environment) -> Self {
         if self.is_last_exp() {
             eval(self.first_exp(), env)
         } else {
@@ -240,11 +224,11 @@ impl Object {
         self.cdr().is_null()
     }
 
-    fn first_exp(&self) -> Object {
+    fn first_exp(&self) -> Self {
         self.car()
     }
 
-    fn rest_exps(&self) -> Object {
+    fn rest_exps(&self) -> Self {
         self.cdr()
     }
 
@@ -252,17 +236,17 @@ impl Object {
         self.is_tagged_list("cond".to_string())
     }
 
-    pub(crate) fn cond_to_if(&self) -> Object {
+    pub(crate) fn cond_to_if(&self) -> Self {
         self.cond_clauses().expand_clauses()
     }
 
-    fn cond_clauses(&self) -> Object {
+    fn cond_clauses(&self) -> Self {
         self.cdr()
     }
 
-    fn expand_clauses(&self) -> Object {
+    fn expand_clauses(&self) -> Self {
         if self.is_null() {
-            Object::Bool(false)
+            Sexp::Bool(false)
         } else {
             let first = self.car();
             let rest = self.cdr();
@@ -270,7 +254,7 @@ impl Object {
                 if rest.is_null() {
                     first.cond_actions().sequence_to_exp()
                 } else {
-                    Object::Error(Error::ElseNotLast)
+                    Sexp::Error(Error::ElseNotLast)
                 }
             } else {
                 let predicate = first.cond_predicate();
@@ -279,28 +263,28 @@ impl Object {
                 if rest.is_error() {
                     rest
                 } else {
-                    Object::make_if(predicate, actions, rest)
+                    Sexp::make_if(predicate, actions, rest)
                 }
             }
         }
     }
 
-    fn make_if(predicate: Object, consequent: Object, alternative: Object) -> Object {
-        Object::cons(Object::Symbol("if".to_string()),
-                   Object::cons(predicate,
-                              Object::cons(consequent,
-                                         Object::cons(alternative, Object::Nil))))
+    fn make_if(predicate: Self, consequent: Self, alternative: Self) -> Self {
+        Sexp::cons(Sexp::Symbol("if".to_string()),
+                   Sexp::cons(predicate,
+                              Sexp::cons(consequent,
+                                         Sexp::cons(alternative, Sexp::Nil))))
     }
 
     fn is_cond_else_clause(&self) -> bool {
-        self.cond_predicate() == Object::Symbol("else".to_string())
+        self.cond_predicate() == Sexp::Symbol("else".to_string())
     }
 
-    fn cond_actions(&self) -> Object {
+    fn cond_actions(&self) -> Self {
         self.cdr()
     }
 
-    fn sequence_to_exp(self) -> Object {
+    fn sequence_to_exp(self) -> Self {
         if self.is_null() {
             self
         } else if self.is_last_exp() {
@@ -310,11 +294,11 @@ impl Object {
         }
     }
 
-    fn make_begin(self) -> Object {
-        Object::cons(Object::Symbol("begin".to_string()), self)
+    fn make_begin(self) -> Self {
+        Sexp::cons(Sexp::Symbol("begin".to_string()), self)
     }
 
-    fn cond_predicate(&self) -> Object {
+    fn cond_predicate(&self) -> Self {
         self.car()
     }
 
@@ -322,17 +306,17 @@ impl Object {
         self.is_pair()
     }
 
-    pub(crate) fn operator(&self) -> Object {
+    pub(crate) fn operator(&self) -> Self {
         self.car()
     }
 
-    pub(crate) fn operands(&self) -> Object {
+    pub(crate) fn operands(&self) -> Self {
         self.cdr()
     }
 
-    pub(crate) fn list_of_values(self, env: &Environment) -> Object {
+    pub(crate) fn list_of_values(self, env: &Environment) -> Self {
         if self.has_no_operands() {
-            Object::Nil
+            Sexp::Nil
         } else {
             let car = eval(self.first_operand(), env);
             if car.is_error() {
@@ -342,7 +326,7 @@ impl Object {
             if cdr.is_error() {
                 return cdr;
             }
-            Object::cons(car, cdr)
+            Sexp::cons(car, cdr)
         }
     }
 
@@ -350,11 +334,11 @@ impl Object {
         self.is_null()
     }
 
-    fn first_operand(&self) -> Object {
+    fn first_operand(&self) -> Self {
         self.car()
     }
 
-    fn rest_operands(&self) -> Object {
+    fn rest_operands(&self) -> Self {
         self.cdr()
     }
 
@@ -362,16 +346,16 @@ impl Object {
         self.is_tagged_list("primitive".to_string())
     }
 
-    pub(crate) fn apply_primitive_procedure(self, args: Object) -> Object {
+    pub(crate) fn apply_primitive_procedure(self, args: Self) -> Self {
         let procedure = self.primitive_implementation();
         let primitive = match procedure {
-            Object::Primitive(p) => p,
+            Sexp::Primitive(p) => p,
             _ => panic!("compiler error in apply_primitive_procedure"),
         };
         primitive.run(args)
     }
 
-    fn primitive_implementation(&self) -> Object {
+    fn primitive_implementation(&self) -> Self {
         self.cadr()
     }
 
@@ -381,35 +365,35 @@ impl Object {
 
     pub(crate) fn procedure_env(&self) -> Environment {
         match self.cdr() {
-            Object::Lambda(procedure) => procedure.env.procedure_local(),
+            Sexp::Lambda(procedure) => procedure.env.procedure_local(),
             _ => panic!("compiler error in procedure_env"),
         }
     }
 
     pub(crate) fn procedure_parameters(&self) -> Vec<String> {
         match self.cdr() {
-            Object::Lambda(procedure) => procedure.parameters.clone(),
+            Sexp::Lambda(procedure) => procedure.parameters.clone(),
             _ => panic!("compiler error in procedure_parameters"),
         }
     }
 
     pub(crate) fn procedure_arity(&self) -> Arity {
         match self.cdr() {
-            Object::Lambda(procedure) => procedure.arity,
+            Sexp::Lambda(procedure) => procedure.arity,
             _ => panic!("compiler error in procedure_parameters"),
         }
     }
 
-    pub(crate) fn procedure_body(&self) -> Object {
+    pub(crate) fn procedure_body(&self) -> Self {
         match self.cdr() {
-            Object::Lambda(procedure) => procedure.body.clone(),
+            Sexp::Lambda(procedure) => procedure.body.clone(),
             _ => panic!("compiler error in procedure_body"),
         }
     }
 
     pub(crate) fn symbol_value(self) -> String {
         match self {
-            Object::Symbol(s) => s,
+            Sexp::Symbol(s) => s,
             _ => panic!("compiler error in symbol_value"),
         }
     }
@@ -418,91 +402,90 @@ impl Object {
     // Primitive procedures
     // -----------------------------------
 
-    pub fn cons(car: Object, cdr: Object) -> Object {
-        let pair = Pair {
-            car,
-            cdr,
-        };
-        Object::Pair(Rc::new(RefCell::new(pair)))
+    #[cfg_attr(feature="profile", flame)]
+    pub fn cons(car: Self, cdr: Self) -> Self {
+        Sexp::Pair(Pair::new(car, cdr))
     }
 
-    pub fn car(&self) -> Object {
+    #[cfg_attr(feature="profile", flame)]
+    pub fn car(&self) -> Self {
         match self {
-            Object::Pair(pair) => pair.borrow().car.clone(),
-            _ => Object::Error(Error::PairExpected),
+            Sexp::Pair(pair) => pair.car().clone(),
+            _ => Sexp::Error(Error::PairExpected),
         }
     }
 
-    pub fn caar(&self) -> Object {
+    pub fn caar(&self) -> Self {
         self.car().car()
     }
 
-    pub fn caaar(&self) -> Object {
+    pub fn caaar(&self) -> Self {
         self.caar().car()
     }
 
-    pub fn caaaar(&self) -> Object {
+    pub fn caaaar(&self) -> Self {
         self.caaar().car()
     }
 
-    pub fn cdr(&self) -> Object {
+    #[cfg_attr(feature="profile", flame)]
+    pub fn cdr(&self) -> Self {
         match self {
-            Object::Pair(pair) => pair.borrow().cdr.clone(),
-            _ => Object::Error(Error::PairExpected),
+            Sexp::Pair(pair) => pair.cdr(),
+            _ => Sexp::Error(Error::PairExpected),
         }
     }
 
-    pub fn cddr(&self) -> Object {
+    pub fn cddr(&self) -> Self {
         self.cdr().cdr()
     }
 
-    pub fn cdddr(&self) -> Object {
+    pub fn cdddr(&self) -> Self {
         self.cddr().cdr()
     }
 
-    pub fn cddddr(&self) -> Object {
+    pub fn cddddr(&self) -> Self {
         self.cdddr().cdr()
     }
 
-    pub fn cadr(&self) -> Object {
+    pub fn cadr(&self) -> Self {
         self.cdr().car()
     }
 
-    pub fn caadr(&self) -> Object {
+    pub fn caadr(&self) -> Self {
         self.cadr().car()
     }
 
-    pub fn caaadr(&self) -> Object {
+    pub fn caaadr(&self) -> Self {
         self.caadr().car()
     }
 
-    pub fn caddr(&self) -> Object {
+    pub fn caddr(&self) -> Self {
         self.cddr().car()
     }
 
-    pub fn cadddr(&self) -> Object {
+    pub fn cadddr(&self) -> Self {
         self.cdddr().car()
     }
 
-    pub fn cdar(&self) -> Object {
+    pub fn cdar(&self) -> Self {
         self.car().cdr()
     }
 
-    pub fn cdadr(&self) -> Object {
+    pub fn cdadr(&self) -> Self {
         self.cadr().cdr()
     }
 
-    pub fn push(&self, next: Object) -> Object {
+    pub fn push(&self, next: Self) -> Self {
         if self.is_null() {
-            Object::cons(next, Object::Nil)
+            Sexp::cons(next, Sexp::Nil)
         } else {
-            Object::cons(self.car(), self.cdr().push(next))
+            Sexp::cons(self.car(), self.cdr().push(next))
         }
     }
 
-    pub fn length(&self) -> Object {
+    pub fn length(&self) -> Self {
         if !self.is_pair() && !self.is_null() {
-            return Object::Error(Error::UserDefined("Expected list?".into()));
+            return Sexp::Error(Error::UserDefined("Expected list?".into()));
         }
         let mut list = self.clone();
         let mut len = 0;
@@ -510,12 +493,12 @@ impl Object {
             len += 1;
             list = list.cdr();
         }
-        Object::from(len)
+        Sexp::from(len)
     }
 
     pub(crate) fn as_usize(&self) -> usize {
         match self {
-            Object::Number(Number::Exact(i)) => i.as_usize(),
+            Sexp::Number(Number::Exact(i)) => i.as_usize(),
             _ => panic!("compiler error"),
         }
     }
@@ -527,80 +510,76 @@ impl Object {
 
     pub fn is_true(&self) -> bool {
         match *self {
-            Object::Bool(b) => b,
+            Sexp::Bool(b) => b,
             _ => true,
         }
     }
 
     pub fn is_false(&self) -> bool {
         match *self {
-            Object::Bool(b) => !b,
+            Sexp::Bool(b) => !b,
             _ => false,
         }
     }
 
-    pub fn set_car(&self, car: Object) -> Object {
-        if let Object::Pair(p) = self {
-            p.borrow_mut().car = car;
-            Object::Void
+    pub fn set_car(&self, car: Self) -> Self {
+        if let Sexp::Pair(p) = self {
+            p.set_car(car);
+            Sexp::Void
         } else {
-            Object::Error(Error::PairExpected)
+            Sexp::Error(Error::PairExpected)
         }
     }
 
-    pub fn set_cdr(&self, cdr: Object) -> Object {
-        if let Object::Pair(p) = self {
-            p.borrow_mut().cdr = cdr;
-            Object::Void
+    pub fn set_cdr(&self, cdr: Self) -> Self {
+        if let Sexp::Pair(p) = self {
+            p.set_cdr(cdr);
+            Sexp::Void
         } else {
-            Object::Error(Error::PairExpected)
+            Sexp::Error(Error::PairExpected)
         }
     }
 }
 
-impl Display for Object {
+impl Display for Sexp {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Object::Nil => write!(f, "()"),
-            Object::Void => Ok(()),
-            Object::Bool(b) => write!(f, "#{}", if *b { "t" } else { "f" }),
-            Object::Number(n) => write!(f, "{}", n),
-            Object::String(s) => write!(f, "\"{}\"", s),
-            Object::Symbol(s) => write!(f, "{}", s),
-            Object::Pair(p) => {
-                let p = p.borrow();
-                write!(f, "({}", p.car)?;
-                let mut pair = p.cdr.clone();
+            Sexp::Nil => write!(f, "()"),
+            Sexp::Void => Ok(()),
+            Sexp::Bool(b) => write!(f, "#{}", if *b { "t" } else { "f" }),
+            Sexp::Number(n) => write!(f, "{}", n),
+            Sexp::String(s) => write!(f, "\"{}\"", s),
+            Sexp::Symbol(s) => write!(f, "{}", s),
+            Sexp::Pair(p) => {
+                write!(f, "({}", p.car())?;
+                let mut pair = p.cdr();
                 while !pair.is_null() {
                     match pair {
-                        Object::Pair(p) => {
-                            let p = p.borrow();
-                            write!(f, " {}", p.car)?;
-                            pair = p.cdr.clone();
+                        Sexp::Pair(p) => {
+                            write!(f, " {}", p.car())?;
+                            pair = p.cdr();
                         },
                         _ => return write!(f, " . {})", pair),
                     }
                 }
                 write!(f, ")")
             }
-            Object::Macro(_l) => write!(f, "#<procedure TODO>"),
             // TODO: print proc name and number of args
-            Object::Lambda(_l) => write!(f, "#<procedure TODO>"),
-            Object::Primitive(l) => write!(f, "#<procedure {} {} args>", l.name, l.args),
-            Object::Syntax => unimplemented!(), // TODO
-            Object::Error(e) => write!(f, "ERROR: {}", e),
+            Sexp::Lambda(_l) => write!(f, "#<procedure TODO>"),
+            Sexp::Primitive(l) => write!(f, "#<procedure {} {} args>", l.name, l.args),
+            Sexp::Error(e) => write!(f, "ERROR: {}", e),
         }
     }
 }
 
-impl From<i64> for Object {
-    fn from(n: i64) -> Object {
-        Object::Number(Number::from(n))
+impl From<i64> for Sexp {
+    fn from(n: i64) -> Self {
+        Sexp::Number(Number::from(n))
     }
 }
 
-impl From<bool> for Object {
-    fn from(n: bool) -> Object {
-        Object::Bool(n)
+impl From<bool> for Sexp {
+    fn from(n: bool) -> Self {
+        Sexp::Bool(n)
     }
 }

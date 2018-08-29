@@ -1,7 +1,7 @@
 extern crate akuma;
 extern crate ramp;
 
-use akuma::{Parser, Token, Object, ComplexExact, ComplexFloating, Number};
+use akuma::{Parser, Token, Sexp, ComplexExact, ComplexFloating, Number};
 use ramp::Int;
 use ramp::rational::Rational;
 
@@ -27,14 +27,14 @@ fn new_float(real: f64, imaginary: f64) -> Number {
     Number::Floating(ComplexFloating::new(real, imaginary))
 }
 
-fn run(input: &str) -> Object {
+fn run(input: &str) -> Sexp {
     let tokens = Parser::parse(input).unwrap();
     Token::build_ast(tokens).unwrap().remove(0)
 }
 
 macro_rules! assert_num {
     ($l:expr, $r:expr) => {
-        assert_eq!($l, Object::Number($r))
+        assert_eq!($l, Sexp::Number($r))
     };
 }
 

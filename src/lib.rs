@@ -1,4 +1,9 @@
 #![feature(nll)]
+#![cfg_attr(feature="profile", feature(plugin, custom_attribute))]
+#![cfg_attr(feature="profile", plugin(flamer))]
+#[cfg(feature="profile")]
+extern crate flame;
+
 #[macro_use]
 extern crate derive_is_enum_variant;
 #[macro_use]
@@ -10,15 +15,16 @@ extern crate regex;
 
 mod environment;
 mod error;
-mod object;
 mod parser;
+mod sexp;
 
 pub use environment::{Environment, init_env};
 pub use error::Error;
-pub use object::{Lambda, Number, ComplexExact, ComplexFloating, Object, Pair, Primitive};
 pub use parser::{Parser, Token};
+pub use sexp::{Lambda, Number, ComplexExact, ComplexFloating, Sexp, Pair, Primitive};
 
-pub fn eval(exp: Object, env: &Environment) -> Object {
+#[cfg_attr(feature="profile", flame)]
+pub fn eval(exp: Sexp, env: &Environment) -> Sexp {
     if exp.is_self_evaluating() {
         exp
     } else if exp.is_variable() {
@@ -29,8 +35,6 @@ pub fn eval(exp: Object, env: &Environment) -> Object {
         exp.eval_assignment(env)
     } else if exp.is_definition() {
         exp.eval_definition(env)
-    } else if exp.is_macro_def() {
-        exp.eval_macro(env)
     } else if exp.is_if() {
         exp.eval_if(env)
     } else if exp.is_lambda() {
@@ -50,11 +54,12 @@ pub fn eval(exp: Object, env: &Environment) -> Object {
         }
         apply(operator, operands)
     } else {
-        Object::Error(Error::UserDefined(format!("Unknown expression type {}", exp)))
+        Sexp::Error(Error::UserDefined(format!("Unknown expression type {}", exp)))
     }
 }
 
-pub fn apply(procedure: Object, mut arguments: Object) -> Object {
+#[cfg_attr(feature="profile", flame)]
+pub fn apply(procedure: Sexp, mut arguments: Sexp) -> Sexp {
     if procedure.is_primitive_procedure() {
         procedure.apply_primitive_procedure(arguments)
     } else if procedure.is_compound_procedure() {
@@ -64,7 +69,7 @@ pub fn apply(procedure: Object, mut arguments: Object) -> Object {
         let arity = procedure.procedure_arity();
         let number_of_args = arguments.length().as_usize();
         if !arity.correct_number_of_args(number_of_args) {
-            return Object::Error(Error::WrongArgs);
+            return Sexp::Error(Error::WrongArgs);
         }
 
         let variadic = arity.is_variadic();
@@ -83,6 +88,6 @@ pub fn apply(procedure: Object, mut arguments: Object) -> Object {
 
         procedure.procedure_body().eval_sequence(&mut env)
     } else {
-        Object::Error(Error::UserDefined("Unknown procedure type".to_string()))
+        Sexp::Error(Error::UserDefined("Unknown procedure type".to_string()))
     }
 }

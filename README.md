@@ -49,3 +49,10 @@ are all primitives type checked?
   with UNIX tools
 - De/Serialization
   - JSON is important for interacting with the web
+
+#### Other
+- Support images?
+  - It might be interesting to support images of the environment so that a session can persist between power cycles
+- Run as daemon?
+  - Then we might have one session for the whole system, would probably need a way to run subsessions
+  - This would require some sort of IPC/RPC

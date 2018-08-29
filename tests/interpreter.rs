@@ -1,8 +1,8 @@
 extern crate akuma;
 
-use akuma::{eval, init_env, Environment, Object, Parser, Token};
+use akuma::{eval, init_env, Environment, Sexp, Parser, Token};
 
-fn run(input: &str, env: &Environment) -> Object {
+fn run(input: &str, env: &Environment) -> Sexp {
     let tokens = Parser::parse(input).unwrap();
     let objects = Token::build_ast(tokens).unwrap();
     let object = objects[0].clone();
@@ -14,12 +14,12 @@ fn cons() {
     let env = init_env();
     let input = "(cons 1 2)";
     let ans = run(input, &env);
-    let expected = Object::cons(Object::from(1),
-                                Object::from(2));
+    let expected = Sexp::cons(Sexp::from(1),
+                              Sexp::from(2));
     assert_eq!(expected, ans);
 
     let input = "(cons 1 '())";
-    assert_eq!(Object::cons(Object::from(1), Object::Nil), run(input, &env));
+    assert_eq!(Sexp::cons(Sexp::from(1), Sexp::Nil), run(input, &env));
 }
 
 #[test]
@@ -31,26 +31,37 @@ fn basics() {
 
     // test car and cdr
     let input = "(car a)";
-    assert_eq!(Object::from(1), run(input, &env));
+    assert_eq!(Sexp::from(1), run(input, &env));
     println!("b");
     let input = "(cdr a)";
-    assert_eq!(Object::from(2), run(input, &env));
+    assert_eq!(Sexp::from(2), run(input, &env));
 
     println!("c");
     // set-car! and set-cdr!
     let input = "(set-car! a 3)";
     assert!(run(input, &env).is_void());
     let input = "(car a)";
-    assert_eq!(Object::from(3), run(input, &env));
+    assert_eq!(Sexp::from(3), run(input, &env));
     let input = "(cdr a)";
-    assert_eq!(Object::from(2), run(input, &env));
+    assert_eq!(Sexp::from(2), run(input, &env));
 
     let input = "(set-cdr! a 4)";
     assert!(run(input, &env).is_void());
     let input = "(car a)";
-    assert_eq!(Object::from(3), run(input, &env));
+    assert_eq!(Sexp::from(3), run(input, &env));
     let input = "(cdr a)";
-    assert_eq!(Object::from(4), run(input, &env));
+    assert_eq!(Sexp::from(4), run(input, &env));
+}
+
+#[test]
+fn env() {
+    let env = init_env();
+    let input = "(define add +)";
+    run(input, &env);
+    let input = "(define (+ a b) (add a b))";
+    run(input, &env);
+    let input = "(+ 1 2)";
+    assert_eq!(Sexp::from(3), run(input, &env));
 }
 
 #[test]
@@ -65,9 +76,9 @@ fn recurse() {
 ";
     assert!(run(input, &env).is_void());
     let input = "(factorial 1)";
-    assert_eq!(Object::from(1), run(input, &env));
+    assert_eq!(Sexp::from(1), run(input, &env));
     let input = "(factorial 3)";
-    assert_eq!(Object::from(6), run(input, &env));
+    assert_eq!(Sexp::from(6), run(input, &env));
 }
 
 #[test]
@@ -84,7 +95,7 @@ fn tail_recurse() {
 ";
     assert!(run(input, &env).is_void());
     let input = "(sum 5)";
-    assert_eq!(Object::from(10), run(input, &env));
+    assert_eq!(Sexp::from(10), run(input, &env));
 }
 
 #[test]
@@ -93,10 +104,10 @@ fn set() {
 
     let input = "(define a 5)";
     assert!(run(input, &env).is_void());
-    assert_eq!(Object::from(5), run("a", &env));
+    assert_eq!(Sexp::from(5), run("a", &env));
     let input = "(set! a 6)";
     assert!(run(input, &env).is_void());
-    assert_eq!(Object::from(6), run("a", &env));
+    assert_eq!(Sexp::from(6), run("a", &env));
 }
 
 #[test]
@@ -104,16 +115,16 @@ fn dotted_list() {
     let env = init_env();
 
     let input = "'(5 . 6)";
-    assert_eq!(Object::cons(Object::from(5), Object::from(6)), run(input, &env));
+    assert_eq!(Sexp::cons(Sexp::from(5), Sexp::from(6)), run(input, &env));
 
     let input = "'(5 . ())";
-    assert_eq!(Object::cons(Object::from(5), Object::Nil), run(input, &env));
+    assert_eq!(Sexp::cons(Sexp::from(5), Sexp::Nil), run(input, &env));
 
     let input = "'(5 . (a b))";
-    let expected = Object::cons(Object::from(5),
-                                Object::cons(Object::Symbol("a".into()),
-                                             Object::cons(Object::Symbol("b".into()),
-                                                          Object::Nil)));
+    let expected = Sexp::cons(Sexp::from(5),
+                              Sexp::cons(Sexp::Symbol("a".into()),
+                                         Sexp::cons(Sexp::Symbol("b".into()),
+                                                    Sexp::Nil)));
     assert_eq!(expected, run(input, &env));
 }
 
@@ -125,7 +136,7 @@ fn lambda() {
     assert!(run(input, &env).is_procedure());
 
     let input = "((lambda (x) x) 5)";
-    assert_eq!(Object::from(5), run(input, &env));
+    assert_eq!(Sexp::from(5), run(input, &env));
 }
 
 #[test]
@@ -136,10 +147,10 @@ fn variadic() {
     assert!(run(input, &env).is_void());
 
     let input = "(list 1 2 3)";
-    let expected = Object::cons(Object::from(1),
-                                Object::cons(Object::from(2),
-                                             Object::cons(Object::from(3),
-                                                          Object::Nil)));
+    let expected = Sexp::cons(Sexp::from(1),
+                              Sexp::cons(Sexp::from(2),
+                                         Sexp::cons(Sexp::from(3),
+                                                    Sexp::Nil)));
     assert_eq!(expected, run(input, &env));
 
     let input = "((lambda x x) 1 2 3)";
@@ -147,7 +158,7 @@ fn variadic() {
 
     let input = "(define (add . x) (if (null? x) 0 (+ (car x) (apply add (cdr x)))))";
     run(input, &env);
-    assert_eq!(Object::from(6), run("(add 1 2 3)", &env));
+    assert_eq!(Sexp::from(6), run("(add 1 2 3)", &env));
 }
 
 #[test]

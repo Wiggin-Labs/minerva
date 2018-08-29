@@ -1,4 +1,4 @@
-use super::{Number, Object};
+use super::{Number, Sexp};
 use Error;
 
 use std::fmt::{self, Display, Formatter};
@@ -61,28 +61,28 @@ impl Primitive {
         }
     }
 
-    pub fn run(self, args: Object) -> Object {
+    pub fn run(self, args: Sexp) -> Sexp {
         let len = args.length().as_usize();
         if !self.args.correct_number_of_args(len) {
-            return Object::Error(Error::WrongArgs);
+            return Sexp::Error(Error::WrongArgs);
         }
 
         match self.name.as_str() {
             "eval" => {
                 // TODO
-                Object::Void
+                Sexp::Void
             }
             "apply" => {
                 // TODO
-                Object::Void
+                Sexp::Void
             }
             "cons" => {
                 let car = args.car();
                 let cdr = args.cadr();
-                Object::cons(car, cdr)
+                Sexp::cons(car, cdr)
             }
             "null?" => {
-                Object::from(args.is_null())
+                Sexp::from(args.is_null())
             }
             "car" => {
                 args.caar()
@@ -102,59 +102,59 @@ impl Primitive {
             }
             "=" => {
                 if args.is_null() {
-                    return Object::Bool(true);
+                    return Sexp::Bool(true);
                 }
                 let n = match args.car() {
-                    Object::Number(n) => n,
-                    _ => return Object::Error(Error::NumberExpected),
+                    Sexp::Number(n) => n,
+                    _ => return Sexp::Error(Error::NumberExpected),
                 };
                 let mut args = args.cdr();
                 while !args.is_null() {
                     match args.car() {
-                        Object::Number(m) => if n != m {
-                            return Object::Bool(false);
+                        Sexp::Number(m) => if n != m {
+                            return Sexp::Bool(false);
                         }
-                        _ => return Object::Error(Error::NumberExpected),
+                        _ => return Sexp::Error(Error::NumberExpected),
                     }
                     args = args.cdr();
                 }
-                Object::Bool(true)
+                Sexp::Bool(true)
             }
             "+" => {
                 let mut sum = Number::zero();
                 let mut args = args;
                 while !args.is_null() {
                     match args.car() {
-                        Object::Number(n) => sum = sum + n,
-                        _ => return Object::Error(Error::NumberExpected),
+                        Sexp::Number(n) => sum = sum + n,
+                        _ => return Sexp::Error(Error::NumberExpected),
                     }
                     args = args.cdr();
                 }
-                Object::Number(sum)
+                Sexp::Number(sum)
             }
             "-" => {
                 if len == 1 {
-                    if let Object::Number(n) = args.car() {
-                        Object::Number(-n)
+                    if let Sexp::Number(n) = args.car() {
+                        Sexp::Number(-n)
                     } else {
-                        Object::Error(Error::NumberExpected)
+                        Sexp::Error(Error::NumberExpected)
                     }
                 } else {
-                    let mut sum = if let Object::Number(n) = args.car() {
+                    let mut sum = if let Sexp::Number(n) = args.car() {
                         n
                     } else {
-                        return Object::Error(Error::NumberExpected);
+                        return Sexp::Error(Error::NumberExpected);
                     };
 
                     let mut args = args.cdr();
                     while !args.is_null() {
                         match args.car() {
-                            Object::Number(n) => sum = sum - n,
-                            _ => return Object::Error(Error::NumberExpected),
+                            Sexp::Number(n) => sum = sum - n,
+                            _ => return Sexp::Error(Error::NumberExpected),
                         }
                         args = args.cdr();
                     }
-                    Object::Number(sum)
+                    Sexp::Number(sum)
                 }
             }
             "*" => {
@@ -162,18 +162,18 @@ impl Primitive {
                 let mut args = args;
                 while !args.is_null() {
                     match args.car() {
-                        Object::Number(n) => prod = prod * n,
-                        _ => return Object::Error(Error::NumberExpected),
+                        Sexp::Number(n) => prod = prod * n,
+                        _ => return Sexp::Error(Error::NumberExpected),
                     }
                     args = args.cdr();
                 }
-                Object::Number(prod)
+                Sexp::Number(prod)
             }
             "/" => {
                 // TODO
-                Object::Void
+                Sexp::Void
             }
-            _ => Object::Error(Error::UnboundVariable(self.name)),
+            _ => Sexp::Error(Error::UnboundVariable(self.name)),
         }
     }
 }

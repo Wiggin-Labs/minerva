@@ -1,5 +1,5 @@
 use Error;
-use object::{Arity, Object, Primitive};
+use sexp::{Arity, Sexp, Primitive};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -9,10 +9,10 @@ macro_rules! init_env {
     ($($key:expr),*) => {
         hashmap!{$(
             $key.0.to_string() =>
-                Object::cons(Object::Symbol("primitive".to_string()),
-                             Object::cons(
-                                 Object::Primitive(Primitive::new($key.0.to_string(), $key.1)),
-                                 Object::Nil)),
+                Sexp::cons(Sexp::Symbol("primitive".to_string()),
+                             Sexp::cons(
+                                 Sexp::Primitive(Primitive::new($key.0.to_string(), $key.1)),
+                                 Sexp::Nil)),
         )*}
     };
 }
@@ -48,7 +48,7 @@ impl Environment {
         }
     }
 
-    pub fn from_hashmap(map: HashMap<String, Object>) -> Self {
+    pub fn from_hashmap(map: HashMap<String, Sexp>) -> Self {
         let env = _Environment {
             bindings: map,
             parent: None,
@@ -59,6 +59,7 @@ impl Environment {
         }
     }
 
+    #[cfg_attr(feature="profile", flame)]
     pub fn extend(&self) -> Self {
         let mut env = _Environment::new();
         env.parent = Some(self.clone());
@@ -67,18 +68,22 @@ impl Environment {
         }
     }
 
-    pub fn lookup_variable_value(&self, name: &str) -> Option<Object> {
+    #[cfg_attr(feature="profile", flame)]
+    pub fn lookup_variable_value(&self, name: &str) -> Option<Sexp> {
         self.env.borrow().lookup_variable_value(name)
     }
 
-    pub fn define_variable(&self, name: String, value: Object) {
+    #[cfg_attr(feature="profile", flame)]
+    pub fn define_variable(&self, name: String, value: Sexp) {
         self.env.borrow_mut().define_variable(name, value);
     }
 
-    pub fn set_variable_value(&self, name: String, value: Object) -> Object {
+    #[cfg_attr(feature="profile", flame)]
+    pub fn set_variable_value(&self, name: String, value: Sexp) -> Sexp {
         self.env.borrow_mut().set_variable_value(name, value)
     }
 
+    #[cfg_attr(feature="profile", flame)]
     pub fn procedure_local(&self) -> Self {
         let env = self.env.borrow();
         let local = _Environment {
@@ -93,7 +98,7 @@ impl Environment {
 
 #[derive(Debug, Default)]
 pub struct _Environment {
-    bindings: HashMap<String, Object>,
+    bindings: HashMap<String, Sexp>,
     parent: Option<Environment>,
 }
 
@@ -108,7 +113,7 @@ impl _Environment {
         Default::default()
     }
 
-    pub fn lookup_variable_value(&self, name: &str) -> Option<Object> {
+    pub fn lookup_variable_value(&self, name: &str) -> Option<Sexp> {
         if let Some(val) = self.bindings.get(name) {
             Some(val.clone())
         } else if let Some(ref env) = self.parent {
@@ -118,18 +123,18 @@ impl _Environment {
         }
     }
 
-    pub fn define_variable(&mut self, name: String, value: Object) {
+    pub fn define_variable(&mut self, name: String, value: Sexp) {
         self.bindings.insert(name, value);
     }
 
-    pub fn set_variable_value(&mut self, name: String, value: Object) -> Object {
+    pub fn set_variable_value(&mut self, name: String, value: Sexp) -> Sexp {
         if self.bindings.contains_key(&name) {
             self.bindings.insert(name, value);
-            Object::Void
+            Sexp::Void
         } else if let Some(ref env) = self.parent {
             env.set_variable_value(name, value)
         } else {
-            Object::Error(Error::UnboundVariable(name))
+            Sexp::Error(Error::UnboundVariable(name))
         }
     }
 }

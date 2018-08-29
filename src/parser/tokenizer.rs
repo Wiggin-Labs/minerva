@@ -1,5 +1,5 @@
 use super::ParseError;
-use Object;
+use Sexp;
 
 use std::iter::Peekable;
 use std::mem;
@@ -32,18 +32,18 @@ impl Token {
         }
     }
 
-    fn to_object(&self) -> Object {
+    fn to_object(&self) -> Sexp {
         match self {
-            Token::Nil => Object::Nil,
-            Token::Bool(b) => Object::Bool(*b),
-            Token::String(s) => Object::String(s.to_owned()),
-            num if self.is_number() => Object::Number(::Number::from_token(num)),
-            Token::Symbol(s) => Object::Symbol(s.to_owned()),
+            Token::Nil => Sexp::Nil,
+            Token::Bool(b) => Sexp::Bool(*b),
+            Token::String(s) => Sexp::String(s.to_owned()),
+            num if self.is_number() => Sexp::Number(::Number::from_token(num)),
+            Token::Symbol(s) => Sexp::Symbol(s.to_owned()),
             _ => unreachable!(),
         }
     }
 
-    pub fn build_ast(tokens: Vec<Self>) -> Result<Vec<Object>, ParseError> {
+    pub fn build_ast(tokens: Vec<Self>) -> Result<Vec<Sexp>, ParseError> {
         use self::Token::*;
         let mut exprs = Vec::new();
         let mut tokens = tokens.iter().peekable();
@@ -72,7 +72,7 @@ impl Token {
         Ok(exprs)
     }
 
-    fn parse_quote<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Object, ParseError> {
+    fn parse_quote<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Sexp, ParseError> {
         use self::Token::*;
         let next = if let Some(t) = tokens.next() {
             t
@@ -81,7 +81,7 @@ impl Token {
         };
 
         let quoted = match next {
-            Symbol(s) => Object::Symbol(s.to_owned()),
+            Symbol(s) => Sexp::Symbol(s.to_owned()),
             LeftParen => {
                 Self::parse_expr(tokens)?
             },
@@ -92,11 +92,11 @@ impl Token {
             Quote => Self::parse_quote(tokens)?,
             _ => return Ok(next.to_object()),
         };
-        Ok(Object::cons(Object::Symbol("quote".to_string()),
-                        Object::cons(quoted, Object::Nil)))
+        Ok(Sexp::cons(Sexp::Symbol("quote".to_string()),
+                        Sexp::cons(quoted, Sexp::Nil)))
     }
 
-    fn parse_quasiquote<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Object, ParseError> {
+    fn parse_quasiquote<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Sexp, ParseError> {
         use self::Token::*;
         let next = if let Some(t) = tokens.next() {
             t
@@ -105,7 +105,7 @@ impl Token {
         };
 
         let quoted = match next {
-            Symbol(s) => Object::Symbol(s.to_owned()),
+            Symbol(s) => Sexp::Symbol(s.to_owned()),
             LeftParen => {
                 Self::parse_expr(tokens)?
             },
@@ -113,29 +113,29 @@ impl Token {
             RightParen => return Err(ParseError::UnexpectedCloseParen),
             Unquote => {
                 // TODO parse next expr
-                Object::cons(Object::Symbol("unquote".to_string()),
-                             Object::cons(Object::Nil, Object::Nil))
+                Sexp::cons(Sexp::Symbol("unquote".to_string()),
+                             Sexp::cons(Sexp::Nil, Sexp::Nil))
             }
             UnquoteSplice => return Err(ParseError::IllegalUse),
             Quote => Self::parse_quote(tokens)?,
             _ => return Ok(next.to_object()),
         };
 
-        Ok(Object::cons(Object::Symbol("quasiquote".to_string()),
-                        Object::cons(quoted, Object::Nil)))
+        Ok(Sexp::cons(Sexp::Symbol("quasiquote".to_string()),
+                        Sexp::cons(quoted, Sexp::Nil)))
     }
 
-    fn parse_expr<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Object, ParseError> {
+    fn parse_expr<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Sexp, ParseError> {
         use self::Token::*;
         let mut parens = 1;
         let mut stack = Vec::new();
-        let mut list = Object::Nil;
+        let mut list = Sexp::Nil;
 
         while let Some(token) = tokens.next() {
             match token {
                 LeftParen => {
                     parens += 1;
-                    let mut new = Object::Nil;
+                    let mut new = Sexp::Nil;
                     mem::swap(&mut new, &mut list);
                     stack.push(new);
                 }
@@ -178,12 +178,12 @@ impl Token {
                     let l = Self::parse_quasiquote(tokens)?;
                     list = list.push(l);
                 }
-                Nil => list = list.push(Object::Nil),
-                Bool(b) => list = list.push(Object::Bool(*b)),
-                String(s) => list = list.push(Object::String(s.to_owned())),
-                Symbol(s) => list = list.push(Object::Symbol(s.to_owned())),
+                Nil => list = list.push(Sexp::Nil),
+                Bool(b) => list = list.push(Sexp::Bool(*b)),
+                String(s) => list = list.push(Sexp::String(s.to_owned())),
+                Symbol(s) => list = list.push(Sexp::Symbol(s.to_owned())),
                 num if token.is_number() =>
-                    list = list.push(Object::Number(::Number::from_token(num))),
+                    list = list.push(Sexp::Number(::Number::from_token(num))),
                 _ => unreachable!(),
             }
         }

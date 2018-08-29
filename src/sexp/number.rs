@@ -231,7 +231,7 @@ impl ComplexExact {
     }
 
     pub(crate) fn as_usize(&self) -> usize {
-        usize::from(self.real.numenator())
+        usize::from(&self.real.clone().into_parts().0)
     }
 
     pub fn to_floating(self) -> ComplexFloating {
