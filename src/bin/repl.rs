@@ -6,7 +6,6 @@ use std::io::{stdin, stdout, Write};
 
 fn main() {
     let env = akuma::init_env();
-    /*
     loop {
         // Print prompt
         print!(">> ");
@@ -42,20 +41,6 @@ fn main() {
         for object in objects {
             println!("{}", akuma::eval(object, &env));
         }
-    }
-    */
-
-    let input = "(define (fib n) (cond ((= n 0) 1) ((= n 1) 1) (else (+ (fib (- n 1)) (fib (- n 2))))))";
-    let tokens = akuma::Parser::parse(&input).unwrap();
-    let sexps = akuma::Token::build_ast(tokens).unwrap();
-    for sexp in sexps {
-        println!("{}", akuma::eval(sexp, &env));
-    }
-    let input = "(fib 5)";
-    let tokens = akuma::Parser::parse(&input).unwrap();
-    let sexps = akuma::Token::build_ast(tokens).unwrap();
-    for sexp in sexps {
-        println!("{}", akuma::eval(sexp, &env));
     }
 
     #[cfg(feature="profile")]
