@@ -12,12 +12,15 @@ extern crate lazy_static;
 extern crate maplit;
 extern crate ramp;
 extern crate regex;
+extern crate vm;
 
+mod compiler;
 mod environment;
 mod error;
 mod parser;
 mod sexp;
 
+pub use compiler::{Ast, compile, CompilePrimitive};
 pub use environment::{Environment, init_env};
 pub use error::Error;
 pub use parser::{Parser, Token};
