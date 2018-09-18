@@ -1,5 +1,6 @@
 extern crate akuma;
 
+/*
 use akuma::{eval, init_env, Environment, Sexp, Parser, Token};
 
 fn run(input: &str, env: &Environment) -> Sexp {
@@ -177,3 +178,4 @@ fn fuzz_tests() {
     let input = "((/ 1 2 3) /41 2 3)";
     assert!(!run(input, &env).is_void());
 }
+*/

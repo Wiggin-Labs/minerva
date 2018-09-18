@@ -1,6 +1,7 @@
 extern crate akuma;
 extern crate ramp;
 
+/*
 use akuma::{Parser, Token, Sexp, ComplexExact, ComplexFloating, Number};
 use ramp::Int;
 use ramp::rational::Rational;
@@ -81,3 +82,4 @@ fn numbers() {
     assert_num!(run("+1e3+3e3i"), new_float(1e3, 3e3));
     assert_num!(run("+1e-3+3e+3i"), new_float(1e-3, 3e3));
 }
+*/

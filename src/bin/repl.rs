@@ -1,11 +1,17 @@
 extern crate akuma;
 #[cfg(feature="profile")]
 extern crate flame;
+extern crate vm;
+
+use vm::{assemble, init_env, Register, VM};
 
 use std::io::{stdin, stdout, Write};
 
 fn main() {
-    let env = akuma::init_env();
+    let mut vm = VM::new();
+    let env = init_env(&mut vm);
+    vm.assign_environment(env);
+
     loop {
         // Print prompt
         print!(">> ");
@@ -30,7 +36,7 @@ fn main() {
                 continue;
             }
         };
-        let objects = match akuma::Token::build_ast(tokens) {
+        let ast = match akuma::Token::build_ast(tokens) {
             Ok(o) => o,
             Err(e) => {
                 println!("ERROR: {}", e);
@@ -38,8 +44,12 @@ fn main() {
             }
         };
 
-        for object in objects {
-            println!("{}", akuma::eval(object, &env));
+        for ast in ast {
+            let asm = akuma::compile(ast);
+            vm.load_code(assemble(asm));
+            vm.run();
+            let result = vm.load_register(Register::A);
+            println!("{:?}", result);
         }
     }
 

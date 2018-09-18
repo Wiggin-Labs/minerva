@@ -170,6 +170,7 @@ fn compile_application(mut v: Vec<Ast>, target: Register, used: &mut HashSet<Reg
     instructions
 }
 
+#[derive(Debug)]
 pub enum Ast {
     Define {
         name: String,
@@ -212,17 +213,31 @@ impl Ast {
             _ => unreachable!(),
         }
     }
+
+    pub fn unwrap_begin(self) -> Vec<Ast> {
+        match self {
+            Ast::Begin(b) => b,
+            _ => unreachable!(),
+        }
+    }
 }
 
+#[derive(Debug)]
 pub enum CompilePrimitive {
-    Int(i64),
+    Nil,
+    Bool(bool),
+    Integer(i64),
+    String(String),
 }
 
 impl CompilePrimitive {
     pub fn to_value(self) -> Value {
         use self::CompilePrimitive::*;
         match self {
-            Int(i) => Value::Integer(i),
+            Nil => Value::Nil,
+            Bool(b) => Value::Bool(b),
+            Integer(i) => Value::Integer(i),
+            String(s) => Value::String(Box::new(s)),
         }
     }
 }

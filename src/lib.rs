@@ -8,24 +8,25 @@ extern crate flame;
 extern crate derive_is_enum_variant;
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate maplit;
+//#[macro_use]
+//extern crate maplit;
 extern crate ramp;
 extern crate regex;
 extern crate vm;
 
 mod compiler;
-mod environment;
+//mod environment;
 mod error;
 mod parser;
-mod sexp;
+//mod sexp;
 
 pub use compiler::{Ast, compile, CompilePrimitive};
-pub use environment::{Environment, init_env};
+//pub use environment::{Environment, init_env};
 pub use error::Error;
 pub use parser::{Parser, Token};
-pub use sexp::{Lambda, Number, ComplexExact, ComplexFloating, Sexp, Pair, Primitive};
+//pub use sexp::{Lambda, Number, ComplexExact, ComplexFloating, Sexp, Pair, Primitive};
 
+/*
 #[cfg_attr(feature="profile", flame)]
 pub fn eval(exp: Sexp, env: &Environment) -> Sexp {
     if exp.is_self_evaluating() {
@@ -94,3 +95,4 @@ pub fn apply(procedure: Sexp, mut arguments: Sexp) -> Sexp {
         Sexp::Error(Error::UserDefined("Unknown procedure type".to_string()))
     }
 }
+*/

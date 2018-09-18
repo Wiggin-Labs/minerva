@@ -129,10 +129,13 @@ impl<'a> Parser<'a> {
         const _RAT: &'static str = r"\d+(?:/\d+)?";
         const _REAL: &'static str = r"\d*\.?\d+(?:[eE][-+]?\d+)?";
         lazy_static! {
+            static ref INTEGER: Regex = Regex::new(r"^([+-]?\d+)$").unwrap();
             static ref COMPLEX_RAT: Regex = Regex::new(&format!("^([+-]?{})?(?:([+-](?:{0})?)i)?$", _RAT)).unwrap();
             static ref COMPLEX_REAL: Regex = Regex::new(&format!("^([+-]?(?:{}|{}))?(?:([+-](?:{0}|{1})?)i)?$", _REAL, _RAT)).unwrap();
         }
 
+
+        /*
         if COMPLEX_RAT.is_match(&buf) {
             let captures = COMPLEX_RAT.captures(&buf).unwrap();
             let real = captures.get(1).map(|s| s.as_str().to_owned());
@@ -143,6 +146,11 @@ impl<'a> Parser<'a> {
             let real = captures.get(1).map(|s| s.as_str().to_owned());
             let imaginary = captures.get(2).map(|s| s.as_str().to_owned());
             self.tokens.push(Token::ComplexFloating(real, imaginary));
+            */
+        if INTEGER.is_match(&buf) {
+            let captures = INTEGER.captures(&buf).unwrap();
+            let n = captures.get(1).map(|s| s.as_str().to_owned()).unwrap();
+            self.tokens.push(Token::Integer(n));
         } else {
             self.tokens.push(Token::Symbol(buf));
         }
