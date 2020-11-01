@@ -386,18 +386,16 @@ mod test {
 
     #[test]
     fn load_const() {
-        let op = Operation::LoadConst(Register::A, 0);
+        let op = Operation::LoadConst(Register::A);
         assert_eq!(LoadConst, op.instruction());
         assert_eq!(Register::A, op.loadconst_register());
-        assert_eq!(0, op.loadconst_position());
     }
 
     #[test]
     fn make_closure() {
-        let op = Operation::MakeClosure(Register::A, 5);
+        let op = Operation::MakeClosure(Register::A);
         assert_eq!(MakeClosure, op.instruction());
         assert_eq!(Register::A, op.makeclosure_register());
-        assert_eq!(5, op.makeclosure_position());
     }
 
     #[test]

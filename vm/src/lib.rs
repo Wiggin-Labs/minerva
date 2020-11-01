@@ -288,41 +288,36 @@ impl VM {
         let car = self.load_register(op.cons_car()).clone();
         let cdr = self.load_register(op.cons_cdr()).clone();
         // TODO: gc bits
-        let pair = Box::into_raw(Box::new(Pair::new(0, car, cdr)));
-        let pointer = Value::Pair(pair as u64);
+        let pointer = Value::Pair(car, cdr);
 
         self.assign_register(op.cons_register(), pointer);
     }
 
     fn car(&mut self, op: Operation) {
-        let pointer = self.load_register(op.car_from()).to_pointer();
-        let pair = unsafe { Box::from_raw(pointer as *mut Pair) };
+        let pair = self.load_register(op.car_from()).to_pair();
         self.assign_register(op.car_to(), pair.car);
         // Make sure this value isn't freed.
         Box::into_raw(pair);
     }
 
     fn cdr(&mut self, op: Operation) {
-        let pointer = self.load_register(op.cdr_from()).to_pointer();
-        let pair = unsafe { Box::from_raw(pointer as *mut Pair) };
+        let pair = self.load_register(op.cdr_from()).to_pair();
         self.assign_register(op.cdr_to(), pair.cdr);
         // Make sure this value isn't freed.
         Box::into_raw(pair);
     }
 
     fn set_car(&mut self, op: Operation) {
-        let pointer = self.load_register(op.setcar_register()).to_pointer();
+        let mut pair = self.load_register(op.setcar_register()).to_pair();
         let value = self.load_register(op.setcar_value());
-        let mut pair = unsafe { Box::from_raw(pointer as *mut Pair) };
         pair.car = value;
         // Make sure this value isn't freed.
         Box::into_raw(pair);
     }
 
     fn set_cdr(&mut self, op: Operation) {
-        let pointer = self.load_register(op.setcdr_register()).to_pointer();
+        let mut pair = self.load_register(op.setcdr_register()).to_pair();
         let value = self.load_register(op.setcdr_value());
-        let mut pair = unsafe { Box::from_raw(pointer as *mut Pair) };
         pair.cdr = value;
         // Make sure this value isn't freed.
         Box::into_raw(pair);

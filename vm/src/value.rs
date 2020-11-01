@@ -2,6 +2,9 @@
 
 use string_interner::Symbol;
 
+use {Environment, Operation};
+use self::heap_repr::*;
+
 use std::{fmt, ops};
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq)]
@@ -33,7 +36,7 @@ const VEC_TAG: u64 =    0b011 << 48;
 const STRING_TAG: u64 = 0b100 << 48;
 
 
-const OTHER_TAG: u64 = 0b111 << 48;
+//const OTHER_TAG: u64 = 0b111 << 48;
 
 // TODO: replace middle & with && when it is allowed in const fn
 macro_rules! is_imm {
@@ -45,6 +48,7 @@ macro_rules! is_imm {
     };
 }
 
+/*
 macro_rules! create_pointer {
     ($name:ident, $tag:ident) => {
         pub const fn $name(p: u64) -> Self {
@@ -55,12 +59,22 @@ macro_rules! create_pointer {
         }
     };
 }
+*/
 
 // TODO: replace middle & with && when it is allowed in const fn
 macro_rules! is_pointer {
     ($name:ident, $tag:ident) => {
         pub const fn $name(self) -> bool {
             ((self.0 & NAN) == NAN) & ((self.0 & TAG_MASK) == $tag)
+        }
+    };
+}
+
+macro_rules! to_pointer {
+    ($name:ident, $t:ident) => {
+        pub fn $name(self) -> Box<$t> {
+            let pointer = self.to_pointer();
+            unsafe { Box::from_raw(pointer as *mut $t) }
         }
     };
 }
@@ -123,17 +137,41 @@ impl Value {
         Symbol::new(self.0 as u32 as usize)
     }
 
-    create_pointer!(Lambda, LAMBDA_TAG);
+    pub fn Lambda(env: Environment, arity: u8, code: Vec<Operation>) -> Self {
+        // TODO: gc bits
+        let lambda = Box::into_raw(Box::new(Lambda::new(0, env, arity, code)));
+        let p = lambda as u64;
+        Value(NAN | LAMBDA_TAG | (p & ((1 << 48) - 1)))
+    }
     is_pointer!(is_lambda, LAMBDA_TAG);
+    to_pointer!(to_lambda, Lambda);
 
-    create_pointer!(Pair, PAIR_TAG);
+    pub fn Pair(car: Value, cdr: Value) -> Self {
+        // TODO: gc bits
+        let pair = Box::into_raw(Box::new(Pair::new(0, car, cdr)));
+        let p = pair as u64;
+        Value(NAN | PAIR_TAG | (p & ((1 << 48) - 1)))
+    }
     is_pointer!(is_pair, PAIR_TAG);
+    to_pointer!(to_pair, Pair);
 
-    create_pointer!(Vec, VEC_TAG);
+    pub fn Vec(v: Vec<Value>) -> Self {
+        // TODO: gc bits
+        let vec = Box::into_raw(Box::new(SVec::new(0, v)));
+        let p = vec as u64;
+        Value(NAN | VEC_TAG | (p & ((1 << 48) - 1)))
+    }
     is_pointer!(is_vec, VEC_TAG);
+    to_pointer!(to_vec, SVec);
 
-    create_pointer!(String, STRING_TAG);
+    pub fn String(s: String) -> Self {
+        // TODO: gc bits
+        let str = Box::into_raw(Box::new(SString::new(0, s)));
+        let p = str as u64;
+        Value(NAN | STRING_TAG | (p & ((1 << 48) - 1)))
+    }
     is_pointer!(is_string, STRING_TAG);
+    to_pointer!(to_string, SString);
 
     // TODO: make const when if is allowed
     pub fn to_pointer(self) -> u64 {
@@ -199,11 +237,11 @@ pub mod heap_repr {
         gc: u64,
         pub env: Environment,
         arity: u8,
-        pub code: ::std::vec::Vec<Operation>,
+        pub code: Vec<Operation>,
     }
 
     impl Lambda {
-        pub fn new(root: u64, env: Environment, arity: u8, code: ::std::vec::Vec<Operation>) -> Self {
+        pub fn new(root: u64, env: Environment, arity: u8, code: Vec<Operation>) -> Self {
             Lambda {
                 gc: root & 0xff_ffff_ffff_ffff,
                 env: env,
@@ -230,23 +268,33 @@ pub mod heap_repr {
         }
     }
 
-    pub struct String {
+    pub struct SString {
         gc: u64,
-        p: ::std::string::String,
+        pub p: String,
     }
 
-    impl String {
-        pub fn new(s: ::std::string::String) -> Self {
-            String {
+    impl SString {
+        pub fn new(gc: u64, s: String) -> Self {
+            SString {
                 // TODO
-                gc: 0,
+                gc: gc,
                 p: s,
             }
         }
     }
 
-    pub struct Vec {
+    pub struct SVec {
         gc: u64,
-        p: ::std::vec::Vec<Value>,
+        pub p: Vec<Value>,
+    }
+
+    impl SVec {
+        pub fn new(gc: u64, v: Vec<Value>) -> Self {
+            SVec {
+                // TODO
+                gc: gc,
+                p: v,
+            }
+        }
     }
 }

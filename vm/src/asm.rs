@@ -1,4 +1,4 @@
-use {Instruction, Environment, Lambda, Operation, Value};
+use {Instruction, Environment, Operation, Value};
 
 use std::collections::HashMap;
 
@@ -117,9 +117,7 @@ pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {
                 // Compile lambda
                 let lambda_code = assemble(*code);
                 // TODO: gc, arity
-                let lambda = Lambda::new(0, Environment::new(), 0, lambda_code);
-                let pointer = Box::into_raw(Box::new(lambda)) as u64;
-                let lambda = Value::Lambda(pointer);
+                let lambda = Value::Lambda(Environment::new(), 0, lambda_code);
                 ops.push(Operation::MakeClosure(r));
                 ops.push(Operation(lambda.0));
             }
