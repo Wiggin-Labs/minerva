@@ -186,7 +186,7 @@ impl From<u64> for Value {
 
 pub mod heap_repr {
     use super::Value;
-    use Environment;
+    use {Environment, Operation};
 
     /*
     pub enum Arity {
@@ -197,13 +197,13 @@ pub mod heap_repr {
 
     pub struct Lambda {
         gc: u64,
-        env: Environment,
+        pub env: Environment,
         arity: u8,
-        code: *const u8,
+        pub code: ::std::vec::Vec<Operation>,
     }
 
     impl Lambda {
-        pub fn new(root: u64, env: Environment, arity: u8, code: *const u8) -> Self {
+        pub fn new(root: u64, env: Environment, arity: u8, code: ::std::vec::Vec<Operation>) -> Self {
             Lambda {
                 gc: root & 0xff_ffff_ffff_ffff,
                 env: env,

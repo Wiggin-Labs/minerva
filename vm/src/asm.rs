@@ -86,9 +86,8 @@ pub enum ASM {
     Label(String),
 }
 
-pub fn assemble(asm: Vec<ASM>) -> (Vec<Operation>, Vec<Value>) {
+pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {
     let mut ops = Vec::new();
-    let mut constants = Vec::new();
     let mut labels = HashMap::new();
     let mut jumps = Vec::new();
 
@@ -111,26 +110,18 @@ pub fn assemble(asm: Vec<ASM>) -> (Vec<Operation>, Vec<Value>) {
             ASM::Save(r) => ops.push(Operation::Save(r)),
             ASM::Restore(r) => ops.push(Operation::Restore(r)),
             ASM::LoadConst(r, v) => {
-                if let Some(i) = constants.iter().position(|x| *x == v) {
-                    ops.push(Operation::LoadConst(r, i as u64));
-                } else {
-                    ops.push(Operation::LoadConst(r, constants.len() as u64));
-                    constants.push(v);
-                }
+                ops.push(Operation::LoadConst(r));
+                ops.push(Operation(v.0));
             }
             ASM::MakeClosure(r, code) => {
                 // Compile lambda
-                let (lambda_code, lambda_consts) = assemble(*code);
-                //let lambda = Lambda::new(lambda_code, lambda_consts, Environment::new());
-                // TODO
-                //let lambda = Value::Lambda(Box::new(lambda));
-                let lambda = Value::Lambda(0);
-                if let Some(i) = constants.iter().position(|x| *x == lambda) {
-                    ops.push(Operation::MakeClosure(r, i as u64));
-                } else {
-                    ops.push(Operation::MakeClosure(r, constants.len() as u64));
-                    constants.push(lambda);
-                }
+                let lambda_code = assemble(*code);
+                // TODO: gc, arity
+                let lambda = Lambda::new(0, Environment::new(), 0, lambda_code);
+                let pointer = Box::into_raw(Box::new(lambda)) as u64;
+                let lambda = Value::Lambda(pointer);
+                ops.push(Operation::MakeClosure(r));
+                ops.push(Operation(lambda.0));
             }
             ASM::Move(r1, r2) => ops.push(Operation::Move(r1, r2)),
             ASM::Goto(l) => match l {
@@ -217,5 +208,5 @@ pub fn assemble(asm: Vec<ASM>) -> (Vec<Operation>, Vec<Value>) {
         }
     }
 
-    (ops, constants)
+    ops
 }

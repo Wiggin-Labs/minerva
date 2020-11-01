@@ -10,6 +10,8 @@ pub use bytecode::{Instruction, Operation};
 pub use value::Value;
 pub use value::heap_repr::{Lambda, Pair};
 
+use string_interner::{INTERNER, Symbol};
+
 use std::mem;
 
 /// A Virtual Machine for Scheme.
@@ -81,17 +83,16 @@ impl VM {
                 Instruction::Mul => self.mul(op),
                 Instruction::Eq => self.eq(op),
                 Instruction::LT => self.lt(op),
-                //Instruction::StringToSymbol => self.string_to_symbol(op),
+                Instruction::StringToSymbol => self.string_to_symbol(op),
                 Instruction::Cons => self.cons(op),
-                //Instruction::Car => self.car(op),
-                //Instruction::Cdr => self.cdr(op),
-                //Instruction::SetCar => self.set_car(op),
-                //Instruction::SetCdr => self.set_cdr(op),
+                Instruction::Car => self.car(op),
+                Instruction::Cdr => self.cdr(op),
+                Instruction::SetCar => self.set_car(op),
+                Instruction::SetCdr => self.set_cdr(op),
                 Instruction::Define => self.define(op),
                 Instruction::Lookup => self.lookup(op),
                 Instruction::Call => self.call(op),
                 Instruction::Return => break,
-                _ => todo!(),
             }
         }
     }
@@ -158,14 +159,14 @@ impl VM {
     }
 
     /// Convert `symbol` to a Symbol.
-//    pub fn intern_symbol(&mut self, symbol: String) -> Sym {
-//        self.symbols.get_or_intern(symbol)
-//    }
+    pub fn intern_symbol(&mut self, symbol: String) -> Symbol {
+        INTERNER.lock().unwrap().get_symbol(symbol)
+    }
 
     /// Get the string value of `symbol`.
-//    pub fn get_symbol_value(&self, symbol: Sym) -> &str {
-//        self.symbols.resolve(symbol).unwrap()
-//    }
+    pub fn get_symbol_value(&self, symbol: Symbol) -> String {
+        INTERNER.lock().unwrap().get_value(symbol).unwrap()
+    }
 
     /// Assign a label to the `continue` register.
     pub fn assign_continue(&mut self, label: usize) {
@@ -196,18 +197,20 @@ impl VM {
     }
 
     fn load_const(&mut self, op: Operation) {
-        let index = op.loadconst_position();
         let constant = Value(self.operations[self.pc].0);
         self.pc += 1;
         self.assign_register(op.loadconst_register(), constant);
     }
 
     fn make_closure(&mut self, op: Operation) {
-        let constant_index = op.makeclosure_position() as usize;
-        //let mut lambda = self.constants[constant_index].clone().unwrap_lambda();
+        let pointer = Value(self.operations[self.pc].0);
+        self.pc += 1;
+        let mut lambda = unsafe { Box::from_raw(pointer.to_pointer() as *mut Lambda) };
         // TODO extend env?
-        //lambda.set_env(self.environment.extend());
-        //self.assign_register(op.makeclosure_register(), Value::Lambda(lambda));
+        (*lambda).env = self.environment.extend();
+        self.assign_register(op.makeclosure_register(), pointer);
+        // Make sure this value isn't freed.
+        Box::into_raw(lambda);
     }
 
     fn mov(&mut self, op: Operation) {
@@ -242,21 +245,21 @@ impl VM {
     }
 
     fn add(&mut self, op: Operation) {
-        let left = self.load_register(op.add_left());
-        let right = self.load_register(op.add_right());
-        //self.assign_register(op.add_register(), left + right);
+        let left = self.load_register(op.add_left()).to_integer();
+        let right = self.load_register(op.add_right()).to_integer();
+        self.assign_register(op.add_register(), Value::Integer(left + right));
     }
 
     fn sub(&mut self, op: Operation) {
-        let left = self.load_register(op.sub_left());
-        let right = self.load_register(op.sub_right());
-        //self.assign_register(op.sub_register(), left - right);
+        let left = self.load_register(op.sub_left()).to_integer();
+        let right = self.load_register(op.sub_right()).to_integer();
+        self.assign_register(op.sub_register(), Value::Integer(left - right));
     }
 
     fn mul(&mut self, op: Operation) {
-        let left = self.load_register(op.mul_left());
-        let right = self.load_register(op.mul_right());
-        //self.assign_register(op.mul_register(), left * right);
+        let left = self.load_register(op.mul_left()).to_integer();
+        let right = self.load_register(op.mul_right()).to_integer();
+        self.assign_register(op.mul_register(), Value::Integer(left * right));
     }
 
     fn eq(&mut self, op: Operation) {
@@ -271,144 +274,73 @@ impl VM {
         self.assign_register(op.lt_register(), Value::Bool(left < right));
     }
 
-//    fn string_to_symbol(&mut self, op: Operation) {
-//        // TODO: handle case where `string` isn't a string
-//        let string = self.load_register(op.stringtosymbol_value()).clone().unwrap_string();
-//        let sym = self.intern_symbol(*string);
-//        self.assign_register(op.stringtosymbol_register(), Value::Symbol(sym));
-//    }
+    fn string_to_symbol(&mut self, op: Operation) {
+        // TODO: handle case where `string` isn't a string
+        let pointer = self.load_register(op.stringtosymbol_value()).to_pointer();
+        let string = unsafe { Box::from_raw(pointer as *mut String) };
+        let sym = self.intern_symbol(*string.clone());
+        self.assign_register(op.stringtosymbol_register(), Value::Symbol(sym));
+        // Make sure this value isn't freed.
+        Box::into_raw(string);
+    }
 
     fn cons(&mut self, op: Operation) {
         let car = self.load_register(op.cons_car()).clone();
         let cdr = self.load_register(op.cons_cdr()).clone();
-        // TODO
+        // TODO: gc bits
         let pair = Box::into_raw(Box::new(Pair::new(0, car, cdr)));
         let pointer = Value::Pair(pair as u64);
 
         self.assign_register(op.cons_register(), pointer);
     }
 
-    /*
     fn car(&mut self, op: Operation) {
-        let pointer = self.load_register(op.car_from()).pair_pointer();
-        assert!(pointer < self.cars.len());
-        self.assign_register(op.car_to(), self.cars[pointer].clone());
+        let pointer = self.load_register(op.car_from()).to_pointer();
+        let pair = unsafe { Box::from_raw(pointer as *mut Pair) };
+        self.assign_register(op.car_to(), pair.car);
+        // Make sure this value isn't freed.
+        Box::into_raw(pair);
     }
 
     fn cdr(&mut self, op: Operation) {
-        let pointer = self.load_register(op.cdr_from()).pair_pointer();
-        assert!(pointer < self.cdrs.len());
-        self.assign_register(op.cdr_to(), self.cdrs[pointer].clone());
+        let pointer = self.load_register(op.cdr_from()).to_pointer();
+        let pair = unsafe { Box::from_raw(pointer as *mut Pair) };
+        self.assign_register(op.cdr_to(), pair.cdr);
+        // Make sure this value isn't freed.
+        Box::into_raw(pair);
     }
 
     fn set_car(&mut self, op: Operation) {
-        let pointer = self.load_register(op.setcar_register()).pair_pointer();
-        assert!(pointer < self.cars.len());
+        let pointer = self.load_register(op.setcar_register()).to_pointer();
         let value = self.load_register(op.setcar_value());
-        self.cars[pointer] = value.clone();
+        let mut pair = unsafe { Box::from_raw(pointer as *mut Pair) };
+        pair.car = value;
+        // Make sure this value isn't freed.
+        Box::into_raw(pair);
     }
 
     fn set_cdr(&mut self, op: Operation) {
-        let pointer = self.load_register(op.setcdr_register()).pair_pointer();
-        assert!(pointer < self.cdrs.len());
+        let pointer = self.load_register(op.setcdr_register()).to_pointer();
         let value = self.load_register(op.setcdr_value());
-        self.cdrs[pointer] = value.clone();
+        let mut pair = unsafe { Box::from_raw(pointer as *mut Pair) };
+        pair.cdr = value;
+        // Make sure this value isn't freed.
+        Box::into_raw(pair);
     }
-    */
-
-    /*
-    fn collect_garbage(&mut self) {
-        if self.debug {
-            println!("starting garbage collection with {} pairs", self.cars.len());
-        }
-
-        // We are using a stop-and-copy garbage collector. The idea is that when you
-        // need to run the garbage collector, you stop execution of the program. You
-        // go through all of the registers and the stack, looking for pointers into
-        // the heap. You then copy all of the pairs pointed to by these objects into
-        // backup memory, following any pointers as you go. We replace copied objects
-        // with a (Broken Heart, new pointer) so that any objects which still point
-        // here know the new location. In the process we compact memory. When we are
-        // done, we set the backup memory as the active memory and continue execution.
-        let mut cars = vec![];
-        let mut cdrs = vec![];
-
-        // Handle registers
-        self.copy_pair_register(Register::Flag, &mut cars, &mut cdrs);
-        self.copy_pair_register(Register::A, &mut cars, &mut cdrs);
-        self.copy_pair_register(Register::B, &mut cars, &mut cdrs);
-        self.copy_pair_register(Register::C, &mut cars, &mut cdrs);
-        self.copy_pair_register(Register::D, &mut cars, &mut cdrs);
-
-        // Handle stack
-        for value in self.stack.clone() {
-            if let Value::Pair(p) = value {
-                self.copy_pair(p, &mut cars, &mut cdrs);
-            }
-        }
-
-        // TODO: Handle environment
-
-        mem::swap(&mut self.cars, &mut cars);
-        mem::swap(&mut self.cdrs, &mut cdrs);
-        self.max_heap *= 2;
-
-        if self.debug {
-            println!("ended garbage collection with {} pairs", self.cars.len());
-        }
-    }
-
-    fn copy_pair_register(&mut self,
-                          register: Register,
-                          cars: &mut Vec<Value>,
-                          cdrs: &mut Vec<Value>)
-    {
-        if let Value::Pair(p) = self.load_register(register) {
-            let new_pointer = self.copy_pair(*p, cars, cdrs);
-            self.assign_register(register, new_pointer);
-        }
-    }
-
-    fn copy_pair(&mut self, pair: usize, cars: &mut Vec<Value>, cdrs: &mut Vec<Value>) -> Value {
-        // This pointer has already been moved
-        if self.cars[pair] == Value::BrokenHeart {
-            self.cdrs[pair].clone()
-        } else {
-            let car = self.cars[pair].clone();
-            let cdr = self.cdrs[pair].clone();
-            let new_pointer = cars.len();
-            cars.push(car.clone());
-            cdrs.push(cdr.clone());
-            self.cars[pair] = Value::BrokenHeart;
-            self.cdrs[pair] = Value::Pair(new_pointer);
-
-            if let Value::Pair(p) = car {
-                let moved = self.copy_pair(p, cars, cdrs);
-                cars[new_pointer] = moved;
-            }
-
-            if let Value::Pair(p) = cdr {
-                let moved = self.copy_pair(p, cars, cdrs);
-                cdrs[new_pointer] = moved;
-            }
-            Value::Pair(new_pointer)
-        }
-    }
-    */
 
     fn define(&mut self, op: Operation) {
         // TODO: handle error when name is not a symbol
-        //let name = self.load_register(op.define_name()).unwrap_symbol();
-        //let value = self.load_register(op.define_value()).clone();
-        //self.environment.define_variable(name, value);
+        let name = self.load_register(op.define_name()).to_symbol();
+        let value = self.load_register(op.define_value());
+        self.environment.define_variable(name, value);
     }
 
     fn lookup(&mut self, op: Operation) {
         // TODO: handle error when name is not a symbol
-        //let name = self.load_register(op.lookup_name()).unwrap_symbol();
+        let name = self.load_register(op.lookup_name()).to_symbol();
         // TODO: we want an error if `name` is undefined
-        //let value = self.environment.lookup_variable_value(name).unwrap_or(Value::Void);
-        //self.assign_register(op.lookup_register(), value);
+        let value = self.environment.lookup_variable_value(name).unwrap_or(Value::Void);
+        self.assign_register(op.lookup_register(), value);
     }
 
     fn call(&mut self, op: Operation) {
@@ -417,13 +349,14 @@ impl VM {
         }
 
         // TODO
-        if true {
-        //if let Value::Lambda(lambda) = self.load_register(op.call_register()) {
+        let v = self.load_register(op.call_register());
+        if v.is_lambda() {
+            let lambda = unsafe { Box::from_raw(v.to_pointer() as *mut Lambda) };
             // Save the current code and env
-            //let mut code = lambda.code.clone();
-            //let mut env = lambda.environment.procedure_local();
-            //mem::swap(&mut code, &mut self.operations);
-            //mem::swap(&mut env, &mut self.environment);
+            let mut code = lambda.code.clone();
+            let mut env = lambda.env.procedure_local();
+            mem::swap(&mut code, &mut self.operations);
+            mem::swap(&mut env, &mut self.environment);
 
             // Save the program counter
             let pc = self.pc;
@@ -432,8 +365,8 @@ impl VM {
 
             // Restore the saved program counter, code, and environment
             self.pc = pc;
-            //self.operations = code;
-            //self.environment = env;
+            self.operations = code;
+            self.environment = env;
         } else {
             // TODO: return error
         }

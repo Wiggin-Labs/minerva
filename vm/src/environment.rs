@@ -71,9 +71,11 @@ pub fn init_env(vm: &mut VM) -> Environment {
 }
 
 fn add_primitive(vm: &mut VM, env: &Environment, name: String, code: Vec<ASM>) {
-    let (code, consts) = assemble(code);
-    //let lambda = Lambda::new(code, consts, env.clone());
-    //env.define_variable(vm.intern_symbol(name), Value::Lambda(Box::new(lambda)));
+    let code = assemble(code);
+    // TODO: gc, arity
+    let lambda = Lambda::new(0, env.clone(), 0, code);
+    let pointer = Box::into_raw(Box::new(lambda)) as u64;
+    env.define_variable(vm.intern_symbol(name), Value::Lambda(pointer));
 }
 
 #[derive(Clone, Default, PartialEq)]

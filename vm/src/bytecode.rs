@@ -110,12 +110,12 @@ macro_rules! register_gotovalue {
 }
 
 impl Operation {
-    /// Retrieve the instruction of an Operation.
+    // Retrieve the instruction of an Operation.
     pub fn instruction(self) -> Instruction {
         Instruction::from(self.0 & 255)
     }
 
-    /// Create a LoadContinue instruction. The label takes up the remaining 7 bytes.
+    // Create a LoadContinue instruction. The label takes up the remaining 7 bytes.
     pub fn LoadContinue(label: usize) -> Self {
         let label = label as u64;
         Operation((label << 8) | LoadContinue as u64)
@@ -125,50 +125,42 @@ impl Operation {
         (self.0 >> 8) as usize
     }
 
-    /// Create a SaveContinue instruction.
+    // Create a SaveContinue instruction.
     pub const SaveContinue: Self = Operation(SaveContinue as u64);
 
-    /// Create a RestoreContinue instruction.
+    // Create a RestoreContinue instruction.
     pub const RestoreContinue: Self = Operation(RestoreContinue as u64);
 
-    /// Create a Save instruction. The register uses 1 byte.
-    /// Retrieve the register used in a Save instruction.
+    // Create a Save instruction. The register uses 1 byte.
+    // Retrieve the register used in a Save instruction.
     register!(Save, save_register);
 
-    /// Create a Restore instruction. The register uses 1 byte.
-    /// Retrieve the register used in a Restore instruction.
+    // Create a Restore instruction. The register uses 1 byte.
+    // Retrieve the register used in a Restore instruction.
     register!(Restore, restore_register);
 
-    /// Create a LoadConst instruction. The register to load into uses 1 byte.
-    pub fn LoadConst(register: Register, position: u64) -> Self {
+    // Create a LoadConst instruction. The register to load into uses 1 byte.
+    pub fn LoadConst(register: Register) -> Self {
         let register = register as u64;
-        Operation((position << 16) | (register << 8) | LoadConst as u64)
+        Operation((register << 8) | LoadConst as u64)
     }
 
     pub fn loadconst_register(self) -> Register {
         Register::from((self.0 >> 8) & 255)
     }
 
-    pub fn loadconst_position(self) -> usize {
-        (self.0 >> 16) as usize
-    }
-
-    /// Create a MakeClosure instruction. The register to load into uses 1 byte.
-    pub fn MakeClosure(register: Register, position: u64) -> Self {
+    // Create a MakeClosure instruction. The register to load into uses 1 byte.
+    pub fn MakeClosure(register: Register) -> Self {
         let register = register as u64;
-        Operation((position << 16) | (register << 8) | MakeClosure as u64)
+        Operation((register << 8) | MakeClosure as u64)
     }
     pub fn makeclosure_register(self) -> Register {
         Register::from((self.0 >> 8) & 255)
     }
 
-    pub fn makeclosure_position(self) -> usize {
-        (self.0 >> 16) as usize
-    }
-
-    /// Creates a Move instruction. Takes the form `from-to-Move`.
-    /// Retrieve the `to` register used in a Move instruction.
-    /// Retrieve the `from` register used in a Move instruction.
+    // Creates a Move instruction. Takes the form `from-to-Move`.
+    // Retrieve the `to` register used in a Move instruction.
+    // Retrieve the `from` register used in a Move instruction.
     register2!(Move, move_to, move_from);
 
     pub fn Goto(value: Option<usize>) -> Self {
@@ -197,62 +189,62 @@ impl Operation {
     register_opvalue2!(LT, lt_register, lt_left, lt_right);
     register_opvalue!(StringToSymbol, stringtosymbol_register, stringtosymbol_value);
 
-    /// Creates a Cons instruction. The register to call from uses 1 byte. `car` and `cdr` each
-    /// take up one byte. If they are values then their byte is 0, otherwise their byte represents
-    /// their register. Takes the form `cdr-car-register-Cons`.
-    /// Retrieve the register from a Cons instruction.
-    /// Retrieve the `car` from a Cons instruction.
-    /// Retrieve the `cdr` from a Cons instruction.
+    // Creates a Cons instruction. The register to call from uses 1 byte. `car` and `cdr` each
+    // take up one byte. If they are values then their byte is 0, otherwise their byte represents
+    // their register. Takes the form `cdr-car-register-Cons`.
+    // Retrieve the register from a Cons instruction.
+    // Retrieve the `car` from a Cons instruction.
+    // Retrieve the `cdr` from a Cons instruction.
     register_opvalue2!(Cons, cons_register, cons_car, cons_cdr);
 
-    /// Creates a Car instruction. Takes the form from-to-Car.
-    /// Retrieve the `to` register from a Car instruction.
-    /// Retrieve the `from` register from a Car instruction.
+    // Creates a Car instruction. Takes the form from-to-Car.
+    // Retrieve the `to` register from a Car instruction.
+    // Retrieve the `from` register from a Car instruction.
     register2!(Car, car_to, car_from);
 
-    /// Creates a Cdr instruction. Takes the form from-to-Car.
-    /// Retrieve the `to` register from a Cdr instruction.
-    /// Retrieve the `from` register from a Cdr instruction.
+    // Creates a Cdr instruction. Takes the form from-to-Car.
+    // Retrieve the `to` register from a Cdr instruction.
+    // Retrieve the `from` register from a Cdr instruction.
     register2!(Cdr, cdr_to, cdr_from);
 
 
-    /// Creates a SetCar instruction. Takes the form `value-register-SetCar`.
-    /// Retrieve the register from a SetCar instruction.
-    /// Retrieve the `value` from a SetCar instruction.
+    // Creates a SetCar instruction. Takes the form `value-register-SetCar`.
+    // Retrieve the register from a SetCar instruction.
+    // Retrieve the `value` from a SetCar instruction.
     register_opvalue!(SetCar, setcar_register, setcar_value);
 
-    /// Creates a SetCdr instruction. Takes the form `value-register-SetCdr`.
-    /// Retrieve the register from a SetCdr instruction.
-    /// Retrieve the `value` from a SetCdr instruction.
+    // Creates a SetCdr instruction. Takes the form `value-register-SetCdr`.
+    // Retrieve the register from a SetCdr instruction.
+    // Retrieve the `value` from a SetCdr instruction.
     register_opvalue!(SetCdr, setcdr_register, setcdr_value);
 
-    /// Creates a Define instruction. Takes the form `value-name-Define`.
+    // Creates a Define instruction. Takes the form `value-name-Define`.
     pub fn Define(name: Register, value: Register) -> Self {
         let name = name as u64;
         let value = value as u64;
         Operation((value << 16) | (name << 8) | Define as u64)
     }
 
-    /// Retrive the `name` from a Define instruction.
+    // Retrive the `name` from a Define instruction.
     pub fn define_name(self) -> Register {
         Register::from((self.0 >> 8) & 255)
     }
 
-    /// Retrive the `value` from a Define instruction.
+    // Retrive the `value` from a Define instruction.
     pub fn define_value(self) -> Register {
         Register::from(self.0 >> 16)
     }
 
-    /// Creates a Lookup instruction. Takes the form `name-register-Define`.
-    /// Retrive the register from a Lookup instruction.
-    /// Retrive the `name` from a Lookup instruction.
+    // Creates a Lookup instruction. Takes the form `name-register-Define`.
+    // Retrive the register from a Lookup instruction.
+    // Retrive the `name` from a Lookup instruction.
     register_opvalue!(Lookup, lookup_register, lookup_name);
 
-    /// Creates a Call instruction. The register to call from uses 1 byte.
-    /// Retrieve the register from a Call instruction.
+    // Creates a Call instruction. The register to call from uses 1 byte.
+    // Retrieve the register from a Call instruction.
     register!(Call, call_register);
 
-    /// Creates a Return instruction.
+    // Creates a Return instruction.
     pub const Return: Self = Operation(Return as u64);
 }
 
