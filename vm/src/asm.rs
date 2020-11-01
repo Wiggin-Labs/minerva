@@ -121,8 +121,10 @@ pub fn assemble(asm: Vec<ASM>) -> (Vec<Operation>, Vec<Value>) {
             ASM::MakeClosure(r, code) => {
                 // Compile lambda
                 let (lambda_code, lambda_consts) = assemble(*code);
-                let lambda = Lambda::new(lambda_code, lambda_consts, Environment::new());
-                let lambda = Value::Lambda(Box::new(lambda));
+                //let lambda = Lambda::new(lambda_code, lambda_consts, Environment::new());
+                // TODO
+                //let lambda = Value::Lambda(Box::new(lambda));
+                let lambda = Value::Lambda(0);
                 if let Some(i) = constants.iter().position(|x| *x == lambda) {
                     ops.push(Operation::MakeClosure(r, i as u64));
                 } else {

@@ -3,8 +3,8 @@ name = "vm"
 version = "0.1.0"
 authors = ["Hunter Praska <hunter@wiggin-labs.com>"]
 
-[dependencies]
-string-interner = "0.7.0"
+[dependencies.string-interner]
+git = "https://git.hunterpraska.com/hunter/incarnation"
 
 [dev-dependencies]
 criterion = "0.2.5"

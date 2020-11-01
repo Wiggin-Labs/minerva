@@ -1,6 +1,6 @@
 use {assemble, ASM, GotoValue, Lambda, Register, Value, VM};
 
-use string_interner::Sym;
+use string_interner::Symbol;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -72,8 +72,8 @@ pub fn init_env(vm: &mut VM) -> Environment {
 
 fn add_primitive(vm: &mut VM, env: &Environment, name: String, code: Vec<ASM>) {
     let (code, consts) = assemble(code);
-    let lambda = Lambda::new(code, consts, env.clone());
-    env.define_variable(vm.intern_symbol(name), Value::Lambda(Box::new(lambda)));
+    //let lambda = Lambda::new(code, consts, env.clone());
+    //env.define_variable(vm.intern_symbol(name), Value::Lambda(Box::new(lambda)));
 }
 
 #[derive(Clone, Default, PartialEq)]
@@ -94,7 +94,7 @@ impl Environment {
         }
     }
 
-    pub fn from_hashmap(map: HashMap<Sym, Value>) -> Self {
+    pub fn from_hashmap(map: HashMap<Symbol, Value>) -> Self {
         let env = _Environment {
             bindings: map,
             parent: None,
@@ -113,15 +113,15 @@ impl Environment {
         }
     }
 
-    pub fn lookup_variable_value(&self, name: Sym) -> Option<Value> {
+    pub fn lookup_variable_value(&self, name: Symbol) -> Option<Value> {
         self.env.borrow().lookup_variable_value(name)
     }
 
-    pub fn define_variable(&self, name: Sym, value: Value) {
+    pub fn define_variable(&self, name: Symbol, value: Value) {
         self.env.borrow_mut().define_variable(name, value);
     }
 
-    pub fn set_variable_value(&self, name: Sym, value: Value) -> Value {
+    pub fn set_variable_value(&self, name: Symbol, value: Value) -> Value {
         self.env.borrow_mut().set_variable_value(name, value)
     }
 
@@ -139,7 +139,7 @@ impl Environment {
 
 #[derive(Default)]
 pub struct _Environment {
-    bindings: HashMap<Sym, Value>,
+    bindings: HashMap<Symbol, Value>,
     parent: Option<Environment>,
 }
 
@@ -154,7 +154,7 @@ impl _Environment {
         Default::default()
     }
 
-    pub fn lookup_variable_value(&self, name: Sym) -> Option<Value> {
+    pub fn lookup_variable_value(&self, name: Symbol) -> Option<Value> {
         if let Some(val) = self.bindings.get(&name) {
             Some(val.clone())
         } else if let Some(ref env) = self.parent {
@@ -164,11 +164,11 @@ impl _Environment {
         }
     }
 
-    pub fn define_variable(&mut self, name: Sym, value: Value) {
+    pub fn define_variable(&mut self, name: Symbol, value: Value) {
         self.bindings.insert(name, value);
     }
 
-    pub fn set_variable_value(&mut self, name: Sym, value: Value) -> Value {
+    pub fn set_variable_value(&mut self, name: Symbol, value: Value) -> Value {
         if self.bindings.contains_key(&name) {
             self.bindings.insert(name, value);
             Value::Void

@@ -1,4 +1,4 @@
-#![allow(non_upper_case_globals, non_snake_case)]
+#![allow(non_upper_case_globals, non_snake_case, unused_doc_comments)]
 
 use Register;
 

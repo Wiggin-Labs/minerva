@@ -1,6 +1,4 @@
-#![feature(nll)]
 extern crate string_interner;
-
 mod asm;
 mod bytecode;
 mod environment;
@@ -9,9 +7,8 @@ mod value;
 pub use asm::{assemble, GotoValue, ASM, Register};
 pub use environment::{init_env, Environment};
 pub use bytecode::{Instruction, Operation};
-pub use value::{Lambda, Value};
-
-use string_interner::{DefaultStringInterner, StringInterner, Sym};
+pub use value::Value;
+pub use value::heap_repr::{Lambda, Pair};
 
 use std::mem;
 
@@ -21,8 +18,6 @@ pub struct VM {
     debug: bool,
     step: usize,
     operations: Vec<Operation>,
-    constants: Vec<Value>,
-    symbols: DefaultStringInterner,
     environment: Environment,
     stack: Vec<Value>,
     kontinue_stack: Vec<usize>,
@@ -30,13 +25,7 @@ pub struct VM {
     pc: usize,
     kontinue: usize,
     flag: Value,
-    a: Value,
-    b: Value,
-    c: Value,
-    d: Value,
-    max_heap: usize,
-    cars: Vec<Value>,
-    cdrs: Vec<Value>,
+    registers: [Value; 32],
 }
 
 impl Default for VM {
@@ -52,21 +41,13 @@ impl VM {
             debug: false,
             step: 0,
             operations: vec![],
-            constants: vec![],
-            symbols: StringInterner::default(),
+            environment: Environment::new(),
             stack: vec![],
             kontinue_stack: vec![],
-            environment: Environment::new(),
             pc: 0,
             kontinue: 0,
             flag: Value::Nil,
-            a: Value::Nil,
-            b: Value::Nil,
-            c: Value::Nil,
-            d: Value::Nil,
-            max_heap: 16,
-            cars: vec![],
-            cdrs: vec![],
+            registers: [Value::Nil; 32],
         }
     }
 
@@ -81,6 +62,7 @@ impl VM {
 
 
             let op = self.operations[self.pc];
+            self.step += 1;
             self.pc += 1;
             match op.instruction() {
                 Instruction::LoadContinue => self.load_kontinue(op),
@@ -99,16 +81,17 @@ impl VM {
                 Instruction::Mul => self.mul(op),
                 Instruction::Eq => self.eq(op),
                 Instruction::LT => self.lt(op),
-                Instruction::StringToSymbol => self.string_to_symbol(op),
+                //Instruction::StringToSymbol => self.string_to_symbol(op),
                 Instruction::Cons => self.cons(op),
-                Instruction::Car => self.car(op),
-                Instruction::Cdr => self.cdr(op),
-                Instruction::SetCar => self.set_car(op),
-                Instruction::SetCdr => self.set_cdr(op),
+                //Instruction::Car => self.car(op),
+                //Instruction::Cdr => self.cdr(op),
+                //Instruction::SetCar => self.set_car(op),
+                //Instruction::SetCdr => self.set_cdr(op),
                 Instruction::Define => self.define(op),
                 Instruction::Lookup => self.lookup(op),
                 Instruction::Call => self.call(op),
                 Instruction::Return => break,
+                _ => todo!(),
             }
         }
     }
@@ -118,7 +101,6 @@ impl VM {
         let mut new = Self::new();
         new.debug = self.debug;
         mem::swap(&mut new.operations, &mut self.operations);
-        mem::swap(&mut new.constants, &mut self.constants);
         mem::swap(&mut new, self);
     }
 
@@ -129,22 +111,13 @@ impl VM {
 
     fn print_debug(&mut self) {
         println!("step {}:", self.step);
-        println!("a: {:?}", self.a);
-        println!("b: {:?}", self.b);
-        println!("c: {:?}", self.c);
-        println!("d: {:?}", self.d);
+        for (i, reg) in self.registers.iter().enumerate() {
+            println!("X{}: {:?}", i, reg);
+        }
         println!("flag: {:?}", self.flag);
         println!("continue: {:?}", self.kontinue);
         println!("stack size: {}", self.stack.len());
-        println!("heap size: {}", self.cars.len());
-        println!("max heap size: {}", self.max_heap);
         println!();
-        self.step += 1;
-    }
-
-    /// Returns the current heap size. This correlates to the number of pairs currently allocated.
-    pub fn heap_size(&self) -> usize {
-        self.cars.len()
     }
 
     /// Returns the current stack size.
@@ -153,9 +126,8 @@ impl VM {
     }
 
     /// Load code into the machine.
-    pub fn load_code(&mut self, (code, constants): (Vec<Operation>, Vec<Value>)) {
+    pub fn load_code(&mut self, code: Vec<Operation>) {
         self.operations = code;
-        self.constants = constants;
         self.pc = 0;
     }
 
@@ -163,21 +135,21 @@ impl VM {
     pub fn assign_register(&mut self, register: Register, value: Value) {
         match register {
             Register::Flag => self.flag = value,
-            Register::A => self.a = value,
-            Register::B => self.b = value,
-            Register::C => self.c = value,
-            Register::D => self.d = value,
+            Register::A => self.registers[0] = value,
+            Register::B => self.registers[1] = value,
+            Register::C => self.registers[2] = value,
+            Register::D => self.registers[3] = value,
         }
     }
 
     /// Get the value of `register`.
-    pub fn load_register(&self, register: Register) -> &Value {
+    pub fn load_register(&self, register: Register) -> Value {
         match register {
-            Register::Flag => &self.flag,
-            Register::A => &self.a,
-            Register::B => &self.b,
-            Register::C => &self.c,
-            Register::D => &self.d,
+            Register::Flag => self.flag,
+            Register::A => self.registers[0],
+            Register::B => self.registers[1],
+            Register::C => self.registers[2],
+            Register::D => self.registers[3],
         }
     }
 
@@ -186,14 +158,14 @@ impl VM {
     }
 
     /// Convert `symbol` to a Symbol.
-    pub fn intern_symbol(&mut self, symbol: String) -> Sym {
-        self.symbols.get_or_intern(symbol)
-    }
+//    pub fn intern_symbol(&mut self, symbol: String) -> Sym {
+//        self.symbols.get_or_intern(symbol)
+//    }
 
     /// Get the string value of `symbol`.
-    pub fn get_symbol_value(&self, symbol: Sym) -> &str {
-        self.symbols.resolve(symbol).unwrap()
-    }
+//    pub fn get_symbol_value(&self, symbol: Sym) -> &str {
+//        self.symbols.resolve(symbol).unwrap()
+//    }
 
     /// Assign a label to the `continue` register.
     pub fn assign_continue(&mut self, label: usize) {
@@ -214,13 +186,7 @@ impl VM {
     }
 
     fn save(&mut self, op: Operation) {
-        match op.save_register() {
-            Register::Flag => self.stack.push(self.flag.clone()),
-            Register::A => self.stack.push(self.a.clone()),
-            Register::B => self.stack.push(self.b.clone()),
-            Register::C => self.stack.push(self.c.clone()),
-            Register::D => self.stack.push(self.d.clone()),
-        }
+        self.stack.push(self.load_register(op.save_register()));
     }
 
     fn restore(&mut self, op: Operation) {
@@ -231,28 +197,23 @@ impl VM {
 
     fn load_const(&mut self, op: Operation) {
         let index = op.loadconst_position();
-        let constant = self.constants[index].clone();
+        let constant = Value(self.operations[self.pc].0);
+        self.pc += 1;
         self.assign_register(op.loadconst_register(), constant);
     }
 
     fn make_closure(&mut self, op: Operation) {
         let constant_index = op.makeclosure_position() as usize;
-        let mut lambda = self.constants[constant_index].clone().unwrap_lambda();
+        //let mut lambda = self.constants[constant_index].clone().unwrap_lambda();
         // TODO extend env?
-        lambda.set_env(self.environment.extend());
-        self.assign_register(op.makeclosure_register(), Value::Lambda(lambda));
+        //lambda.set_env(self.environment.extend());
+        //self.assign_register(op.makeclosure_register(), Value::Lambda(lambda));
     }
 
     fn mov(&mut self, op: Operation) {
         let to = op.move_to();
         let from = op.move_from();
-        match from {
-            Register::Flag => self.assign_register(to, self.flag.clone()),
-            Register::A => self.assign_register(to, self.a.clone()),
-            Register::B => self.assign_register(to, self.b.clone()),
-            Register::C => self.assign_register(to, self.c.clone()),
-            Register::D => self.assign_register(to, self.d.clone()),
-        }
+        self.assign_register(to, self.load_register(from));
     }
 
     fn goto(&mut self, op: Operation) {
@@ -260,13 +221,13 @@ impl VM {
     }
 
     fn goto_if(&mut self, op: Operation) {
-        if Value::Bool(true) == *self.load_register(op.gotoif_register()) {
+        if Value::Bool(true) == self.load_register(op.gotoif_register()) {
             self._goto(op.gotoif_value());
         }
     }
 
     fn goto_if_not(&mut self, op: Operation) {
-        if Value::Bool(false) == *self.load_register(op.gotoifnot_register()) {
+        if Value::Bool(false) == self.load_register(op.gotoifnot_register()) {
             self._goto(op.gotoifnot_value());
         }
     }
@@ -283,19 +244,19 @@ impl VM {
     fn add(&mut self, op: Operation) {
         let left = self.load_register(op.add_left());
         let right = self.load_register(op.add_right());
-        self.assign_register(op.add_register(), left + right);
+        //self.assign_register(op.add_register(), left + right);
     }
 
     fn sub(&mut self, op: Operation) {
         let left = self.load_register(op.sub_left());
         let right = self.load_register(op.sub_right());
-        self.assign_register(op.sub_register(), left - right);
+        //self.assign_register(op.sub_register(), left - right);
     }
 
     fn mul(&mut self, op: Operation) {
         let left = self.load_register(op.mul_left());
         let right = self.load_register(op.mul_right());
-        self.assign_register(op.mul_register(), left * right);
+        //self.assign_register(op.mul_register(), left * right);
     }
 
     fn eq(&mut self, op: Operation) {
@@ -310,27 +271,24 @@ impl VM {
         self.assign_register(op.lt_register(), Value::Bool(left < right));
     }
 
-    fn string_to_symbol(&mut self, op: Operation) {
-        // TODO: handle case where `string` isn't a string
-        let string = self.load_register(op.stringtosymbol_value()).clone().unwrap_string();
-        let sym = self.intern_symbol(*string);
-        self.assign_register(op.stringtosymbol_register(), Value::Symbol(sym));
-    }
+//    fn string_to_symbol(&mut self, op: Operation) {
+//        // TODO: handle case where `string` isn't a string
+//        let string = self.load_register(op.stringtosymbol_value()).clone().unwrap_string();
+//        let sym = self.intern_symbol(*string);
+//        self.assign_register(op.stringtosymbol_register(), Value::Symbol(sym));
+//    }
 
     fn cons(&mut self, op: Operation) {
-        if self.cars.len() >= self.max_heap {
-            self.collect_garbage();
-        }
-
         let car = self.load_register(op.cons_car()).clone();
         let cdr = self.load_register(op.cons_cdr()).clone();
-        self.cars.push(car);
-        self.cdrs.push(cdr);
+        // TODO
+        let pair = Box::into_raw(Box::new(Pair::new(0, car, cdr)));
+        let pointer = Value::Pair(pair as u64);
 
-        let pointer = Value::Pair(self.cars.len() - 1);
         self.assign_register(op.cons_register(), pointer);
     }
 
+    /*
     fn car(&mut self, op: Operation) {
         let pointer = self.load_register(op.car_from()).pair_pointer();
         assert!(pointer < self.cars.len());
@@ -356,7 +314,9 @@ impl VM {
         let value = self.load_register(op.setcdr_value());
         self.cdrs[pointer] = value.clone();
     }
+    */
 
+    /*
     fn collect_garbage(&mut self) {
         if self.debug {
             println!("starting garbage collection with {} pairs", self.cars.len());
@@ -434,20 +394,21 @@ impl VM {
             Value::Pair(new_pointer)
         }
     }
+    */
 
     fn define(&mut self, op: Operation) {
         // TODO: handle error when name is not a symbol
-        let name = self.load_register(op.define_name()).unwrap_symbol();
-        let value = self.load_register(op.define_value()).clone();
-        self.environment.define_variable(name, value);
+        //let name = self.load_register(op.define_name()).unwrap_symbol();
+        //let value = self.load_register(op.define_value()).clone();
+        //self.environment.define_variable(name, value);
     }
 
     fn lookup(&mut self, op: Operation) {
         // TODO: handle error when name is not a symbol
-        let name = self.load_register(op.lookup_name()).unwrap_symbol();
+        //let name = self.load_register(op.lookup_name()).unwrap_symbol();
         // TODO: we want an error if `name` is undefined
-        let value = self.environment.lookup_variable_value(name).unwrap_or(Value::Void);
-        self.assign_register(op.lookup_register(), value);
+        //let value = self.environment.lookup_variable_value(name).unwrap_or(Value::Void);
+        //self.assign_register(op.lookup_register(), value);
     }
 
     fn call(&mut self, op: Operation) {
@@ -455,14 +416,14 @@ impl VM {
             println!("beginning call");
         }
 
-        if let Value::Lambda(lambda) = self.load_register(op.call_register()) {
+        // TODO
+        if true {
+        //if let Value::Lambda(lambda) = self.load_register(op.call_register()) {
             // Save the current code and env
-            let mut code = lambda.code.clone();
-            let mut env = lambda.environment.procedure_local();
-            let mut consts = lambda.consts.clone();
-            mem::swap(&mut code, &mut self.operations);
-            mem::swap(&mut env, &mut self.environment);
-            mem::swap(&mut consts, &mut self.constants);
+            //let mut code = lambda.code.clone();
+            //let mut env = lambda.environment.procedure_local();
+            //mem::swap(&mut code, &mut self.operations);
+            //mem::swap(&mut env, &mut self.environment);
 
             // Save the program counter
             let pc = self.pc;
@@ -471,9 +432,8 @@ impl VM {
 
             // Restore the saved program counter, code, and environment
             self.pc = pc;
-            self.operations = code;
-            self.environment = env;
-            self.constants = consts;
+            //self.operations = code;
+            //self.environment = env;
         } else {
             // TODO: return error
         }
