@@ -7,7 +7,7 @@ authors = ["Hunter Praska <hunter@wiggin-labs.com>"]
 git = "https://git.hunterpraska.com/hunter/incarnation"
 
 [dev-dependencies]
-criterion = "0.2.5"
+criterion = "0.3.3"
 
 [[bench]]
 name = "basic"

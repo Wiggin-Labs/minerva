@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
                     },
                     None => self.tokens.push(Token::Dot),
                 },
-                '0' ... '9' | '+' | '-' => self.parse_ambiguous(c)?,
+                '0' ..= '9' | '+' | '-' => self.parse_ambiguous(c)?,
                 _ => {
                     let mut buf = String::new();
                     match c {
@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
 
         while let Some(c) = self.next() {
             match c {
-                '0' ... '9' | '+' | '-' | '/' | '.' | 'e' | 'i' => buf.push(c),
+                '0' ..= '9' | '+' | '-' | '/' | '.' | 'e' | 'i' => buf.push(c),
                 c if is_pair_start(c) => {
                     self.distinguish_ambiguous(buf)?;
                     self.tokens.push(Token::LeftParen);
@@ -263,7 +263,7 @@ impl<'a> Parser<'a> {
     }
 
     // TODO
-    fn parse_comment(&mut self, c: char) -> ParseResult {
+    fn parse_comment(&mut self, _c: char) -> ParseResult {
         let mut buf = String::from(";");
 
         while let Some(c) = self.next() {
