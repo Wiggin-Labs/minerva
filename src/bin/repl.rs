@@ -1,10 +1,13 @@
 extern crate akuma;
 #[cfg(feature="profile")]
 extern crate flame;
+extern crate string_interner;
 extern crate vm;
 
 use akuma::ParseError;
 use vm::{assemble, init_env, Register, VM};
+
+use string_interner::INTERNER;
 
 use std::io::{stdin, stdout, Write};
 
@@ -12,6 +15,10 @@ fn main() {
     let mut vm = VM::new();
     let env = init_env(&mut vm);
     vm.assign_environment(env);
+
+    for s in vm.get_definitions() {
+        println!("{}", INTERNER.lock().unwrap().get_value(s).unwrap());
+    }
 
     loop {
         // Print prompt

@@ -158,6 +158,10 @@ impl VM {
         self.environment = env;
     }
 
+    pub fn get_definitions(&self) -> Vec<Symbol> {
+        self.environment.get_definitions()
+    }
+
     /// Convert `symbol` to a Symbol.
     pub fn intern_symbol(&mut self, symbol: String) -> Symbol {
         INTERNER.lock().unwrap().get_symbol(symbol)

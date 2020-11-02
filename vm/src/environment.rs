@@ -135,6 +135,10 @@ impl Environment {
             env: Rc::new(RefCell::new(local)),
         }
     }
+
+    pub fn get_definitions(&self) -> Vec<Symbol> {
+        self.env.borrow().get_definitions()
+    }
 }
 
 #[derive(Default)]
@@ -178,5 +182,13 @@ impl _Environment {
             //Sexp::Error(Error::UnboundVariable(name))
             panic!("");
         }
+    }
+
+    pub fn get_definitions(&self) -> Vec<Symbol> {
+        let mut definitions: Vec<_> = self.bindings.keys().map(|x| *x).collect();
+        if let Some(ref env) = self.parent {
+            definitions.append(&mut env.get_definitions());
+        }
+        definitions
     }
 }

@@ -1,6 +1,6 @@
 #![allow(non_upper_case_globals, non_snake_case)]
 
-use string_interner::Symbol;
+use string_interner::{INTERNER, Symbol};
 
 use {Environment, Operation};
 use self::heap_repr::*;
@@ -194,7 +194,7 @@ impl fmt::Display for Value {
             write!(f, "{}", self.to_integer())
         } else if self.is_symbol() {
             let s = self.to_symbol();
-            write!(f, "{:?}", s)
+            write!(f, "{}", INTERNER.lock().unwrap().get_value(s).unwrap())
         } else if *self == Value::True {
             write!(f, "#t")
         } else if *self == Value::False {

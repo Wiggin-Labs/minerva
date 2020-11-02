@@ -14,6 +14,9 @@ flame = { version = "0.2.2", optional = true }
 #flamer = { version = "0.2.5", optional = true }
 flamer = { git = "https://github.com/llogiq/flamer", optional = true }
 
+[dependencies.string-interner]
+git = "https://git.hunterpraska.com/hunter/incarnation"
+
 [dependencies.vm]
 path = "vm"
 
