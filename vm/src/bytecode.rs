@@ -8,13 +8,13 @@ use Instruction::*;
 /// instructions. The instruction is the lowest byte. The remaining 7 bytes are used for arguments
 /// to the instruction and their use differs by instruction.
 #[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd, Eq, Hash)]
-pub struct Operation(pub u64);
+pub struct Operation(pub u32);
 
 macro_rules! register {
     ($instruction:ident, $register:ident) => {
         pub fn $instruction(register: Register) -> Self {
-            let register = register as u64;
-            Operation((register << 8) | ($instruction as u64))
+            let register = register as u32;
+            Operation((register << 8) | ($instruction as u32))
         }
 
         pub fn $register(self) -> Register {
@@ -26,9 +26,9 @@ macro_rules! register {
 macro_rules! register2 {
     ($instruction:ident, $to:ident, $from:ident) => {
         pub fn $instruction(to: Register, from: Register) -> Self {
-            let to = to as u64;
-            let from = from as u64;
-            Operation((from << 16) | (to << 8) | ($instruction as u64))
+            let to = to as u32;
+            let from = from as u32;
+            Operation((from << 16) | (to << 8) | ($instruction as u32))
         }
 
         pub fn $to(self) -> Register {
@@ -44,9 +44,9 @@ macro_rules! register2 {
 macro_rules! register_opvalue {
     ($instruction:ident, $register:ident, $opvalue:ident) => {
         pub fn $instruction(register: Register, value: Register) -> Self {
-            let register = register as u64;
-            let value = value as u64;
-            Operation((value << 16) | (register << 8) | ($instruction as u64))
+            let register = register as u32;
+            let value = value as u32;
+            Operation((value << 16) | (register << 8) | ($instruction as u32))
         }
 
         pub fn $register(self) -> Register {
@@ -62,10 +62,10 @@ macro_rules! register_opvalue {
 macro_rules! register_opvalue2 {
     ($instruction:ident, $register:ident, $left:ident, $right:ident) => {
         pub fn $instruction(register: Register, left: Register, right: Register) -> Self {
-            let register = register as u64;
-            let left = left as u64;
-            let right = right as u64;
-            Operation((right << 24) | (left << 16) | (register << 8) | ($instruction as u64))
+            let register = register as u32;
+            let left = left as u32;
+            let right = right as u32;
+            Operation((right << 24) | (left << 16) | (register << 8) | ($instruction as u32))
         }
 
         pub fn $register(self) -> Register {
@@ -85,9 +85,9 @@ macro_rules! register_opvalue2 {
 macro_rules! register_gotovalue {
     ($instruction:ident, $register:ident, $goto:ident, $set:ident) => {
         pub fn $instruction(register: Register, value: Option<usize>) -> Self {
-            let register = register as u64;
-            let value = if let Some(p) = value { (p as u64) << 16 } else { 1 << 12 };
-            Operation(value | (register << 8) | ($instruction as u64))
+            let register = register as u32;
+            let value = if let Some(p) = value { (p as u32) << 16 } else { 1 << 12 };
+            Operation(value | (register << 8) | ($instruction as u32))
         }
 
         pub fn $register(self) -> Register {
@@ -104,7 +104,7 @@ macro_rules! register_gotovalue {
         }
 
         pub fn $set(self, label: usize) -> Self {
-            Operation(((label as u64) << 16) | (65535 & self.0))
+            Operation(((label as u32) << 16) | (65535 & self.0))
         }
     };
 }
@@ -117,8 +117,8 @@ impl Operation {
 
     // Create a LoadContinue instruction. The label takes up the remaining 7 bytes.
     pub fn LoadContinue(label: usize) -> Self {
-        let label = label as u64;
-        Operation((label << 8) | LoadContinue as u64)
+        let label = label as u32;
+        Operation((label << 8) | LoadContinue as u32)
     }
 
     pub fn loadcontinue_label(self) -> usize {
@@ -126,10 +126,10 @@ impl Operation {
     }
 
     // Create a SaveContinue instruction.
-    pub const SaveContinue: Self = Operation(SaveContinue as u64);
+    pub const SaveContinue: Self = Operation(SaveContinue as u32);
 
     // Create a RestoreContinue instruction.
-    pub const RestoreContinue: Self = Operation(RestoreContinue as u64);
+    pub const RestoreContinue: Self = Operation(RestoreContinue as u32);
 
     // Create a Save instruction. The register uses 1 byte.
     // Retrieve the register used in a Save instruction.
@@ -141,8 +141,8 @@ impl Operation {
 
     // Create a LoadConst instruction. The register to load into uses 1 byte.
     pub fn LoadConst(register: Register) -> Self {
-        let register = register as u64;
-        Operation((register << 8) | LoadConst as u64)
+        let register = register as u32;
+        Operation((register << 8) | LoadConst as u32)
     }
 
     pub fn loadconst_register(self) -> Register {
@@ -151,8 +151,8 @@ impl Operation {
 
     // Create a MakeClosure instruction. The register to load into uses 1 byte.
     pub fn MakeClosure(register: Register) -> Self {
-        let register = register as u64;
-        Operation((register << 8) | MakeClosure as u64)
+        let register = register as u32;
+        Operation((register << 8) | MakeClosure as u32)
     }
     pub fn makeclosure_register(self) -> Register {
         Register::from((self.0 >> 8) & 255)
@@ -165,8 +165,8 @@ impl Operation {
 
     pub fn Goto(value: Option<usize>) -> Self {
         match value {
-            Some(p) => Operation(((p as u64) << 16) | Goto as u64),
-            None => Operation((1 << 8) | Goto as u64),
+            Some(p) => Operation(((p as u32) << 16) | Goto as u32),
+            None => Operation((1 << 8) | Goto as u32),
         }
     }
 
@@ -220,9 +220,9 @@ impl Operation {
 
     // Creates a Define instruction. Takes the form `value-name-Define`.
     pub fn Define(name: Register, value: Register) -> Self {
-        let name = name as u64;
-        let value = value as u64;
-        Operation((value << 16) | (name << 8) | Define as u64)
+        let name = name as u32;
+        let value = value as u32;
+        Operation((value << 16) | (name << 8) | Define as u32)
     }
 
     // Retrive the `name` from a Define instruction.
@@ -245,13 +245,13 @@ impl Operation {
     register!(Call, call_register);
 
     // Creates a Return instruction.
-    pub const Return: Self = Operation(Return as u64);
+    pub const Return: Self = Operation(Return as u32);
 }
 
 impl ::std::ops::Deref for Operation {
-    type Target = u64;
+    type Target = u32;
 
-    fn deref(&self) -> &u64 {
+    fn deref(&self) -> &u32 {
         &self.0
     }
 }
@@ -312,8 +312,8 @@ pub enum Instruction {
     Return = 25,
 }
 
-impl From<u64> for Instruction {
-    fn from(r: u64) -> Self {
+impl From<u32> for Instruction {
+    fn from(r: u32) -> Self {
         use Instruction::*;
         match r {
             0 => LoadContinue,

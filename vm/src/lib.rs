@@ -197,14 +197,18 @@ impl VM {
     }
 
     fn load_const(&mut self, op: Operation) {
-        let constant = Value(self.operations[self.pc].0);
-        self.pc += 1;
+        let c = (self.operations[self.pc+1].0 as u64) << 32;
+        let c = c | (self.operations[self.pc].0 as u64);
+        let constant = Value(c);
+        self.pc += 2;
         self.assign_register(op.loadconst_register(), constant);
     }
 
     fn make_closure(&mut self, op: Operation) {
-        let pointer = Value(self.operations[self.pc].0);
-        self.pc += 1;
+        let c = (self.operations[self.pc+1].0 as u64) << 32;
+        let c = c | (self.operations[self.pc].0 as u64);
+        let pointer = Value(c);
+        self.pc += 2;
         let mut lambda = unsafe { Box::from_raw(pointer.to_pointer() as *mut Lambda) };
         // TODO extend env?
         (*lambda).env = self.environment.extend();

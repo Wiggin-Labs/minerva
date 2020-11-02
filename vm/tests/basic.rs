@@ -6,7 +6,7 @@ use vm::*;
 fn object_size() {
     assert_eq!(8, std::mem::size_of::<Value>());
     assert_eq!(32, std::mem::size_of::<ASM>());
-    assert_eq!(8, std::mem::size_of::<Operation>());
+    assert_eq!(4, std::mem::size_of::<Operation>());
     assert_eq!(1, std::mem::size_of::<Instruction>());
 }
 

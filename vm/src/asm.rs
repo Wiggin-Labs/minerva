@@ -12,8 +12,8 @@ pub enum Register {
     D = 4,
 }
 
-impl From<u64> for Register {
-    fn from(r: u64) -> Self {
+impl From<u32> for Register {
+    fn from(r: u32) -> Self {
         match r {
             0 => Register::Flag,
             1 => Register::A,
@@ -111,7 +111,8 @@ pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {
             ASM::Restore(r) => ops.push(Operation::Restore(r)),
             ASM::LoadConst(r, v) => {
                 ops.push(Operation::LoadConst(r));
-                ops.push(Operation(v.0));
+                ops.push(Operation(v.0 as u32));
+                ops.push(Operation((v.0 >> 32) as u32));
             }
             ASM::MakeClosure(r, code) => {
                 // Compile lambda
@@ -119,7 +120,8 @@ pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {
                 // TODO: gc, arity
                 let lambda = Value::Lambda(Environment::new(), 0, lambda_code);
                 ops.push(Operation::MakeClosure(r));
-                ops.push(Operation(lambda.0));
+                ops.push(Operation(lambda.0 as u32));
+                ops.push(Operation((lambda.0 >> 32) as u32));
             }
             ASM::Move(r1, r2) => ops.push(Operation::Move(r1, r2)),
             ASM::Goto(l) => match l {

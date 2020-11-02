@@ -25,18 +25,21 @@ fn assemble_iterative_factorial() {
 
     let expected_code = vec![
         Operation::LoadConst(Register::B),
-        Operation(Value::Integer(1).0),
+        Operation(Value::Integer(1).0 as u32),
+        Operation((Value::Integer(1).0 >> 32) as u32),
         Operation::LoadConst(Register::C),
-        Operation(Value::Integer(1).0),
+        Operation(Value::Integer(1).0 as u32),
+        Operation((Value::Integer(1).0 >> 32) as u32),
         Operation::LoadConst(Register::D),
-        Operation(Value::Integer(0).0),
+        Operation(Value::Integer(0).0 as u32),
+        Operation((Value::Integer(0).0 >> 32) as u32),
         Operation::LT(Register::Flag, Register::A, Register::D),
-        Operation::GotoIf(Register::Flag, Some(13)),
+        Operation::GotoIf(Register::Flag, Some(16)),
         Operation::Eq(Register::Flag, Register::A, Register::D),
-        Operation::GotoIf(Register::Flag, Some(13)),
+        Operation::GotoIf(Register::Flag, Some(16)),
         Operation::Mul(Register::B, Register::B, Register::A),
         Operation::Sub(Register::A, Register::A, Register::C),
-        Operation::Goto(Some(6)),
+        Operation::Goto(Some(9)),
         Operation::Move(Register::A, Register::B),
     ];
     assert_eq!(expected_code, code);
