@@ -49,7 +49,7 @@ fn compile_self_evaluating(p: CompilePrimitive, target: Register, used: &mut Has
 
 fn compile_variable(i: String, target: Register, used: &mut HashSet<Register>) -> Vec<ASM> {
     used.insert(target);
-    vec![ASM::LoadConst(target, Value::String(Box::new(i))),
+    vec![ASM::LoadConst(target, Value::String(i)),
          ASM::StringToSymbol(target, target),
          ASM::Lookup(target, target)]
 }
@@ -66,7 +66,7 @@ fn compile_define(exp: Ast, target: Register, used: &mut HashSet<Register>) -> V
     let mut value = _compile(value, reg, used);
     if savep { value.insert(0, ASM::Save(reg)); }
 
-    value.push(ASM::LoadConst(target, Value::String(Box::new(name))));
+    value.push(ASM::LoadConst(target, Value::String(name)));
     value.push(ASM::StringToSymbol(target, target));
     value.push(ASM::Define(target, reg));
     value.push(ASM::LoadConst(target, Value::Void));
@@ -121,7 +121,7 @@ fn compile_lambda(exp: Ast, target: Register, _used: &mut HashSet<Register>) -> 
     let mut instructions = vec![];
 
     for x in args {
-        instructions.push(ASM::LoadConst(Register::C, Value::String(Box::new(x))));
+        instructions.push(ASM::LoadConst(Register::C, Value::String(x)));
         instructions.push(ASM::StringToSymbol(Register::C, Register::C));
         instructions.push(ASM::Car(Register::B, Register::A));
         instructions.push(ASM::Define(Register::C, Register::B));
@@ -226,7 +226,7 @@ impl Ast {
 pub enum CompilePrimitive {
     Nil,
     Bool(bool),
-    Integer(i64),
+    Integer(i32),
     String(String),
 }
 
@@ -237,7 +237,7 @@ impl CompilePrimitive {
             Nil => Value::Nil,
             Bool(b) => Value::Bool(b),
             Integer(i) => Value::Integer(i),
-            String(s) => Value::String(Box::new(s)),
+            String(s) => Value::String(s),
         }
     }
 }
