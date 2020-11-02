@@ -62,9 +62,8 @@ fn recursive_factorial(c: &mut Criterion) {
         ASM::Label("done".to_string()),
         ASM::Move(Register::A, Register::B),
     ];
-    let (code, consts) = assemble(code);
+    let code = assemble(code);
     vm.load_code(code);
-    vm.load_constants(consts);
     vm.assign_register(Register::A, Value::Integer(5));
 
     c.bench_function("recursive factorial of 5", move |b| b.iter(|| {
@@ -112,9 +111,8 @@ fn recursive_fibonacci(c: &mut Criterion) {
         ASM::Label("done".to_string()),
         ASM::Move(Register::A, Register::B),
     ];
-    let (code, consts) = assemble(code);
+    let code = assemble(code);
     vm.load_code(code);
-    vm.load_constants(consts);
     vm.assign_register(Register::A, Value::Integer(5));
 
     c.bench_function("recursive fibonacci of 5", move |b| b.iter(|| {

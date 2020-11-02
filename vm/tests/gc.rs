@@ -47,8 +47,7 @@ fn gc_test() {
     vm.assign_register(Register::A, Value::Integer(16));
     vm.run();
 
-    assert_eq!(&Value::Integer(136), vm.load_register(Register::A));
-    assert_eq!(vm.heap_size(), 16);
+    assert_eq!(Value::Integer(136), vm.load_register(Register::A));
     assert_eq!(vm.stack_size(), 0);
 }
 
@@ -95,8 +94,7 @@ fn big_garbage() {
     vm.assign_register(Register::A, Value::Integer(16));
     vm.run();
 
-    assert_eq!(&Value::Integer(136), vm.load_register(Register::A));
-    assert_eq!(vm.heap_size(), 1);
+    assert_eq!(Value::Integer(136), vm.load_register(Register::A));
     assert_eq!(vm.stack_size(), 0);
 }
 
@@ -147,8 +145,7 @@ fn cycle() {
     vm.assign_register(Register::A, Value::Integer(16));
     vm.run();
 
-    assert_eq!(&Value::Integer(136), vm.load_register(Register::A));
-    assert_eq!(vm.heap_size(), 16);
+    assert_eq!(Value::Integer(136), vm.load_register(Register::A));
     assert_eq!(vm.stack_size(), 0);
 }
 
@@ -196,8 +193,7 @@ fn self_cycle() {
     vm.assign_register(Register::A, Value::Integer(16));
     vm.run();
 
-    assert_eq!(&Value::Integer(136), vm.load_register(Register::A));
-    assert_eq!(vm.heap_size(), 16);
+    assert_eq!(Value::Integer(136), vm.load_register(Register::A));
     assert_eq!(vm.stack_size(), 0);
 }
 
@@ -245,7 +241,6 @@ fn car_eq_cdr() {
     vm.assign_register(Register::A, Value::Integer(16));
     vm.run();
 
-    assert_eq!(&Value::Integer(136), vm.load_register(Register::A));
-    assert_eq!(vm.heap_size(), 16);
+    assert_eq!(Value::Integer(136), vm.load_register(Register::A));
     assert_eq!(vm.stack_size(), 0);
 }

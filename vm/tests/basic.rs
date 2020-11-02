@@ -4,7 +4,7 @@ use vm::*;
 
 #[test]
 fn object_size() {
-    assert_eq!(16, std::mem::size_of::<Value>());
+    assert_eq!(8, std::mem::size_of::<Value>());
     assert_eq!(32, std::mem::size_of::<ASM>());
     assert_eq!(8, std::mem::size_of::<Operation>());
     assert_eq!(1, std::mem::size_of::<Instruction>());
@@ -44,7 +44,7 @@ fn recursive_factorial() {
     vm.assign_register(Register::A, Value::Integer(5));
     vm.run();
 
-    assert_eq!(&Value::Integer(120), vm.load_register(Register::A));
+    assert_eq!(Value::Integer(120), vm.load_register(Register::A));
     assert_eq!(vm.stack_size(), 0);
 }
 
@@ -72,7 +72,7 @@ fn iterative_factorial() {
     vm.assign_register(Register::A, Value::Integer(5));
     vm.run();
 
-    assert_eq!(&Value::Integer(120), vm.load_register(Register::A));
+    assert_eq!(Value::Integer(120), vm.load_register(Register::A));
     assert_eq!(vm.stack_size(), 0);
 }
 
@@ -120,7 +120,7 @@ fn recursive_fibonacci() {
     vm.assign_register(Register::A, Value::Integer(5));
     vm.run();
 
-    assert_eq!(&Value::Integer(5), vm.load_register(Register::A));
+    assert_eq!(Value::Integer(5), vm.load_register(Register::A));
     assert_eq!(vm.stack_size(), 0);
 }
 
@@ -164,7 +164,7 @@ fn sum_ints() {
     vm.assign_register(Register::A, Value::Integer(5));
     vm.run();
 
-    assert_eq!(&Value::Integer(15), vm.load_register(Register::A));
+    assert_eq!(Value::Integer(15), vm.load_register(Register::A));
     assert_eq!(vm.stack_size(), 0);
 }
 

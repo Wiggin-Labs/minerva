@@ -276,12 +276,11 @@ impl VM {
 
     fn string_to_symbol(&mut self, op: Operation) {
         // TODO: handle case where `string` isn't a string
-        let pointer = self.load_register(op.stringtosymbol_value()).to_pointer();
-        let string = unsafe { Box::from_raw(pointer as *mut String) };
-        let sym = self.intern_symbol(*string.clone());
+        let pointer = self.load_register(op.stringtosymbol_value()).to_string();
+        let sym = self.intern_symbol(pointer.p.clone());
         self.assign_register(op.stringtosymbol_register(), Value::Symbol(sym));
         // Make sure this value isn't freed.
-        Box::into_raw(string);
+        Box::into_raw(pointer);
     }
 
     fn cons(&mut self, op: Operation) {

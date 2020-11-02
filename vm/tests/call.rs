@@ -26,7 +26,7 @@ fn call_factorial() {
     let code = vec![
         // Define factorial
         ASM::MakeClosure(Register::B, Box::new(factorial)),
-        ASM::LoadConst(Register::C, Value::String(Box::new(String::from("factorial")))),
+        ASM::LoadConst(Register::C, Value::String(String::from("factorial"))),
         ASM::StringToSymbol(Register::C, Register::C),
         ASM::Define(Register::C, Register::B),
         ASM::Lookup(Register::B, Register::C),
@@ -37,6 +37,7 @@ fn call_factorial() {
     vm.assign_register(Register::A, Value::Integer(5));
     vm.run();
 
-    assert_eq!(&Value::Integer(120), vm.load_register(Register::A));
+    assert_eq!(120, vm.load_register(Register::A).to_integer());
+    assert_eq!(Value::Integer(120), vm.load_register(Register::A));
     assert_eq!(vm.stack_size(), 0);
 }
