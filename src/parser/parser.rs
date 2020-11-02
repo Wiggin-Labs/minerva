@@ -197,7 +197,7 @@ impl<'a> Parser<'a> {
                         _ => buf.push(c),
                     }
                 } else {
-                    return Err(ParseError::EOF);
+                    return Err(ParseError::InString);
                 },
                 '"' => {
                     self.tokens.push(Token::String(buf));
@@ -206,7 +206,7 @@ impl<'a> Parser<'a> {
                 _ => buf.push(c),
             }
         }
-        Err(ParseError::EOF)
+        Err(ParseError::InString)
     }
 
     /*

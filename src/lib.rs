@@ -17,4 +17,4 @@ mod parser;
 
 pub use compiler::{Ast, compile, CompilePrimitive};
 pub use error::Error;
-pub use parser::{Parser, Token};
+pub use parser::{ParseError, Parser, Token};

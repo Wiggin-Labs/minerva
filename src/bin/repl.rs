@@ -3,6 +3,7 @@ extern crate akuma;
 extern crate flame;
 extern crate vm;
 
+use akuma::ParseError;
 use vm::{assemble, init_env, Register, VM};
 
 use std::io::{stdin, stdout, Write};
@@ -18,24 +19,49 @@ fn main() {
         stdout().flush().unwrap();
         // Read input
         let mut input = String::new();
-        stdin().read_line(&mut input).unwrap();
-        while input.chars().filter(|&c| c == '(').count()
-            > input.chars().filter(|&c| c == ')').count()
-        {
-            stdin().read_line(&mut input).unwrap();
+        if 0 == stdin().read_line(&mut input).unwrap() {
+            // EOF
+            return;
+        }
+        let mut tokens = match akuma::Parser::parse(&input) {
+            Ok(t) => t,
+            Err(e) => match e {
+                ParseError::InString => Vec::new(),
+                _ => {
+                    println!("ERROR: {}", e);
+                    continue;
+                }
+            },
+        };
+
+        loop {
+            if tokens.is_empty() ||
+                tokens.iter().filter(|&t| t.is_left_paren()).count()
+                > tokens.iter().filter(|&t| t.is_right_paren()).count()
+            {
+                if 0 == stdin().read_line(&mut input).unwrap() {
+                    // EOF
+                    return;
+                }
+                tokens = match akuma::Parser::parse(&input) {
+                    Ok(t) => t,
+                    Err(e) => match e {
+                        ParseError::InString => Vec::new(),
+                        _ => {
+                            println!("ERROR: {}", e);
+                            continue;
+                        }
+                    },
+                };
+            } else {
+                break;
+            }
         }
 
         if "exit\n" == input {
             break;
         }
 
-        let tokens = match akuma::Parser::parse(&input) {
-            Ok(t) => t,
-            Err(e) => {
-                println!("ERROR: {}", e);
-                continue;
-            }
-        };
         let ast = match akuma::Token::build_ast(tokens) {
             Ok(o) => o,
             Err(e) => {
@@ -49,7 +75,7 @@ fn main() {
             vm.load_code(assemble(asm));
             vm.run();
             let result = vm.load_register(Register::A);
-            println!("{:?}", result);
+            println!("{}", result);
         }
     }
 

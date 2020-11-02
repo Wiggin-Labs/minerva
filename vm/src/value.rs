@@ -203,6 +203,11 @@ impl fmt::Display for Value {
             Ok(())
         } else if self.is_lambda() {
             write!(f, "#<procedure>")
+        } else if self.is_string() {
+            let s = Value::to_string(*self);
+            let r = write!(f, "\"{}\"", s.p);
+            Box::into_raw(s);
+            r
         } else {
             write!(f, "debug: {:?}", self)
         }
