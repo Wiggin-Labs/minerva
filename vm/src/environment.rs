@@ -1,4 +1,4 @@
-use {assemble, ASM, GotoValue, Register, Value, VM};
+use {assemble, ASM, Register, Value, VM};
 
 use string_interner::Symbol;
 

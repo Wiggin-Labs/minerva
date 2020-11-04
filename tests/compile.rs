@@ -14,14 +14,14 @@ fn factorial() {
                 body: vec![Ast::If {
                     predicate: Box::new(Ast::Apply(vec![Ast::Ident("=".to_string()),
                                                         Ast::Ident("x".to_string()),
-                                                        Ast::Primitive(CompilePrimitive::Int(1))])),
-                    consequent: Box::new(Ast::Primitive(CompilePrimitive::Int(1))),
+                                                        Ast::Primitive(CompilePrimitive::Integer(1))])),
+                    consequent: Box::new(Ast::Primitive(CompilePrimitive::Integer(1))),
                     alternative: Box::new(Ast::Apply(vec![Ast::Ident("*".to_string()),
                                                           Ast::Ident("x".to_string()),
                                                           Ast::Apply(vec![Ast::Ident("fact".to_string()),
                                                                           Ast::Apply(vec![Ast::Ident("-".to_string()),
                                                                                           Ast::Ident("x".to_string()),
-                                                                                          Ast::Primitive(CompilePrimitive::Int(1))])])]))}]}
+                                                                                          Ast::Primitive(CompilePrimitive::Integer(1))])])]))}]}
     )};
     let asm = compile(code);
     let mut vm = VM::new();
@@ -30,9 +30,9 @@ fn factorial() {
     vm.load_code(assemble(asm));
     vm.run();
 
-    let code = Ast::Apply(vec![Ast::Ident("fact".to_string()), Ast::Primitive(CompilePrimitive::Int(5))]);
+    let code = Ast::Apply(vec![Ast::Ident("fact".to_string()), Ast::Primitive(CompilePrimitive::Integer(5))]);
     let asm = compile(code);
     vm.load_code(assemble(asm));
     vm.run();
-    assert_eq!(&Value::Integer(120), vm.load_register(Register::A));
+    assert_eq!(Value::Integer(120), vm.load_register(Register(0)));
 }
