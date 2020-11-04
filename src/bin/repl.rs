@@ -81,8 +81,10 @@ fn main() {
             let asm = akuma::compile(ast);
             vm.load_code(assemble(asm));
             vm.run();
-            let result = vm.load_register(Register::A);
-            println!("{}", result);
+            let result = vm.load_register(Register(0));
+            if !result.is_void() {
+                println!("{}", result);
+            }
         }
     }
 

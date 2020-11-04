@@ -203,6 +203,25 @@ impl fmt::Display for Value {
             Ok(())
         } else if self.is_lambda() {
             write!(f, "#<procedure>")
+        } else if self.is_pair() {
+            let p = Value::to_pair(*self);
+
+            write!(f, "({}", p.car)?;
+            let mut c = p.cdr;
+            while c.is_pair() {
+                let p = Value::to_pair(c);
+                write!(f, " {}", p.car)?;
+                c = p.cdr;
+                Box::into_raw(p);
+            }
+            let r = if c.is_nil() {
+                write!(f, ")")
+            } else {
+                write!(f, " . {})", c)
+            };
+
+            Box::into_raw(p);
+            r
         } else if self.is_string() {
             let s = Value::to_string(*self);
             let r = write!(f, "\"{}\"", s.p);

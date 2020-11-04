@@ -9,63 +9,24 @@ use std::rc::Rc;
 pub fn init_env(vm: &mut VM) -> Environment {
     let env = Environment::new();
 
-    let add = vec![ASM::LoadConst(Register::C, Value::Integer(0)),
-                   ASM::LoadConst(Register::D, Value::Nil),
-                   ASM::Label("loop".to_string()),
-                   ASM::Eq(Register::Flag, Register::A, Register::D),
-                   ASM::GotoIf(GotoValue::Label("done".to_string()), Register::Flag),
-                   ASM::Car(Register::B, Register::A),
-                   ASM::Cdr(Register::A, Register::A),
-                   ASM::Add(Register::C, Register::C, Register::B),
-                   ASM::Goto(GotoValue::Label("loop".to_string())),
-                   ASM::Label("done".to_string()),
-                   ASM::Move(Register::A, Register::C)];
+    let add = vec![ASM::Add(Register(0), Register(1), Register(2))];
     add_primitive(vm, &env, "+".to_string(), add);
 
-    let sub = vec![ASM::Car(Register::C, Register::A),
-                   ASM::Cdr(Register::A, Register::A),
-                   ASM::LoadConst(Register::D, Value::Nil),
-                   ASM::Label("loop".to_string()),
-                   ASM::Eq(Register::Flag, Register::A, Register::D),
-                   ASM::GotoIf(GotoValue::Label("done".to_string()), Register::Flag),
-                   ASM::Car(Register::B, Register::A),
-                   ASM::Cdr(Register::A, Register::A),
-                   ASM::Sub(Register::C, Register::C, Register::B),
-                   ASM::Goto(GotoValue::Label("loop".to_string())),
-                   ASM::Label("done".to_string()),
-                   ASM::Move(Register::A, Register::C)];
+    let sub = vec![ASM::Sub(Register(0), Register(1), Register(2))];
     add_primitive(vm, &env, "-".to_string(), sub);
 
-    let mul = vec![ASM::LoadConst(Register::C, Value::Integer(1)),
-                   ASM::LoadConst(Register::D, Value::Nil),
-                   ASM::Label("loop".to_string()),
-                   ASM::Eq(Register::Flag, Register::A, Register::D),
-                   ASM::GotoIf(GotoValue::Label("done".to_string()), Register::Flag),
-                   ASM::Car(Register::B, Register::A),
-                   ASM::Cdr(Register::A, Register::A),
-                   ASM::Mul(Register::C, Register::C, Register::B),
-                   ASM::Goto(GotoValue::Label("loop".to_string())),
-                   ASM::Label("done".to_string()),
-                   ASM::Move(Register::A, Register::C)];
+    let mul = vec![ASM::Mul(Register(0), Register(1), Register(2))];
     add_primitive(vm, &env, "*".to_string(), mul);
 
-    let eq = vec![ASM::LoadConst(Register::D, Value::Nil),
-                  ASM::Car(Register::C, Register::A),
-                  ASM::Cdr(Register::A, Register::A),
-                  ASM::Label("loop".to_string()),
-                  ASM::Eq(Register::Flag, Register::A, Register::D),
-                  ASM::GotoIf(GotoValue::Label("done".to_string()), Register::Flag),
-                  ASM::Car(Register::B, Register::A),
-                  ASM::Eq(Register::Flag, Register::C, Register::B),
-                  ASM::GotoIfNot(GotoValue::Label("false".to_string()), Register::Flag),
-                  ASM::Cdr(Register::A, Register::A),
-                  ASM::Goto(GotoValue::Label("loop".to_string())),
-                  ASM::Label("false".to_string()),
-                  ASM::LoadConst(Register::A, Value::Bool(false)),
-                  ASM::Return,
-                  ASM::Label("done".to_string()),
-                  ASM::LoadConst(Register::A, Value::Bool(true))];
+    let eq = vec![ASM::Eq(Register(0), Register(1), Register(2))];
     add_primitive(vm, &env, "=".to_string(), eq);
+
+    let cons = vec![ASM::Cons(Register(0), Register(1), Register(2))];
+    add_primitive(vm, &env, "cons".to_string(), cons);
+    let car = vec![ASM::Car(Register(0), Register(1))];
+    add_primitive(vm, &env, "car".to_string(), car);
+    let cdr = vec![ASM::Cdr(Register(0), Register(1))];
+    add_primitive(vm, &env, "cdr".to_string(), cdr);
 
     env
 }

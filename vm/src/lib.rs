@@ -134,24 +134,12 @@ impl VM {
 
     /// Set `register` to `value`.
     pub fn assign_register(&mut self, register: Register, value: Value) {
-        match register {
-            Register::Flag => self.flag = value,
-            Register::A => self.registers[0] = value,
-            Register::B => self.registers[1] = value,
-            Register::C => self.registers[2] = value,
-            Register::D => self.registers[3] = value,
-        }
+        self.registers[register.0 as usize] = value;
     }
 
     /// Get the value of `register`.
     pub fn load_register(&self, register: Register) -> Value {
-        match register {
-            Register::Flag => self.flag,
-            Register::A => self.registers[0],
-            Register::B => self.registers[1],
-            Register::C => self.registers[2],
-            Register::D => self.registers[3],
-        }
+        self.registers[register.0 as usize]
     }
 
     pub fn assign_environment(&mut self, env: Environment) {
@@ -292,8 +280,8 @@ impl VM {
     }
 
     fn cons(&mut self, op: Operation) {
-        let car = self.load_register(op.cons_car()).clone();
-        let cdr = self.load_register(op.cons_cdr()).clone();
+        let car = self.load_register(op.cons_car());
+        let cdr = self.load_register(op.cons_cdr());
         // TODO: gc bits
         let pointer = Value::Pair(car, cdr);
 

@@ -1,27 +1,24 @@
 use {Instruction, Environment, Operation, Value};
 
 use std::collections::HashMap;
+use std::fmt;
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash)]
-#[repr(u8)]
-pub enum Register {
-    Flag = 0,
-    A = 1,
-    B = 2,
-    C = 3,
-    D = 4,
-}
+pub struct Register(pub u8);
 
 impl From<u32> for Register {
     fn from(r: u32) -> Self {
-        match r {
-            0 => Register::Flag,
-            1 => Register::A,
-            2 => Register::B,
-            3 => Register::C,
-            4 => Register::D,
-            _ => panic!("Invalid register value {}", r),
+        if r < 32 {
+            Register(r as u8)
+        } else {
+            panic!("Invalid register value {}", r);
         }
+    }
+}
+
+impl fmt::Display for Register {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "X{}", self.0)
     }
 }
 
@@ -29,6 +26,15 @@ impl From<u32> for Register {
 pub enum GotoValue {
     Label(String),
     Register,
+}
+
+impl fmt::Display for GotoValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            GotoValue::Label(s) => write!(f, "{}", s),
+            GotoValue::Register => write!(f, "LR"),
+        }
+    }
 }
 
 // TODO: optimize size here. currently 64 bytes...
@@ -84,6 +90,47 @@ pub enum ASM {
     Call(Register),
     Return,
     Label(String),
+}
+
+impl fmt::Display for ASM {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::ASM::*;
+        match self {
+            LoadContinue(s) => write!(f, "LOADCONTINUE {}", s),
+            SaveContinue => write!(f, "SAVECONTINUE"),
+            RestoreContinue => write!(f, "RESTORECONTINUE"),
+            Save(r) => write!(f, "SAVE {}", r),
+            Restore(r) => write!(f, "RESTORE {}", r),
+            LoadConst(r, v) => write!(f, "LOADCONST {}, {}", r, v),
+            MakeClosure(r, v) => {
+                writeln!(f, "MAKECLOSURE {}", r)?;
+                for i in &**v {
+                    writeln!(f, "\t{}", i)?;
+                }
+                Ok(())
+            },
+            Move(r1, r2) => write!(f, "MOVE {}, {}", r1, r2),
+            Goto(j) => write!(f, "GOTO {}", j),
+            GotoIf(r, j) => write!(f, "GOTOIF {}, {}", r, j),
+            GotoIfNot(r, j) => write!(f, "GOTOIFNOT {}, {}", r, j),
+            Add(r1, r2, r3) => write!(f, "ADD {}, {}, {}", r1, r2, r3),
+            Sub(r1, r2, r3) => write!(f, "SUB {}, {}, {}", r1, r2, r3),
+            Mul(r1, r2, r3) => write!(f, "MUL {}, {}, {}", r1, r2, r3),
+            Eq(r1, r2, r3) => write!(f, "EQ {}, {}, {}", r1, r2, r3),
+            LT(r1, r2, r3) => write!(f, "LT {}, {}, {}", r1, r2, r3),
+            StringToSymbol(r1, r2) => write!(f, "STRINGTOSYMBOL {}, {}", r1, r2),
+            Cons(r1, r2, r3) => write!(f, "CONS {}, {}, {}", r1, r2, r3),
+            Car(r1, r2) => write!(f, "CAR {}, {}", r1, r2),
+            Cdr(r1, r2) => write!(f, "CDR {}, {}", r1, r2),
+            SetCar(r1, r2) => write!(f, "SETCAR {}, {}", r1, r2),
+            SetCdr(r1, r2) => write!(f, "SETCDR {}, {}", r1, r2),
+            Define(r1, r2) => write!(f, "DEFINE {}, {}", r1, r2),
+            Lookup(r1, r2) => write!(f, "LOOKUP {}, {}", r1, r2),
+            Call(r) => write!(f, "CALL {}", r),
+            Return => write!(f, "RETURN"),
+            Label(s) => write!(f, "{}:", s),
+        }
+    }
 }
 
 pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {

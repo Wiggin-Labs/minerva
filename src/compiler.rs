@@ -1,5 +1,7 @@
 use vm::{ASM, GotoValue, Register, Value};
 
+use string_interner::INTERNER;
+
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -9,25 +11,18 @@ fn make_label() -> String {
 }
 
 fn get_register(used: &HashSet<Register>) -> Option<Register> {
-    if !used.contains(&Register::A) {
-        Some(Register::A)
-    } else if !used.contains(&Register::B) {
-        Some(Register::B)
-    } else if !used.contains(&Register::C) {
-        Some(Register::C)
-    } else if !used.contains(&Register::D) {
-        Some(Register::D)
-    } else if !used.contains(&Register::Flag) {
-        Some(Register::Flag)
-    } else {
-        None
+    for i in 0..32 {
+        if !used.contains(&Register(i)) {
+            return Some(Register(i));
+        }
     }
+    None
 }
 
 
 pub fn compile(exp: Ast) -> Vec<ASM> {
     let mut used = HashSet::new();
-    _compile(exp, Register::A, &mut used)
+    _compile(exp, Register(0), &mut used)
 }
 
 pub fn _compile(exp: Ast, target: Register, used: &mut HashSet<Register>) -> Vec<ASM> {
@@ -49,8 +44,7 @@ fn compile_self_evaluating(p: CompilePrimitive, target: Register, used: &mut Has
 
 fn compile_variable(i: String, target: Register, used: &mut HashSet<Register>) -> Vec<ASM> {
     used.insert(target);
-    vec![ASM::LoadConst(target, Value::String(i)),
-         ASM::StringToSymbol(target, target),
+    vec![ASM::LoadConst(target, Value::Symbol(INTERNER.lock().unwrap().get_symbol(i))),
          ASM::Lookup(target, target)]
 }
 
@@ -60,14 +54,13 @@ fn compile_define(exp: Ast, target: Register, used: &mut HashSet<Register>) -> V
     let (savep, reg) = if let Some(reg) = get_register(used) {
         (false, reg)
     } else {
-        (true, Register::B)
+        (true, Register(1))
     };
 
     let mut value = _compile(value, reg, used);
     if savep { value.insert(0, ASM::Save(reg)); }
 
-    value.push(ASM::LoadConst(target, Value::String(name)));
-    value.push(ASM::StringToSymbol(target, target));
+    value.push(ASM::LoadConst(target, Value::Symbol(INTERNER.lock().unwrap().get_symbol(name))));
     value.push(ASM::Define(target, reg));
     value.push(ASM::LoadConst(target, Value::Void));
 
@@ -80,14 +73,14 @@ fn compile_if(exp: Ast, target: Register, used: &mut HashSet<Register>) -> Vec<A
     let alt_label = make_label();
     let after_if = make_label();
 
-    let (savep, reg) = if used.contains(&Register::Flag) {
+    let (savep, reg) = if used.contains(&Register(4)) {
         if let Some(reg) = get_register(used) {
             (false, reg)
         } else {
-            (true, Register::Flag)
+            (true, Register(4))
         }
     } else {
-        (false, Register::Flag)
+        (false, Register(4))
     };
 
     let (pred, cons, alt) = exp.unwrap_if();
@@ -120,16 +113,13 @@ fn compile_lambda(exp: Ast, target: Register, _used: &mut HashSet<Register>) -> 
     let (args, body) = exp.unwrap_lambda();
     let mut instructions = vec![];
 
+    let mut i = 1;
     for x in args {
-        instructions.push(ASM::LoadConst(Register::C, Value::String(x)));
-        instructions.push(ASM::StringToSymbol(Register::C, Register::C));
-        instructions.push(ASM::Car(Register::B, Register::A));
-        instructions.push(ASM::Define(Register::C, Register::B));
-        instructions.push(ASM::Cdr(Register::A, Register::A));
+        instructions.push(ASM::LoadConst(Register(0), Value::Symbol(INTERNER.lock().unwrap().get_symbol(x))));
+        instructions.push(ASM::Define(Register(0), Register(i)));
+        i += 1;
     }
-    // remove the last cdr operation
-    instructions.pop();
-    instructions.append(&mut compile_sequence(body, Register::A, &mut HashSet::new()));
+    instructions.append(&mut compile_sequence(body, Register(0), &mut HashSet::new()));
     vec![ASM::MakeClosure(target, Box::new(instructions))]
 }
 
@@ -141,24 +131,20 @@ fn compile_application(mut v: Vec<Ast>, target: Register, used: &mut HashSet<Reg
         instructions.push(ASM::Save(r));
     }
 
-    instructions.push(ASM::LoadConst(Register::A, Value::Nil));
-
+    let mut i = 1;
     let mut u = HashSet::new();
-    v.reverse();
     for v in v {
-        u.insert(Register::A);
-        instructions.append(&mut _compile(v, Register::B, &mut u));
-        instructions.push(ASM::Cons(Register::A, Register::B, Register::A));
-        u.clear();
+        instructions.append(&mut _compile(v, Register(i), &mut u));
+        u.insert(Register(i));
+        i += 1;
     }
-    u.insert(Register::A);
-    instructions.append(&mut _compile(op, Register::B, &mut u));
-    instructions.push(ASM::Call(Register::B));
+    instructions.append(&mut _compile(op, Register(0), &mut u));
+    instructions.push(ASM::Call(Register(0)));
 
     // Our calling convention requires result to be in A, so we can skip the move if that's where
     // we need it.
-    if target != Register::A {
-        instructions.push(ASM::Move(target, Register::A));
+    if target != Register(0) {
+        instructions.push(ASM::Move(target, Register(0)));
     }
 
     // We have to restore in reverse order

@@ -176,6 +176,14 @@ impl Token {
         let consequent = Box::new(if_match!(tokens));
         let alternative = Box::new(if_match!(tokens));
 
+        if let Some(token) = tokens.next() {
+            if token != &Token::RightParen {
+                return Err(ParseError::Input);
+            }
+        } else {
+            return Err(ParseError::UnbalancedParen);
+        };
+
         Ok(Ast::If {
             predicate,
             consequent,
