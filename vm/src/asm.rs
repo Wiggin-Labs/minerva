@@ -31,7 +31,7 @@ pub enum GotoValue {
 impl fmt::Display for GotoValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            GotoValue::Label(s) => write!(f, "{}", s),
+            GotoValue::Label(s) => write!(f, "`{}`", s),
             GotoValue::Register => write!(f, "LR"),
         }
     }

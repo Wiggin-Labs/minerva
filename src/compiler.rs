@@ -2,7 +2,7 @@ use vm::{ASM, GotoValue, Register, Value};
 
 use string_interner::{INTERNER, Symbol};
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::mem;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -26,6 +26,7 @@ pub fn compile(exp: Ast) -> Vec<ASM> {
         def: None,
         def_label: String::new(),
         last_expr: false,
+        var_mapping: HashMap::new(),
     };
     c._compile(exp, Register(0), &mut used)
 }
@@ -34,6 +35,7 @@ struct Compiler {
     def: Option<Symbol>,
     def_label: String,
     last_expr: bool,
+    var_mapping: HashMap<String, u8>,
 }
 
 impl Compiler {
@@ -56,8 +58,17 @@ impl Compiler {
 
     fn compile_variable(&mut self, i: String, target: Register, used: &mut HashSet<Register>) -> Vec<ASM> {
         used.insert(target);
-        vec![ASM::LoadConst(target, Value::Symbol(INTERNER.lock().unwrap().get_symbol(i))),
-             ASM::Lookup(target, target)]
+        if let Some(&r) = self.var_mapping.get(&i) {
+            if target.0 != r {
+                self.var_mapping.insert(i, target.0);
+                vec![ASM::Move(target, Register(r))]
+            } else {
+                vec![]
+            }
+        } else {
+            vec![ASM::LoadConst(target, Value::Symbol(INTERNER.lock().unwrap().get_symbol(i))),
+                 ASM::Lookup(target, target)]
+        }
     }
 
     fn compile_define(&mut self, exp: Ast, target: Register, used: &mut HashSet<Register>) -> Vec<ASM> {
@@ -79,7 +90,6 @@ impl Compiler {
 
         let mut value = self._compile(value, reg, used);
         mem::swap(&mut self.def_label, &mut def_label);
-        //value.insert(0, ASM::Label(def_label));
 
         mem::swap(&mut self.def, &mut s);
         self.last_expr = l;
@@ -98,33 +108,22 @@ impl Compiler {
         let alt_label = make_label();
         let after_if = make_label();
 
-        let (savep, reg) = if used.contains(&Register(4)) {
-            if let Some(reg) = get_register(used) {
-                (false, reg)
-            } else {
-                (true, Register(4))
-            }
-        } else {
-            (false, Register(4))
-        };
-
         let (pred, cons, alt) = exp.unwrap_if();
         let l = self.last_expr;
         self.last_expr = false;
-        let mut pred = self._compile(pred, reg, &mut used.clone());
+        let mut pred = self._compile(pred, target, &mut used.clone());
         self.last_expr = l;
-        if savep { pred.insert(0, ASM::Save(reg)) }
 
+        let s = self.var_mapping.clone();
         let mut cons = self._compile(cons, target, &mut used.clone());
+        self.var_mapping = s;
         let mut alt = self._compile(alt, target, &mut used.clone());
-        pred.push(ASM::GotoIfNot(GotoValue::Label(alt_label.clone()), reg));
+        pred.push(ASM::GotoIfNot(GotoValue::Label(alt_label.clone()), target));
         pred.append(&mut cons);
         pred.push(ASM::Goto(GotoValue::Label(after_if.clone())));
         pred.push(ASM::Label(alt_label));
         pred.append(&mut alt);
         pred.push(ASM::Label(after_if));
-
-        if savep { pred.push(ASM::Restore(reg)) }
 
         pred
     }
@@ -151,13 +150,15 @@ impl Compiler {
             instructions.push(ASM::Label(self.def_label.clone()));
         }
 
-        let mut i = 1;
-        for x in args {
-            instructions.push(ASM::LoadConst(Register(0), Value::Symbol(INTERNER.lock().unwrap().get_symbol(x))));
-            instructions.push(ASM::Define(Register(0), Register(i)));
-            i += 1;
+        let mut loc = HashMap::new();
+        let mut used = HashSet::new();
+        for (i, x) in args.into_iter().enumerate() {
+            loc.insert(x, i as u8 + 1);
+            used.insert(Register(i as u8 + 1));
         }
-        instructions.append(&mut self.compile_sequence(body, Register(0), &mut HashSet::new()));
+        mem::swap(&mut self.var_mapping, &mut loc);
+        instructions.append(&mut self.compile_sequence(body, Register(0), &mut used));
+        mem::swap(&mut self.var_mapping, &mut loc);
         vec![ASM::MakeClosure(target, Box::new(instructions))]
     }
 
@@ -171,7 +172,27 @@ impl Compiler {
 
         let mut i = 1;
         let mut u = HashSet::new();
+        // Move any local variables first
+        for v in &v {
+            if let Ast::Ident(id) = v {
+                if let Some(&r) = self.var_mapping.get(id) {
+                    if r != i {
+                        instructions.push(ASM::Move(Register(i), Register(r)));
+                        self.var_mapping.insert(id.clone(), i);
+                    }
+                }
+            }
+            i += 1;
+        }
+
+        i = 1;
         for v in v {
+            if let Ast::Ident(ref id) = v {
+                if self.var_mapping.contains_key(id) {
+                    i += 1;
+                    continue;
+                }
+            }
             instructions.append(&mut self._compile(v, Register(i), &mut u));
             u.insert(Register(i));
             i += 1;
