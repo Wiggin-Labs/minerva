@@ -113,7 +113,7 @@ impl VM {
     fn print_debug(&mut self) {
         println!("step {}:", self.step);
         for (i, reg) in self.registers.iter().enumerate() {
-            println!("X{}: {:?}", i, reg);
+            println!("X{}: {}", i, reg);
         }
         println!("flag: {:?}", self.flag);
         println!("continue: {:?}", self.kontinue);
@@ -341,12 +341,14 @@ impl VM {
         // TODO
         let v = self.load_register(op.call_register());
         if v.is_lambda() {
-            let lambda = unsafe { Box::from_raw(v.to_pointer() as *mut Lambda) };
+            let lambda = v.to_lambda();
             // Save the current code and env
             let mut code = lambda.code.clone();
             let mut env = lambda.env.procedure_local();
             mem::swap(&mut code, &mut self.operations);
             mem::swap(&mut env, &mut self.environment);
+            // Make sure we don't free this
+            Box::into_raw(lambda);
 
             // Save the program counter
             let pc = self.pc;

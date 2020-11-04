@@ -199,6 +199,8 @@ impl fmt::Display for Value {
             write!(f, "#t")
         } else if *self == Value::False {
             write!(f, "#f")
+        } else if self.is_nil() {
+            write!(f, "()")
         } else if self.is_void() {
             Ok(())
         } else if self.is_lambda() {
