@@ -28,6 +28,7 @@ pub struct VM {
     kontinue: usize,
     flag: Value,
     registers: [Value; 32],
+    saved_state: Vec<SaveState>,
 }
 
 impl Default for VM {
@@ -50,6 +51,7 @@ impl VM {
             kontinue: 0,
             flag: Value::Nil,
             registers: [Value::Nil; 32],
+            saved_state: vec![],
         }
     }
 
@@ -58,8 +60,19 @@ impl VM {
         loop {
             if self.debug { self.print_debug(); }
 
-            if self.pc >= self.operations.len() {
-                break;
+            if self.pc > self.operations.len() {
+                panic!("Bad jump");
+            } else if self.pc == self.operations.len() {
+                if self.saved_state.is_empty() {
+                    break;
+                } else {
+                    // Restore the saved program counter, code, and environment
+                    let SaveState { pc, code, env } = self.saved_state.pop().unwrap();
+                    self.pc = pc;
+                    self.operations = code;
+                    self.environment = env;
+                    continue;
+                }
             }
 
 
@@ -92,7 +105,7 @@ impl VM {
                 Instruction::Define => self.define(op),
                 Instruction::Lookup => self.lookup(op),
                 Instruction::Call => self.call(op),
-                Instruction::Return => break,
+                Instruction::Return => self.pc = self.operations.len(),
             }
         }
     }
@@ -350,15 +363,14 @@ impl VM {
             // Make sure we don't free this
             Box::into_raw(lambda);
 
-            // Save the program counter
-            let pc = self.pc;
+            // Save the vm state
+            let s = SaveState {
+                pc: self.pc,
+                code: code,
+                env: env,
+            };
+            self.saved_state.push(s);
             self.pc = 0;
-            self.run();
-
-            // Restore the saved program counter, code, and environment
-            self.pc = pc;
-            self.operations = code;
-            self.environment = env;
         } else {
             // TODO: return error
         }
@@ -367,4 +379,11 @@ impl VM {
             println!("ending call");
         }
     }
+}
+
+#[derive(Debug, Clone)]
+struct SaveState {
+    pc: usize,
+    code: Vec<Operation>,
+    env: Environment,
 }
