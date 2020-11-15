@@ -21,6 +21,9 @@ pub fn init_env(vm: &mut VM) -> Environment {
     let eq = vec![ASM::Eq(Register(0), Register(1), Register(2))];
     add_primitive(vm, &env, "=".to_string(), eq);
 
+    let lt = vec![ASM::LT(Register(0), Register(1), Register(2))];
+    add_primitive(vm, &env, "<".to_string(), lt);
+
     let cons = vec![ASM::Cons(Register(0), Register(1), Register(2))];
     add_primitive(vm, &env, "cons".to_string(), cons);
     let car = vec![ASM::Car(Register(0), Register(1))];

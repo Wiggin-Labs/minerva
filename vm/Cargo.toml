@@ -2,6 +2,7 @@
 name = "vm"
 version = "0.1.0"
 authors = ["Hunter Praska <hunter@wiggin-labs.com>"]
+autobenches = false
 
 [dependencies.string-interner]
 git = "https://git.hunterpraska.com/hunter/incarnation"

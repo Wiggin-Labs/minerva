@@ -7,6 +7,19 @@ use self::heap_repr::*;
 
 use std::{fmt, ops};
 
+pub enum VType {
+    Void,
+    Nil,
+    Bool,
+    Integer,
+    Float,
+    Symbol,
+    Lambda,
+    Pair,
+    Vec,
+    String,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq)]
 pub struct Value(pub u64);
 
@@ -80,6 +93,32 @@ macro_rules! to_pointer {
 }
 
 impl Value {
+    pub fn to_type(self) -> VType {
+        if self.is_void() {
+            VType::Void
+        } else if self.is_nil() {
+            VType::Nil
+        } else if self.is_bool() {
+            VType::Bool
+        } else if self.is_integer() {
+            VType::Integer
+        } else if self.is_float() {
+            VType::Float
+        } else if self.is_symbol() {
+            VType::Symbol
+        } else if self.is_lambda() {
+            VType::Lambda
+        } else if self.is_pair() {
+            VType::Pair
+        } else if self.is_vec() {
+            VType::Vec
+        } else if self.is_string() {
+            VType::String
+        } else {
+            unreachable!();
+        }
+    }
+
     pub const Void: Self = Value(NAN | VOID_TAG);
     is_imm!(is_void, VOID_TAG);
 
@@ -154,6 +193,32 @@ impl Value {
     }
     is_pointer!(is_pair, PAIR_TAG);
     to_pointer!(to_pair, Pair);
+
+    pub fn car(self) -> Self {
+        let p = self.to_pair();
+        let c = p.car;
+        Box::into_raw(p);
+        c
+    }
+
+    pub fn cdr(self) -> Self {
+        let p = self.to_pair();
+        let c = p.cdr;
+        Box::into_raw(p);
+        c
+    }
+
+    pub fn set_car(self, v: Self) {
+        let mut p = self.to_pair();
+        p.car = v;
+        Box::into_raw(p);
+    }
+
+    pub fn set_cdr(self, v: Self) {
+        let mut p = self.to_pair();
+        p.cdr = v;
+        Box::into_raw(p);
+    }
 
     pub fn Vec(v: Vec<Value>) -> Self {
         // TODO: gc bits

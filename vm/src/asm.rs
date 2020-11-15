@@ -6,6 +6,46 @@ use std::fmt;
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash)]
 pub struct Register(pub u8);
 
+impl Register {
+    pub fn from_str(r: &str) -> Option<Self> {
+        Some(Register(match r {
+            "X0" => 0,
+            "X1" => 1,
+            "X2" => 2,
+            "X3" => 3,
+            "X4" => 4,
+            "X5" => 5,
+            "X6" => 6,
+            "X7" => 7,
+            "X8" => 8,
+            "X9" => 9,
+            "X10" => 10,
+            "X11" => 11,
+            "X12" => 12,
+            "X13" => 13,
+            "X14" => 14,
+            "X15" => 15,
+            "X16" => 16,
+            "X17" => 17,
+            "X18" => 18,
+            "X19" => 19,
+            "X20" => 20,
+            "X21" => 21,
+            "X22" => 22,
+            "X23" => 23,
+            "X24" => 24,
+            "X25" => 25,
+            "X26" => 26,
+            "X27" => 27,
+            "X28" => 28,
+            "X29" | "FP" => 29,
+            "X30" | "SP" => 30,
+            "X31" | "XZR" => 31,
+            _ => return None,
+        }))
+    }
+}
+
 impl From<u32> for Register {
     fn from(r: u32) -> Self {
         if r < 32 {
@@ -18,7 +58,12 @@ impl From<u32> for Register {
 
 impl fmt::Display for Register {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "X{}", self.0)
+        match self.0 {
+            29 => write!(f, "FP"),
+            30 => write!(f, "SP"),
+            31 => write!(f, "XZR"),
+            i => write!(f, "X{}", i),
+        }
     }
 }
 
