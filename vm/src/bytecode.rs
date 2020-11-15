@@ -4,11 +4,26 @@ use Register;
 
 use Instruction::*;
 
+use std::fmt;
+
 /// Represents an instruction for our machine. Instructions are 1 byte, allowing for up to 255
 /// instructions. The instruction is the lowest byte. The remaining 7 bytes are used for arguments
 /// to the instruction and their use differs by instruction.
 #[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd, Eq, Hash)]
 pub struct Operation(pub u32);
+
+impl fmt::Display for Operation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.instruction() {
+            LoadContinue | SaveContinue | RestoreContinue => self.print_continue(f),
+            Save | Restore | LoadConst | MakeClosure | Call => self.print_register(f),
+            Move | Car | Cdr | StringToSymbol | SetCar | SetCdr | Define | Lookup => self.print_register2(f),
+            Add | Sub | Mul | Eq | LT | Cons => self.print_register_opvalue2(f),
+            Goto | GotoIf | GotoIfNot => self.print_goto(f),
+            Return => write!(f, "RETURN"),
+        }
+    }
+}
 
 macro_rules! register {
     ($instruction:ident, $register:ident) => {
@@ -36,24 +51,6 @@ macro_rules! register2 {
         }
 
         pub fn $from(self) -> Register {
-            Register::from(self.0 >> 16)
-        }
-    };
-}
-
-macro_rules! register_opvalue {
-    ($instruction:ident, $register:ident, $opvalue:ident) => {
-        pub fn $instruction(register: Register, value: Register) -> Self {
-            let register = register.0 as u32;
-            let value = value.0 as u32;
-            Operation((value << 16) | (register << 8) | ($instruction as u32))
-        }
-
-        pub fn $register(self) -> Register {
-            Register::from((self.0 >> 8) & 255)
-        }
-
-        pub fn $opvalue(self) -> Register {
             Register::from(self.0 >> 16)
         }
     };
@@ -115,6 +112,73 @@ impl Operation {
         Instruction::from(self.0 & 255)
     }
 
+    fn print_continue(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.instruction() {
+            LoadContinue => write!(f, "LOADCONTINUE {}", self.loadcontinue_label()),
+            SaveContinue => write!(f, "SAVECONTINUE"),
+            RestoreContinue => write!(f, "RESTORECONTINUE"),
+            _ => unreachable!(),
+        }
+    }
+
+    fn print_register(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.instruction() {
+            Save => write!(f, "SAVE {}", self.save_register()),
+            Restore => write!(f, "RESTORE {}", self.restore_register()),
+            LoadConst => write!(f, "LOADCONST {}", self.loadconst_register()),
+            MakeClosure => write!(f, "MAKECLOSURE {}", self.makeclosure_register()),
+            Call => write!(f, "CALL {}", self.call_register()),
+            _ => unreachable!(),
+        }
+    }
+
+    fn print_register2(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.instruction() {
+            Move => write!(f, "MOVE {}, {}", self.move_to(), self.move_from()),
+            Car => write!(f, "CAR {}, {}", self.car_to(), self.car_from()),
+            Cdr => write!(f, "CDR {}, {}", self.cdr_to(), self.cdr_from()),
+            SetCar => write!(f, "SETCAR {}, {}", self.setcar_register(), self.setcar_value()),
+            SetCdr => write!(f, "SETCDR {}, {}", self.setcdr_register(), self.setcdr_value()),
+            StringToSymbol => write!(f, "STRINGTOSYMBOL {}, {}", self.stringtosymbol_register(), self.stringtosymbol_value()),
+            Define => write!(f, "DEFINE {}, {}", self.define_name(), self.define_value()),
+            Lookup => write!(f, "LOOKUP {}, {}", self.lookup_register(), self.lookup_name()),
+            _ => unreachable!(),
+        }
+    }
+
+    fn print_register_opvalue2(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.instruction() {
+            Add => write!(f, "ADD {}, {}, {}", self.add_register(), self.add_left(), self.add_right()),
+            Sub => write!(f, "SUB {}, {}, {}", self.sub_register(), self.sub_left(), self.sub_right()),
+            Mul => write!(f, "MUL {}, {}, {}", self.mul_register(), self.mul_left(), self.mul_right()),
+            Eq => write!(f, "EQ {}, {}, {}", self.eq_register(), self.eq_left(), self.eq_right()),
+            LT => write!(f, "LT {}, {}, {}", self.lt_register(), self.lt_left(), self.lt_right()),
+            Cons => write!(f, "CONS {}, {}, {}", self.cons_register(), self.cons_car(), self.cons_cdr()),
+            _ => unreachable!(),
+        }
+    }
+
+    fn print_goto(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.instruction() {
+            Goto => if let Some(v) = self.goto_value() {
+                write!(f, "GOTO {}", v)
+            } else {
+                write!(f, "GOTO CONTINUE")
+            },
+            GotoIf => if let Some(v) = self.gotoif_value() {
+                write!(f, "GOTOIF {}, {}", v, self.gotoif_register())
+            } else {
+                write!(f, "GOTOIF CONTINUE, {}", self.gotoif_register())
+            },
+            GotoIfNot => if let Some(v) = self.gotoifnot_value() {
+                write!(f, "GOTOIFNOT {}, {}", v, self.gotoifnot_register())
+            } else {
+                write!(f, "GOTOIFNOT CONTINUE, {}", self.gotoifnot_register())
+            },
+            _ => unreachable!(),
+        }
+    }
+
     // Create a LoadContinue instruction. The label takes up the remaining 7 bytes.
     pub fn LoadContinue(label: usize) -> Self {
         let label = label as u32;
@@ -140,23 +204,10 @@ impl Operation {
     register!(Restore, restore_register);
 
     // Create a LoadConst instruction. The register to load into uses 1 byte.
-    pub fn LoadConst(register: Register) -> Self {
-        let register = register.0 as u32;
-        Operation((register << 8) | LoadConst as u32)
-    }
-
-    pub fn loadconst_register(self) -> Register {
-        Register::from((self.0 >> 8) & 255)
-    }
+    register!(LoadConst, loadconst_register);
 
     // Create a MakeClosure instruction. The register to load into uses 1 byte.
-    pub fn MakeClosure(register: Register) -> Self {
-        let register = register.0 as u32;
-        Operation((register << 8) | MakeClosure as u32)
-    }
-    pub fn makeclosure_register(self) -> Register {
-        Register::from((self.0 >> 8) & 255)
-    }
+    register!(MakeClosure, makeclosure_register);
 
     // Creates a Move instruction. Takes the form `from-to-Move`.
     // Retrieve the `to` register used in a Move instruction.
@@ -187,7 +238,7 @@ impl Operation {
     register_opvalue2!(Mul, mul_register, mul_left, mul_right);
     register_opvalue2!(Eq, eq_register, eq_left, eq_right);
     register_opvalue2!(LT, lt_register, lt_left, lt_right);
-    register_opvalue!(StringToSymbol, stringtosymbol_register, stringtosymbol_value);
+    register2!(StringToSymbol, stringtosymbol_register, stringtosymbol_value);
 
     // Creates a Cons instruction. The register to call from uses 1 byte. `car` and `cdr` each
     // take up one byte. If they are values then their byte is 0, otherwise their byte represents
@@ -211,34 +262,22 @@ impl Operation {
     // Creates a SetCar instruction. Takes the form `value-register-SetCar`.
     // Retrieve the register from a SetCar instruction.
     // Retrieve the `value` from a SetCar instruction.
-    register_opvalue!(SetCar, setcar_register, setcar_value);
+    register2!(SetCar, setcar_register, setcar_value);
 
     // Creates a SetCdr instruction. Takes the form `value-register-SetCdr`.
     // Retrieve the register from a SetCdr instruction.
     // Retrieve the `value` from a SetCdr instruction.
-    register_opvalue!(SetCdr, setcdr_register, setcdr_value);
+    register2!(SetCdr, setcdr_register, setcdr_value);
 
     // Creates a Define instruction. Takes the form `value-name-Define`.
-    pub fn Define(name: Register, value: Register) -> Self {
-        let name = name.0 as u32;
-        let value = value.0 as u32;
-        Operation((value << 16) | (name << 8) | Define as u32)
-    }
-
     // Retrive the `name` from a Define instruction.
-    pub fn define_name(self) -> Register {
-        Register::from((self.0 >> 8) & 255)
-    }
-
     // Retrive the `value` from a Define instruction.
-    pub fn define_value(self) -> Register {
-        Register::from(self.0 >> 16)
-    }
+    register2!(Define, define_name, define_value);
 
     // Creates a Lookup instruction. Takes the form `name-register-Define`.
     // Retrive the register from a Lookup instruction.
     // Retrive the `name` from a Lookup instruction.
-    register_opvalue!(Lookup, lookup_register, lookup_name);
+    register2!(Lookup, lookup_register, lookup_name);
 
     // Creates a Call instruction. The register to call from uses 1 byte.
     // Retrieve the register from a Call instruction.
