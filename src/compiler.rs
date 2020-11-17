@@ -26,7 +26,9 @@ pub fn compile(exp: Ast) -> Vec<ASM> {
         def: None,
         def_label: String::new(),
         last_expr: false,
-        var_mapping: HashMap::new(),
+        reg_mapping: HashMap::new(),
+        stack_mapping: HashMap::new(),
+        sp: 0,
     };
     c._compile(exp, Register(0), &mut used)
 }
@@ -35,7 +37,9 @@ struct Compiler {
     def: Option<Symbol>,
     def_label: String,
     last_expr: bool,
-    var_mapping: HashMap<String, u8>,
+    reg_mapping: HashMap<String, Register>,
+    stack_mapping: HashMap<String, usize>,
+    sp: usize,
 }
 
 impl Compiler {
@@ -56,15 +60,71 @@ impl Compiler {
         vec![ASM::LoadConst(target, p.to_value())]
     }
 
+    fn load_variable(&mut self, i: String, target: Register) -> Option<Vec<ASM>> {
+        if let Some(&r) = self.reg_mapping.get(&i) {
+            if target != r {
+                self.invalidate_register(target);
+                self.reg_mapping.insert(i, target);
+                Some(vec![ASM::Move(target, r)])
+            } else {
+                Some(vec![])
+            }
+        } else if let Some(&p) = self.stack_mapping.get(&i) {
+            self.invalidate_register(target);
+            self.reg_mapping.insert(i, target);
+            Some(vec![ASM::ReadStack(target, self.sp - p)])
+        } else {
+            None
+        }
+    }
+
+    fn invalidate_register(&mut self, r: Register) {
+        self.reg_mapping.retain(|_, v| *v != r);
+    }
+
+    fn save_register(&mut self, r: Register) -> Option<ASM> {
+        for (k, val) in self.reg_mapping.iter() {
+            if r == *val {
+                if !self.stack_mapping.contains_key(k) {
+                    self.stack_mapping.insert(k.clone(), self.sp);
+                    break;
+                }
+                return None;
+            }
+        }
+
+        self.sp += 1;
+        Some(ASM::Save(r))
+    }
+
+    fn restore_register(&mut self, target: Register) -> Option<ASM> {
+        self.sp -= 1;
+        let mut key = None;
+        for (k, p) in self.stack_mapping.iter() {
+            if self.sp == *p {
+                /*
+                if let Some(r) = self.reg_mapping.get(k) {
+                    if r == target {
+                        return None;
+                    }
+                }
+                */
+                key = Some(k.clone());
+                break;
+            }
+        }
+
+        if let Some(k) = key {
+            self.stack_mapping.remove(&k);
+        }
+
+        Some(ASM::Restore(target))
+    }
+
     fn compile_variable(&mut self, i: String, target: Register, used: &mut HashSet<Register>) -> Vec<ASM> {
         used.insert(target);
-        if let Some(&r) = self.var_mapping.get(&i) {
-            if target.0 != r {
-                self.var_mapping.insert(i, target.0);
-                vec![ASM::Move(target, Register(r))]
-            } else {
-                vec![]
-            }
+        if let Some(v) = self.load_variable(i.clone(), target) {
+            v
         } else {
             vec![ASM::LoadConst(target, Value::Symbol(INTERNER.lock().unwrap().get_symbol(i))),
                  ASM::Lookup(target, target)]
@@ -114,9 +174,12 @@ impl Compiler {
         let mut pred = self._compile(pred, target, &mut used.clone());
         self.last_expr = l;
 
-        let s = self.var_mapping.clone();
+        let r = self.reg_mapping.clone();
+        let s = self.stack_mapping.clone();
         let mut cons = self._compile(cons, target, &mut used.clone());
-        self.var_mapping = s;
+        self.reg_mapping = r;
+        self.stack_mapping = s;
+
         let mut alt = self._compile(alt, target, &mut used.clone());
         pred.push(ASM::GotoIfNot(GotoValue::Label(alt_label.clone()), target));
         pred.append(&mut cons);
@@ -150,24 +213,33 @@ impl Compiler {
             instructions.push(ASM::Label(self.def_label.clone()));
         }
 
-        let mut loc = HashMap::new();
+        let mut reg = HashMap::new();
+        let mut stack = HashMap::new();
+        let sp = self.sp;
+
         let mut used = HashSet::new();
         for (i, x) in args.into_iter().enumerate() {
-            loc.insert(x, i as u8 + 1);
+            reg.insert(x, Register(i as u8 + 1));
             used.insert(Register(i as u8 + 1));
         }
-        mem::swap(&mut self.var_mapping, &mut loc);
+        mem::swap(&mut self.reg_mapping, &mut reg);
+        mem::swap(&mut self.stack_mapping, &mut stack);
+        self.sp = 0;
         instructions.append(&mut self.compile_sequence(body, Register(0), &mut used));
-        mem::swap(&mut self.var_mapping, &mut loc);
+        mem::swap(&mut self.reg_mapping, &mut reg);
+        mem::swap(&mut self.stack_mapping, &mut stack);
+        self.sp = sp;
         vec![ASM::MakeClosure(target, Box::new(instructions))]
     }
 
     fn compile_application(&mut self, mut v: Vec<Ast>, target: Register, used: &mut HashSet<Register>) -> Vec<ASM> {
         let op = v.remove(0);
         let mut instructions = vec![];
-        let mut used = used.iter().collect::<Vec<_>>();
-        for &&r in used.iter() {
-            instructions.push(ASM::Save(r));
+        let mut vused = used.iter().collect::<Vec<_>>();
+        for &&r in vused.iter() {
+            if let Some(i) = self.save_register(r) {
+                instructions.push(i);
+            }
         }
 
         let mut i = 1;
@@ -175,34 +247,40 @@ impl Compiler {
         // Move any local variables first
         for v in &v {
             if let Ast::Ident(id) = v {
-                if let Some(&r) = self.var_mapping.get(id) {
-                    if r != i {
-                        instructions.push(ASM::Move(Register(i), Register(r)));
-                        self.var_mapping.insert(id.clone(), i);
-                    }
+                if let Some(mut v) = self.load_variable(id.clone(), Register(i)) {
+                    instructions.append(&mut v);
+                    u.insert(Register(i));
                 }
             }
             i += 1;
         }
 
         i = 1;
+        let l = self.last_expr;
+        self.last_expr = false;
+
         for v in v {
             if let Ast::Ident(ref id) = v {
-                if self.var_mapping.contains_key(id) {
+                if self.reg_mapping.contains_key(id) || self.stack_mapping.contains_key(id) {
                     i += 1;
                     continue;
                 }
             }
             instructions.append(&mut self._compile(v, Register(i), &mut u));
             u.insert(Register(i));
+            self.invalidate_register(Register(i));
             i += 1;
         }
+        self.last_expr = l;
 
         if let Ast::Ident(ref i) = op {
             let s = INTERNER.lock().unwrap().get_symbol(i.clone());
             if let Some(d) = self.def {
                 if d == s && self.last_expr {
                     instructions.push(ASM::Goto(GotoValue::Label(self.def_label.clone())));
+                //} else if d == s {
+                    // TODO: save registers
+                //    instructions.push(ASM::Goto(GotoValue::Label(self.def_label.clone())));
                 } else {
                     instructions.append(&mut self._compile(op, Register(0), &mut u));
                     instructions.push(ASM::Call(Register(0)));
@@ -216,16 +294,18 @@ impl Compiler {
             instructions.push(ASM::Call(Register(0)));
         }
 
-        // Our calling convention requires result to be in A, so we can skip the move if that's where
+        // Our calling convention requires result to be in Register 0, so we can skip the move if that's where
         // we need it.
         if target != Register(0) {
             instructions.push(ASM::Move(target, Register(0)));
         }
 
         // We have to restore in reverse order
-        used.reverse();
-        for &r in used {
-            instructions.push(ASM::Restore(r));
+        vused.reverse();
+        for &r in vused {
+            if let Some(i) = self.restore_register(r) {
+                instructions.push(i);
+            }
         }
 
         instructions
