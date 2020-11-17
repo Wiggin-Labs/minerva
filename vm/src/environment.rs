@@ -31,6 +31,9 @@ pub fn init_env(vm: &mut VM) -> Environment {
     let cdr = vec![ASM::Cdr(Register(0), Register(1))];
     add_primitive(vm, &env, "cdr".to_string(), cdr);
 
+    env.define_variable(vm.intern_symbol("pi".to_string()), Value::Float(std::f64::consts::PI));
+    env.define_variable(vm.intern_symbol("e".to_string()), Value::Float(std::f64::consts::E));
+
     env
 }
 

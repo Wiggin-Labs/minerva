@@ -98,6 +98,7 @@ pub enum ASM {
     Save(Register),
     /// Restore the last item on the stack to a general purpose register.
     Restore(Register),
+    ReadStack(Register, usize),
     // Register instructions
     /// LoadConst(reg, arg) Place a constant `arg` in `reg`.
     LoadConst(Register, Value),
@@ -146,6 +147,7 @@ impl fmt::Display for ASM {
             RestoreContinue => write!(f, "RESTORECONTINUE"),
             Save(r) => write!(f, "SAVE {}", r),
             Restore(r) => write!(f, "RESTORE {}", r),
+            ReadStack(r, p) => write!(f, "READSTACK {}, -{}", r, p),
             LoadConst(r, v) => write!(f, "LOADCONST {}, {}", r, v),
             MakeClosure(r, v) => {
                 writeln!(f, "MAKECLOSURE {}", r)?;
@@ -201,6 +203,7 @@ pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {
             ASM::RestoreContinue => ops.push(Operation::RestoreContinue),
             ASM::Save(r) => ops.push(Operation::Save(r)),
             ASM::Restore(r) => ops.push(Operation::Restore(r)),
+            ASM::ReadStack(r, p) => ops.push(Operation::ReadStack(r, p)),
             ASM::LoadConst(r, v) => {
                 ops.push(Operation::LoadConst(r));
                 ops.push(Operation(v.0 as u32));

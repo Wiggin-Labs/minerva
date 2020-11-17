@@ -12,7 +12,8 @@ pub use value::heap_repr::{Lambda, Pair};
 
 use string_interner::{INTERNER, Symbol};
 
-use std::mem;
+use std::{io, mem};
+use std::io::Write;
 
 /// A Virtual Machine for Scheme.
 #[derive(Debug)]
@@ -26,7 +27,6 @@ pub struct VM {
     // Registers
     pc: usize,
     kontinue: usize,
-    flag: Value,
     registers: [Value; 32],
     saved_state: Vec<SaveState>,
 }
@@ -40,6 +40,9 @@ impl Default for VM {
 impl VM {
     /// Create a new `VM`.
     pub fn new() -> Self {
+        let mut registers = [Value::Nil; 32];
+        registers[29] = Value::Integer(0);
+        registers[30] = Value::Integer(0);
         VM {
             debug: false,
             step: 0,
@@ -49,64 +52,139 @@ impl VM {
             kontinue_stack: vec![],
             pc: 0,
             kontinue: 0,
-            flag: Value::Nil,
-            registers: [Value::Nil; 32],
+            registers: registers,
             saved_state: vec![],
         }
     }
 
     /// Run the currently loaded code.
     pub fn run(&mut self) {
-        loop {
-            if self.debug { self.print_debug(); }
-
-            if self.pc > self.operations.len() {
-                panic!("Bad jump");
-            } else if self.pc == self.operations.len() {
-                if self.saved_state.is_empty() {
-                    break;
-                } else {
-                    // Restore the saved program counter, code, and environment
-                    let SaveState { pc, code, env } = self.saved_state.pop().unwrap();
-                    self.pc = pc;
-                    self.operations = code;
-                    self.environment = env;
+        if self.debug {
+            loop {
+                print!("> ");
+                io::stdout().flush().unwrap();
+                let mut input = String::new();
+                io::stdin().read_line(&mut input).unwrap();
+                let input = input.trim();
+                if input.is_empty() {
                     continue;
                 }
-            }
 
+                match &input[0..1] {
+                    "q" => break,
+                    "r" => {
+                        let input = &input[1..].trim();
+                        let i = if input.is_empty() {
+                            1
+                        } else if let Ok(i) = input.parse() {
+                            i
+                        } else {
+                            println!("Expected a positive integer");
+                            continue;
+                        };
 
-            let op = self.operations[self.pc];
-            self.step += 1;
-            self.pc += 1;
-            match op.instruction() {
-                Instruction::LoadContinue => self.load_kontinue(op),
-                Instruction::SaveContinue => self.save_kontinue(),
-                Instruction::RestoreContinue => self.restore_kontinue(),
-                Instruction::Save => self.save(op),
-                Instruction::Restore => self.restore(op),
-                Instruction::LoadConst => self.load_const(op),
-                Instruction::MakeClosure => self.make_closure(op),
-                Instruction::Move => self.mov(op),
-                Instruction::Goto => self.goto(op),
-                Instruction::GotoIf => self.goto_if(op),
-                Instruction::GotoIfNot => self.goto_if_not(op),
-                Instruction::Add => self.add(op),
-                Instruction::Sub => self.sub(op),
-                Instruction::Mul => self.mul(op),
-                Instruction::Eq => self.eq(op),
-                Instruction::LT => self.lt(op),
-                Instruction::StringToSymbol => self.string_to_symbol(op),
-                Instruction::Cons => self.cons(op),
-                Instruction::Car => self.car(op),
-                Instruction::Cdr => self.cdr(op),
-                Instruction::SetCar => self.set_car(op),
-                Instruction::SetCdr => self.set_cdr(op),
-                Instruction::Define => self.define(op),
-                Instruction::Lookup => self.lookup(op),
-                Instruction::Call => self.call(op),
-                Instruction::Return => self.pc = self.operations.len(),
+                        for _ in 0..i {
+                            self._run();
+                        }
+                    }
+                    "d" => self.print_debug(),
+                    "s" => {
+                        let input = &input[1..].trim();
+                        let i = if input.is_empty() {
+                            1
+                        } else if let Ok(i) = input.parse() {
+                            i
+                        } else {
+                            println!("Expected a positive integer");
+                            continue;
+                        };
+
+                        for _ in 0..i {
+                            self.step();
+                        }
+                    }
+                    // TODO
+                    "b" => {},
+                    "p" => {
+                        let input = &input[1..].trim();
+                        if let Some(r) = Register::from_str(input) {
+                            self.print_register(r);
+                        } else {
+                            println!("Invalid register name: {}", input);
+                        }
+                    }
+                    _ => {
+                        println!("Unknown command");
+                        continue;
+                    }
+                }
             }
+        } else {
+            self._run();
+        }
+    }
+
+    fn _run(&mut self) {
+        while self.pc < self.operations.len() || !self.saved_state.is_empty() {
+            self.step();
+            if self.pc > self.operations.len() {
+                panic!("Bad jump");
+            }
+        }
+    }
+
+    fn step(&mut self) {
+        if self.pc > self.operations.len() {
+            panic!("Bad jump");
+        } else if self.pc == self.operations.len() {
+            if self.saved_state.is_empty() {
+                return;
+            } else {
+                // Restore the saved program counter, code, and environment
+                let SaveState { pc, code, env } = self.saved_state.pop().unwrap();
+                self.pc = pc;
+                self.operations = code;
+                self.environment = env;
+                return;
+            }
+        }
+
+        if self.debug {
+            println!("    {}", self.operations[self.pc]);
+        }
+
+        let op = self.operations[self.pc];
+        self.step += 1;
+        self.pc += 1;
+        match op.instruction() {
+            Instruction::LoadContinue => self.load_kontinue(op),
+            Instruction::SaveContinue => self.save_kontinue(),
+            Instruction::RestoreContinue => self.restore_kontinue(),
+            Instruction::Save => self.save(op),
+            Instruction::Restore => self.restore(op),
+            Instruction::ReadStack => self.readstack(op),
+            Instruction::LoadConst => self.load_const(op),
+            Instruction::MakeClosure => self.make_closure(op),
+            Instruction::Move => self.mov(op),
+            Instruction::Goto => self.goto(op),
+            Instruction::GotoIf => self.goto_if(op),
+            Instruction::GotoIfNot => self.goto_if_not(op),
+            Instruction::Add => self.add(op),
+            Instruction::Sub => self.sub(op),
+            Instruction::Mul => self.mul(op),
+            Instruction::Eq => self.eq(op),
+            Instruction::LT => self.lt(op),
+            Instruction::StringToSymbol => self.string_to_symbol(op),
+            Instruction::Cons => self.cons(op),
+            Instruction::Car => self.car(op),
+            Instruction::Cdr => self.cdr(op),
+            Instruction::Set => self.set(op),
+            Instruction::SetCar => self.set_car(op),
+            Instruction::SetCdr => self.set_cdr(op),
+            Instruction::Define => self.define(op),
+            Instruction::Lookup => self.lookup(op),
+            Instruction::Call => self.call(op),
+            Instruction::Return => self.pc = self.operations.len(),
         }
     }
 
@@ -126,12 +204,15 @@ impl VM {
     fn print_debug(&mut self) {
         println!("step {}:", self.step);
         for (i, reg) in self.registers.iter().enumerate() {
-            println!("X{}: {}", i, reg);
+            println!("{}: {}", Register(i as u8), reg);
         }
-        println!("flag: {:?}", self.flag);
         println!("continue: {:?}", self.kontinue);
         println!("stack size: {}", self.stack.len());
         println!();
+    }
+
+    fn print_register(&mut self, r: Register) {
+        println!("{}: {}", r, self.load_register(r));
     }
 
     /// Returns the current stack size.
@@ -152,7 +233,27 @@ impl VM {
 
     /// Get the value of `register`.
     pub fn load_register(&self, register: Register) -> Value {
-        self.registers[register.0 as usize]
+        if register.0 == 31 {
+            Value::Integer(0)
+        } else {
+            self.registers[register.0 as usize]
+        }
+    }
+
+    fn load_sp(&self) -> Value {
+        self.load_register(Register(30))
+    }
+
+    fn assign_sp(&mut self, value: Value) {
+        self.assign_register(Register(30), value)
+    }
+
+    fn load_fp(&self) -> Value {
+        self.load_register(Register(29))
+    }
+
+    fn assign_fp(&mut self, value: Value) {
+        self.assign_register(Register(29), value)
     }
 
     pub fn assign_environment(&mut self, env: Environment) {
@@ -193,12 +294,29 @@ impl VM {
 
     fn save(&mut self, op: Operation) {
         self.stack.push(self.load_register(op.save_register()));
+
+        let mut sp = self.load_sp().to_integer();
+        sp += 1;
+        self.assign_sp(Value::Integer(sp));
     }
 
     fn restore(&mut self, op: Operation) {
+        // TODO
         assert!(!self.stack.is_empty());
         let value = self.stack.pop().unwrap();
         self.assign_register(op.restore_register(), value);
+        let mut sp = self.load_sp().to_integer();
+        sp -= 1;
+        self.assign_sp(Value::Integer(sp));
+    }
+
+    fn readstack(&mut self, op: Operation) {
+        // TODO
+        let offset = op.readstack_offset();
+        let sp = self.load_sp().to_integer() as usize;
+        assert!(sp >= offset);
+        let value = self.stack[sp - offset];
+        self.assign_register(op.readstack_register(), value);
     }
 
     fn load_const(&mut self, op: Operation) {
@@ -214,7 +332,7 @@ impl VM {
         let c = c | (self.operations[self.pc].0 as u64);
         let pointer = Value(c);
         self.pc += 2;
-        let mut lambda = unsafe { Box::from_raw(pointer.to_pointer() as *mut Lambda) };
+        let mut lambda = pointer.to_lambda();
         // TODO extend env?
         (*lambda).env = self.environment.extend();
         self.assign_register(op.makeclosure_register(), pointer);
@@ -278,8 +396,9 @@ impl VM {
     }
 
     fn lt(&mut self, op: Operation) {
-        let left = self.load_register(op.lt_left());
-        let right = self.load_register(op.lt_right());
+        let left = self.load_register(op.lt_left()).to_integer();
+        let right = self.load_register(op.lt_right()).to_integer();
+        //println!("{} < {}", left, right);
         self.assign_register(op.lt_register(), Value::Bool(left < right));
     }
 
@@ -302,33 +421,30 @@ impl VM {
     }
 
     fn car(&mut self, op: Operation) {
-        let pair = self.load_register(op.car_from()).to_pair();
-        self.assign_register(op.car_to(), pair.car);
-        // Make sure this value isn't freed.
-        Box::into_raw(pair);
+        let car = self.load_register(op.car_from()).car();
+        self.assign_register(op.car_to(), car);
     }
 
     fn cdr(&mut self, op: Operation) {
-        let pair = self.load_register(op.cdr_from()).to_pair();
-        self.assign_register(op.cdr_to(), pair.cdr);
-        // Make sure this value isn't freed.
-        Box::into_raw(pair);
+        let cdr = self.load_register(op.cdr_from()).cdr();
+        self.assign_register(op.cdr_to(), cdr);
+    }
+
+    fn set(&mut self, op: Operation) {
+        // TODO: handle error when name is not a symbol
+        let name = self.load_register(op.set_name()).to_symbol();
+        let value = self.load_register(op.set_value());
+        self.environment.set_variable_value(name, value);
     }
 
     fn set_car(&mut self, op: Operation) {
-        let mut pair = self.load_register(op.setcar_register()).to_pair();
         let value = self.load_register(op.setcar_value());
-        pair.car = value;
-        // Make sure this value isn't freed.
-        Box::into_raw(pair);
+        self.load_register(op.setcar_register()).set_car(value);
     }
 
     fn set_cdr(&mut self, op: Operation) {
-        let mut pair = self.load_register(op.setcdr_register()).to_pair();
         let value = self.load_register(op.setcdr_value());
-        pair.cdr = value;
-        // Make sure this value isn't freed.
-        Box::into_raw(pair);
+        self.load_register(op.setcdr_register()).set_cdr(value);
     }
 
     fn define(&mut self, op: Operation) {

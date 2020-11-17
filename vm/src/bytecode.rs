@@ -16,8 +16,8 @@ impl fmt::Display for Operation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.instruction() {
             LoadContinue | SaveContinue | RestoreContinue => self.print_continue(f),
-            Save | Restore | LoadConst | MakeClosure | Call => self.print_register(f),
-            Move | Car | Cdr | StringToSymbol | SetCar | SetCdr | Define | Lookup => self.print_register2(f),
+            Save | Restore | ReadStack | LoadConst | MakeClosure | Call => self.print_register(f),
+            Move | Car | Cdr | StringToSymbol | Set | SetCar | SetCdr | Define | Lookup => self.print_register2(f),
             Add | Sub | Mul | Eq | LT | Cons => self.print_register_opvalue2(f),
             Goto | GotoIf | GotoIfNot => self.print_goto(f),
             Return => write!(f, "RETURN"),
@@ -125,6 +125,7 @@ impl Operation {
         match self.instruction() {
             Save => write!(f, "SAVE {}", self.save_register()),
             Restore => write!(f, "RESTORE {}", self.restore_register()),
+            ReadStack => write!(f, "READSTACK {}, -{}", self.readstack_register(), self.readstack_offset()),
             LoadConst => write!(f, "LOADCONST {}", self.loadconst_register()),
             MakeClosure => write!(f, "MAKECLOSURE {}", self.makeclosure_register()),
             Call => write!(f, "CALL {}", self.call_register()),
@@ -137,6 +138,7 @@ impl Operation {
             Move => write!(f, "MOVE {}, {}", self.move_to(), self.move_from()),
             Car => write!(f, "CAR {}, {}", self.car_to(), self.car_from()),
             Cdr => write!(f, "CDR {}, {}", self.cdr_to(), self.cdr_from()),
+            Set => write!(f, "SET {}, {}", self.set_name(), self.set_value()),
             SetCar => write!(f, "SETCAR {}, {}", self.setcar_register(), self.setcar_value()),
             SetCdr => write!(f, "SETCDR {}, {}", self.setcdr_register(), self.setcdr_value()),
             StringToSymbol => write!(f, "STRINGTOSYMBOL {}, {}", self.stringtosymbol_register(), self.stringtosymbol_value()),
@@ -203,6 +205,21 @@ impl Operation {
     // Retrieve the register used in a Restore instruction.
     register!(Restore, restore_register);
 
+    pub fn ReadStack(register: Register, p: usize) -> Self {
+        let register = register.0 as u32;
+        let p = p as u32;
+        Operation((p << 16) | (register << 8) | (ReadStack as u32))
+    }
+
+    pub fn readstack_register(self) -> Register {
+        Register::from((self.0 >> 8) & 255)
+    }
+
+    pub fn readstack_offset(self) -> usize {
+        (self.0 >> 16) as usize
+    }
+
+
     // Create a LoadConst instruction. The register to load into uses 1 byte.
     register!(LoadConst, loadconst_register);
 
@@ -258,6 +275,8 @@ impl Operation {
     // Retrieve the `from` register from a Cdr instruction.
     register2!(Cdr, cdr_to, cdr_from);
 
+
+    register2!(Set, set_name, set_value);
 
     // Creates a SetCar instruction. Takes the form `value-register-SetCar`.
     // Retrieve the register from a SetCar instruction.
@@ -349,6 +368,8 @@ pub enum Instruction {
     Lookup = 23,
     Call = 24,
     Return = 25,
+    ReadStack = 26,
+    Set = 27,
 }
 
 impl From<u32> for Instruction {
@@ -381,6 +402,8 @@ impl From<u32> for Instruction {
             23 => Lookup,
             24 => Call,
             25 => Return,
+            26 => ReadStack,
+            27 => Set,
             _ => panic!("Invalid Instruction value {}", r),
         }
     }
