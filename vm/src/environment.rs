@@ -1,47 +1,10 @@
-use {assemble, ASM, Register, Value, VM};
+use Value;
 
 use string_interner::Symbol;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-
-pub fn init_env(vm: &mut VM) -> Environment {
-    let env = Environment::new();
-
-    let add = vec![ASM::Add(Register(0), Register(1), Register(2))];
-    add_primitive(vm, &env, "+".to_string(), add);
-
-    let sub = vec![ASM::Sub(Register(0), Register(1), Register(2))];
-    add_primitive(vm, &env, "-".to_string(), sub);
-
-    let mul = vec![ASM::Mul(Register(0), Register(1), Register(2))];
-    add_primitive(vm, &env, "*".to_string(), mul);
-
-    let eq = vec![ASM::Eq(Register(0), Register(1), Register(2))];
-    add_primitive(vm, &env, "=".to_string(), eq);
-
-    let lt = vec![ASM::LT(Register(0), Register(1), Register(2))];
-    add_primitive(vm, &env, "<".to_string(), lt);
-
-    let cons = vec![ASM::Cons(Register(0), Register(1), Register(2))];
-    add_primitive(vm, &env, "cons".to_string(), cons);
-    let car = vec![ASM::Car(Register(0), Register(1))];
-    add_primitive(vm, &env, "car".to_string(), car);
-    let cdr = vec![ASM::Cdr(Register(0), Register(1))];
-    add_primitive(vm, &env, "cdr".to_string(), cdr);
-
-    env.define_variable(vm.intern_symbol("pi".to_string()), Value::Float(std::f64::consts::PI));
-    env.define_variable(vm.intern_symbol("e".to_string()), Value::Float(std::f64::consts::E));
-
-    env
-}
-
-fn add_primitive(vm: &mut VM, env: &Environment, name: String, code: Vec<ASM>) {
-    let code = assemble(code);
-    // TODO: gc, arity
-    env.define_variable(vm.intern_symbol(name), Value::Lambda(env.clone(), 0, code));
-}
 
 #[derive(Clone, Default, PartialEq)]
 pub struct Environment {

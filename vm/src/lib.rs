@@ -2,10 +2,12 @@ extern crate string_interner;
 mod asm;
 mod bytecode;
 mod environment;
+mod init;
 mod value;
 
 pub use asm::{assemble, GotoValue, ASM, Register};
-pub use environment::{init_env, Environment};
+pub use environment::Environment;
+pub use init::init_env;
 pub use bytecode::{Instruction, Operation};
 pub use value::Value;
 pub use value::heap_repr::{Lambda, Pair};
@@ -265,12 +267,12 @@ impl VM {
     }
 
     /// Convert `symbol` to a Symbol.
-    pub fn intern_symbol(&mut self, symbol: String) -> Symbol {
+    pub fn intern_symbol(symbol: String) -> Symbol {
         INTERNER.lock().unwrap().get_symbol(symbol)
     }
 
     /// Get the string value of `symbol`.
-    pub fn get_symbol_value(&self, symbol: Symbol) -> String {
+    pub fn get_symbol_value(symbol: Symbol) -> String {
         INTERNER.lock().unwrap().get_value(symbol).unwrap()
     }
 
@@ -405,7 +407,7 @@ impl VM {
     fn string_to_symbol(&mut self, op: Operation) {
         // TODO: handle case where `string` isn't a string
         let pointer = self.load_register(op.stringtosymbol_value()).to_string();
-        let sym = self.intern_symbol(pointer.p.clone());
+        let sym = VM::intern_symbol(pointer.p.clone());
         self.assign_register(op.stringtosymbol_register(), Value::Symbol(sym));
         // Make sure this value isn't freed.
         Box::into_raw(pointer);
