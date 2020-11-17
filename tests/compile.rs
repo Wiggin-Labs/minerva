@@ -25,7 +25,7 @@ fn factorial() {
     )};
     let asm = compile(code);
     let mut vm = VM::new();
-    let env = init_env(&mut vm);
+    let env = init_env();
     vm.assign_environment(env);
     vm.load_code(assemble(asm));
     vm.run();

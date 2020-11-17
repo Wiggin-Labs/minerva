@@ -85,11 +85,11 @@ impl Compiler {
     fn save_register(&mut self, r: Register) -> Option<ASM> {
         for (k, val) in self.reg_mapping.iter() {
             if r == *val {
-                if !self.stack_mapping.contains_key(k) {
+                //if !self.stack_mapping.contains_key(k) {
                     self.stack_mapping.insert(k.clone(), self.sp);
                     break;
-                }
-                return None;
+                //}
+                //return None;
             }
         }
 

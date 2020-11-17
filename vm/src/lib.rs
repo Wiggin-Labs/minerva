@@ -143,10 +143,12 @@ impl VM {
                 return;
             } else {
                 // Restore the saved program counter, code, and environment
-                let SaveState { pc, code, env } = self.saved_state.pop().unwrap();
+                let SaveState { pc, code, env, sp, fp } = self.saved_state.pop().unwrap();
                 self.pc = pc;
                 self.operations = code;
                 self.environment = env;
+                self.assign_sp(sp);
+                self.assign_fp(fp);
                 return;
             }
         }
@@ -484,9 +486,12 @@ impl VM {
             // Save the vm state
             let s = SaveState {
                 pc: self.pc,
+                sp: self.load_sp(),
+                fp: self.load_fp(),
                 code: code,
                 env: env,
             };
+            //self.assign_fp(s.sp);
             self.saved_state.push(s);
             self.pc = 0;
         } else {
@@ -504,4 +509,6 @@ struct SaveState {
     pc: usize,
     code: Vec<Operation>,
     env: Environment,
+    sp: Value,
+    fp: Value,
 }

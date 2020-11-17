@@ -2,6 +2,7 @@
 authors = ["Hunter Praska <hunter@wiggin-labs.com>"]
 name = "akuma"
 version = "0.1.0"
+autobenches = false
 
 [dev-dependencies]
 criterion = "0.3.3"
@@ -25,4 +26,8 @@ profile = ["flame", "flamer"]
 
 [[bench]]
 name = "fibonacci"
+harness = false
+
+[[bench]]
+name = "count"
 harness = false
