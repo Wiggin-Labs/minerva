@@ -1,5 +1,7 @@
 use {Instruction, Environment, Operation, Value};
 
+use string_interner::{INTERNER, Symbol};
+
 use std::collections::HashMap;
 use std::fmt;
 
@@ -69,14 +71,14 @@ impl fmt::Display for Register {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum GotoValue {
-    Label(String),
+    Label(Symbol),
     Register,
 }
 
 impl fmt::Display for GotoValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            GotoValue::Label(s) => write!(f, "`{}`", s),
+            GotoValue::Label(s) => write!(f, "`{}`", INTERNER.lock().unwrap().get_value(*s).unwrap()),
             GotoValue::Register => write!(f, "LR"),
         }
     }
@@ -88,7 +90,7 @@ impl fmt::Display for GotoValue {
 pub enum ASM {
     // Instructions for the continue register
     /// Load a Label to the `continue` register.
-    LoadContinue(String),
+    LoadContinue(Symbol),
     /// Save the `continue` register to the continue stack.
     SaveContinue,
     /// Restore the last item on the continue stack to the `continue` register.
@@ -135,14 +137,14 @@ pub enum ASM {
     Lookup(Register, Register),
     Call(Register),
     Return,
-    Label(String),
+    Label(Symbol),
 }
 
 impl fmt::Display for ASM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::ASM::*;
         match self {
-            LoadContinue(s) => write!(f, "LOADCONTINUE {}", s),
+            LoadContinue(s) => write!(f, "LOADCONTINUE {}", INTERNER.lock().unwrap().get_value(*s).unwrap()),
             SaveContinue => write!(f, "SAVECONTINUE"),
             RestoreContinue => write!(f, "RESTORECONTINUE"),
             Save(r) => write!(f, "SAVE {}", r),
@@ -175,7 +177,7 @@ impl fmt::Display for ASM {
             Lookup(r1, r2) => write!(f, "LOOKUP {}, {}", r1, r2),
             Call(r) => write!(f, "CALL {}", r),
             Return => write!(f, "RETURN"),
-            Label(s) => write!(f, "{}:", s),
+            Label(s) => write!(f, "{}:", INTERNER.lock().unwrap().get_value(*s).unwrap()),
         }
     }
 }
@@ -189,7 +191,7 @@ pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {
         match inst {
             ASM::Label(l) => {
                 if labels.contains_key(&l) {
-                    panic!("Label `{}` defined more than once", l);
+                    panic!("Label `{}` defined more than once", INTERNER.lock().unwrap().get_value(l).unwrap());
                 }
                 labels.insert(l, ops.len());
             }
@@ -290,7 +292,7 @@ pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {
         let p = if let Some(p) = labels.get(&label) {
             *p
         } else {
-            panic!("Unknown label `{}`", label);
+            panic!("Unknown label `{}`", INTERNER.lock().unwrap().get_value(label).unwrap());
         };
 
         assert!(i < ops.len());

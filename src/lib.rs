@@ -15,7 +15,9 @@ extern crate vm;
 mod compiler;
 mod error;
 mod parser;
+mod tokenizer;
 
 pub use compiler::{Ast, compile, CompilePrimitive};
 pub use error::Error;
-pub use parser::{ParseError, Parser, Token};
+pub use parser::{ParseError, Token};
+pub use tokenizer::Tokenizer;

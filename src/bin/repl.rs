@@ -60,7 +60,7 @@ fn main() {
             break;
         }
 
-        let tokens = match akuma::Parser::parse(&input) {
+        let tokens = match akuma::Tokenizer::tokenize(&input) {
             Ok(t) => t,
             Err(e) => {
                 println!("ERROR: {}", e);
@@ -122,12 +122,13 @@ impl Completer for Repl {
 
     fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>), ReadlineError> {
         let l = &line[0..pos];
-        match akuma::Parser::parse(l) {
+        match akuma::Tokenizer::tokenize(l) {
             Ok(tokens) => {
                 let (p, candidates) = if let Some(Token::Symbol(s)) = tokens.last() {
                     if l.chars().last().unwrap().is_whitespace() {
                         (pos, self.get_defs(""))
                     } else {
+                        let s = INTERNER.lock().unwrap().get_value(*s).unwrap();
                         (pos - s.len(), self.get_defs(&s))
                     }
                 } else {
@@ -146,7 +147,7 @@ impl Completer for Repl {
 
 impl Validator for Repl {
     fn validate(&self, ctx: &mut ValidationContext<'_>) -> Result<ValidationResult, ReadlineError> {
-        match akuma::Parser::parse(ctx.input()) {
+        match akuma::Tokenizer::tokenize(ctx.input()) {
             Ok(tokens) => if tokens.is_empty() ||
                 tokens.iter().filter(|&t| t.is_left_paren()).count()
                 > tokens.iter().filter(|&t| t.is_right_paren()).count()

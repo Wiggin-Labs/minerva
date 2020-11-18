@@ -6,9 +6,10 @@ use std::collections::{HashMap, HashSet};
 use std::mem;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-fn make_label() -> String {
+fn make_label() -> Symbol {
     static LABEL: AtomicUsize = AtomicUsize::new(0);
-    LABEL.fetch_add(1, Ordering::SeqCst).to_string()
+    let l = LABEL.fetch_add(1, Ordering::SeqCst).to_string();
+    INTERNER.lock().unwrap().get_symbol(l)
 }
 
 fn get_register(used: &HashSet<Register>) -> Option<Register> {
@@ -24,7 +25,7 @@ pub fn compile(exp: Ast) -> Vec<ASM> {
     let mut used = HashSet::new();
     let mut c = Compiler {
         def: None,
-        def_label: String::new(),
+        def_label: INTERNER.lock().unwrap().get_symbol("".to_string()),
         last_expr: false,
         reg_mapping: HashMap::new(),
         stack_mapping: HashMap::new(),
@@ -35,10 +36,10 @@ pub fn compile(exp: Ast) -> Vec<ASM> {
 
 struct Compiler {
     def: Option<Symbol>,
-    def_label: String,
+    def_label: Symbol,
     last_expr: bool,
-    reg_mapping: HashMap<String, Register>,
-    stack_mapping: HashMap<String, usize>,
+    reg_mapping: HashMap<Symbol, Register>,
+    stack_mapping: HashMap<Symbol, usize>,
     sp: usize,
 }
 
@@ -60,7 +61,7 @@ impl Compiler {
         vec![ASM::LoadConst(target, p.to_value())]
     }
 
-    fn load_variable(&mut self, i: String, target: Register) -> Option<Vec<ASM>> {
+    fn load_variable(&mut self, i: Symbol, target: Register) -> Option<Vec<ASM>> {
         if let Some(&r) = self.reg_mapping.get(&i) {
             if target != r {
                 self.invalidate_register(target);
@@ -86,7 +87,7 @@ impl Compiler {
         for (k, val) in self.reg_mapping.iter() {
             if r == *val {
                 //if !self.stack_mapping.contains_key(k) {
-                    self.stack_mapping.insert(k.clone(), self.sp);
+                    self.stack_mapping.insert(*k, self.sp);
                     break;
                 //}
                 //return None;
@@ -110,7 +111,7 @@ impl Compiler {
                     }
                 }
                 */
-                key = Some(k.clone());
+                key = Some(*k);
                 break;
             }
         }
@@ -123,12 +124,12 @@ impl Compiler {
         Some(ASM::Restore(target))
     }
 
-    fn compile_variable(&mut self, i: String, target: Register, used: &mut HashSet<Register>) -> Vec<ASM> {
+    fn compile_variable(&mut self, i: Symbol, target: Register, used: &mut HashSet<Register>) -> Vec<ASM> {
         used.insert(target);
-        if let Some(v) = self.load_variable(i.clone(), target) {
+        if let Some(v) = self.load_variable(i, target) {
             v
         } else {
-            vec![ASM::LoadConst(target, Value::Symbol(INTERNER.lock().unwrap().get_symbol(i))),
+            vec![ASM::LoadConst(target, Value::Symbol(i)),
                  ASM::Lookup(target, target)]
         }
     }
@@ -141,7 +142,6 @@ impl Compiler {
         } else {
             (true, Register(1))
         };
-        let name = INTERNER.lock().unwrap().get_symbol(name);
         let mut def_label = make_label();
         mem::swap(&mut self.def_label, &mut def_label);
 
@@ -183,9 +183,9 @@ impl Compiler {
         self.stack_mapping = s;
 
         let mut alt = self._compile(alt, target, &mut used.clone());
-        pred.push(ASM::GotoIfNot(GotoValue::Label(alt_label.clone()), target));
+        pred.push(ASM::GotoIfNot(GotoValue::Label(alt_label), target));
         pred.append(&mut cons);
-        pred.push(ASM::Goto(GotoValue::Label(after_if.clone())));
+        pred.push(ASM::Goto(GotoValue::Label(after_if)));
         pred.push(ASM::Label(alt_label));
         pred.append(&mut alt);
         pred.push(ASM::Label(after_if));
@@ -251,7 +251,7 @@ impl Compiler {
         // Move any local variables first
         for v in &v {
             if let Ast::Ident(id) = v {
-                if let Some(mut v) = self.load_variable(id.clone(), Register(i)) {
+                if let Some(mut v) = self.load_variable(*id, Register(i)) {
                     instructions.append(&mut v);
                     u.insert(Register(i));
                 }
@@ -277,8 +277,7 @@ impl Compiler {
         }
         self.last_expr = l;
 
-        if let Ast::Ident(ref i) = op {
-            let s = INTERNER.lock().unwrap().get_symbol(i.clone());
+        if let Ast::Ident(s) = op {
             if let Some(d) = self.def {
                 if d == s && self.last_expr {
                     instructions.push(ASM::Goto(GotoValue::Label(self.def_label.clone())));
@@ -321,11 +320,11 @@ impl Compiler {
 #[derive(Debug)]
 pub enum Ast {
     Define {
-        name: String,
+        name: Symbol,
         value: Box<Ast>,
     },
     Lambda {
-        args: Vec<String>,
+        args: Vec<Symbol>,
         body: Vec<Ast>,
     },
     If {
@@ -335,12 +334,12 @@ pub enum Ast {
     },
     Begin(Vec<Ast>),
     Apply(Vec<Ast>),
-    Ident(String),
+    Ident(Symbol),
     Primitive(CompilePrimitive),
 }
 
 impl Ast {
-    fn unwrap_define(self) -> (String, Ast) {
+    fn unwrap_define(self) -> (Symbol, Ast) {
         match self {
             Ast::Define { name, value } => (name, *value),
             _ => unreachable!(),
@@ -355,7 +354,7 @@ impl Ast {
         }
     }
 
-    fn unwrap_lambda(self) -> (Vec<String>, Vec<Ast>) {
+    fn unwrap_lambda(self) -> (Vec<Symbol>, Vec<Ast>) {
         match self {
             Ast::Lambda { args, body } => (args, body),
             _ => unreachable!(),
@@ -375,6 +374,7 @@ pub enum CompilePrimitive {
     Nil,
     Bool(bool),
     Integer(i32),
+    Float(f64),
     String(String),
 }
 
@@ -385,6 +385,7 @@ impl CompilePrimitive {
             Nil => Value::Nil,
             Bool(b) => Value::Bool(b),
             Integer(i) => Value::Integer(i),
+            Float(i) => Value::Float(i),
             String(s) => Value::String(s),
         }
     }
