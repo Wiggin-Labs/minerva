@@ -1,4 +1,4 @@
-#![feature(nll)]
+#![feature(nll, try_trait)]
 #![cfg_attr(feature="profile", feature(plugin, custom_attribute))]
 #![cfg_attr(feature="profile", plugin(flamer))]
 #[cfg(feature="profile")]

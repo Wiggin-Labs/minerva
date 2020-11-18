@@ -51,45 +51,37 @@ impl Token {
     }
 
     fn parse_expr<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Ast, ParseError> {
-        if let Some(token) = tokens.next() {
-            match token {
-                Token::Symbol(s) => match INTERNER.lock().unwrap().get_value(*s).unwrap().as_str() {
-                    "define" => Self::parse_define(tokens),
-                    "lambda" => Self::parse_lambda(tokens),
-                    "if" => Self::parse_if(tokens),
-                    "begin" => Self::parse_begin(tokens),
-                    _ => Self::parse_application(Ast::Ident(*s), tokens),
-                }
-                Token::LeftParen => {
-                    let op = Self::parse_expr(tokens)?;
-                    Self::parse_application(op, tokens)
-                }
-                _ => unimplemented!(),
+        match tokens.next()? {
+            Token::Symbol(s) => match INTERNER.lock().unwrap().get_value(*s).unwrap().as_str() {
+                "define" => Self::parse_define(tokens),
+                "lambda" => Self::parse_lambda(tokens),
+                "if" => Self::parse_if(tokens),
+                "begin" => Self::parse_begin(tokens),
+                _ => Self::parse_application(Ast::Ident(*s), tokens),
             }
-        } else {
-            return Err(ParseError::EOF);
+            Token::LeftParen => {
+                let op = Self::parse_expr(tokens)?;
+                Self::parse_application(op, tokens)
+            }
+            _ => unimplemented!(),
         }
     }
 
     fn parse_define<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Ast, ParseError> {
-        let name = if let Some(Token::Symbol(s)) = tokens.next() {
+        let name = if let Token::Symbol(s) = tokens.next()? {
             s
         } else {
             return Err(ParseError::Input);
         };
 
-        let value = if let Some(token) = tokens.next() {
-            match token {
-                Token::LeftParen => Self::parse_expr(tokens)?,
-                Token::Symbol(s) => Ast::Ident(*s),
-                Token::Bool(_) => Ast::Primitive(token.to_primitive()),
-                Token::Integer(_) => Ast::Primitive(token.to_primitive()),
-                Token::String(_) => Ast::Primitive(token.to_primitive()),
-                Token::RightParen => return Err(ParseError::UnexpectedCloseParen),
-                _ => return Err(ParseError::Input),
-            }
-        } else {
-            return Err(ParseError::EOF);
+        let value = match tokens.next()? {
+            Token::LeftParen => Self::parse_expr(tokens)?,
+            Token::Symbol(s) => Ast::Ident(*s),
+            token @ Token::Bool(_) => Ast::Primitive(token.to_primitive()),
+            token @ Token::Integer(_) => Ast::Primitive(token.to_primitive()),
+            token @ Token::String(_) => Ast::Primitive(token.to_primitive()),
+            Token::RightParen => return Err(ParseError::UnexpectedCloseParen),
+            _ => return Err(ParseError::Input),
         };
 
         if let Some(token) = tokens.next() {
@@ -109,37 +101,29 @@ impl Token {
     fn parse_lambda<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Ast, ParseError> {
         let mut args = vec![];
 
-        match tokens.next() {
-            Some(Token::LeftParen) => (),
-            None => return Err(ParseError::EOF),
-            _ => return Err(ParseError::Input),
+        if !tokens.next()?.is_left_paren() {
+            return Err(ParseError::Input);
         }
 
         loop {
-            if let Some(token) = tokens.next() {
-                match token {
-                    Token::Symbol(s) => args.push(*s),
-                    Token::RightParen => break,
-                    _ => return Err(ParseError::Input),
-                }
-            } else {
-                return Err(ParseError::EOF);
+            match tokens.next()? {
+                Token::Symbol(s) => args.push(*s),
+                Token::RightParen => break,
+                _ => return Err(ParseError::Input),
             }
         }
 
-        let body = match tokens.peek() {
-            Some(Token::LeftParen) => Self::parse_begin(tokens)?.unwrap_begin(),
-            Some(Token::RightParen) => return Err(ParseError::UnexpectedCloseParen),
-            Some(Token::Symbol(s)) => {
+        let body = match tokens.peek()? {
+            Token::LeftParen => Self::parse_begin(tokens)?.unwrap_begin(),
+            Token::RightParen => return Err(ParseError::UnexpectedCloseParen),
+            Token::Symbol(s) => {
                 tokens.next();
-                match tokens.next() {
-                    Some(Token::RightParen) => (),
-                    None => return Err(ParseError::EOF),
-                    _ => return Err(ParseError::Input),
+                if !tokens.next()?.is_right_paren() {
+                    return Err(ParseError::Input);
                 }
                 vec![Ast::Ident(*s)]
             }
-            Some(_) => {
+            _ => {
                 let token = tokens.next().unwrap();
                 let body = match token {
                     Token::Bool(_) => vec![Ast::Primitive(token.to_primitive())],
@@ -147,14 +131,11 @@ impl Token {
                     Token::String(_) => vec![Ast::Primitive(token.to_primitive())],
                     _ => return Err(ParseError::Input),
                 };
-                match tokens.next() {
-                    Some(Token::RightParen) => (),
-                    None => return Err(ParseError::EOF),
-                    _ => return Err(ParseError::Input),
+                if !tokens.next()?.is_right_paren() {
+                    return Err(ParseError::Input);
                 }
                 body
             }
-            None => return Err(ParseError::EOF),
         };
 
         Ok(Ast::Lambda { args, body })
@@ -163,17 +144,13 @@ impl Token {
     fn parse_if<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Ast, ParseError> {
         macro_rules! if_match {
             ($tokens:ident) => {
-                if let Some(token) = $tokens.next() {
-                    match token {
-                        Token::LeftParen => Self::parse_expr($tokens)?,
-                        Token::Bool(_) => Ast::Primitive(token.to_primitive()),
-                        Token::Integer(_) => Ast::Primitive(token.to_primitive()),
-                        Token::String(_) => Ast::Primitive(token.to_primitive()),
-                        Token::Symbol(s) => Ast::Ident(*s),
-                        _ => return Err(ParseError::Input),
-                    }
-                } else {
-                    return Err(ParseError::EOF);
+                match $tokens.next()? {
+                    Token::LeftParen => Self::parse_expr($tokens)?,
+                    token @ Token::Bool(_) => Ast::Primitive(token.to_primitive()),
+                    token @ Token::Integer(_) => Ast::Primitive(token.to_primitive()),
+                    token @ Token::String(_) => Ast::Primitive(token.to_primitive()),
+                    Token::Symbol(s) => Ast::Ident(*s),
+                    _ => return Err(ParseError::Input),
                 }
             };
         }
@@ -199,36 +176,32 @@ impl Token {
 
     fn parse_begin<'a>(tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Ast, ParseError> {
         let mut sequence = vec![];
-        while let Some(token) = tokens.next() {
-            match token {
+        loop {
+            match tokens.next()? {
                 Token::RightParen => return Ok(Ast::Begin(sequence)),
                 Token::LeftParen => sequence.push(Self::parse_expr(tokens)?),
                 Token::Symbol(s) => sequence.push(Ast::Ident(*s)),
-                Token::Bool(_) => sequence.push(Ast::Primitive(token.to_primitive())),
-                Token::Integer(_) => sequence.push(Ast::Primitive(token.to_primitive())),
-                Token::String(_) => sequence.push(Ast::Primitive(token.to_primitive())),
+                token @ Token::Bool(_) => sequence.push(Ast::Primitive(token.to_primitive())),
+                token @ Token::Integer(_) => sequence.push(Ast::Primitive(token.to_primitive())),
+                token @ Token::String(_) => sequence.push(Ast::Primitive(token.to_primitive())),
                 _ => return Err(ParseError::Input),
             }
         }
-
-        Err(ParseError::EOF)
     }
 
     fn parse_application<'a>(op: Ast, tokens: &mut Peekable<Iter<'a, Self>>) -> Result<Ast, ParseError> {
         let mut args = vec![op];
-        while let Some(token) = tokens.next() {
-            match token {
+        loop {
+            match tokens.next()? {
                 Token::RightParen => return Ok(Ast::Apply(args)),
                 Token::LeftParen => args.push(Self::parse_expr(tokens)?),
                 Token::Symbol(s) => args.push(Ast::Ident(*s)),
-                Token::Bool(_) => args.push(Ast::Primitive(token.to_primitive())),
-                Token::Integer(_) => args.push(Ast::Primitive(token.to_primitive())),
-                Token::String(_) => args.push(Ast::Primitive(token.to_primitive())),
+                token @ Token::Bool(_) => args.push(Ast::Primitive(token.to_primitive())),
+                token @ Token::Integer(_) => args.push(Ast::Primitive(token.to_primitive())),
+                token @ Token::String(_) => args.push(Ast::Primitive(token.to_primitive())),
                 _ => return Err(ParseError::Input),
             }
         }
-
-        Err(ParseError::EOF)
     }
 
     fn to_primitive(&self) -> CompilePrimitive {
