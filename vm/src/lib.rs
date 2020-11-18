@@ -142,14 +142,18 @@ impl VM {
             if self.saved_state.is_empty() {
                 return;
             } else {
+                if self.debug {
+                    println!("ending call");
+                }
                 // Restore the saved program counter, code, and environment
                 let SaveState { pc, code, env, sp, fp } = self.saved_state.pop().unwrap();
                 self.pc = pc;
                 self.operations = code;
                 self.environment = env;
                 self.assign_sp(sp);
+                self.stack.resize(sp.to_integer() as usize, Value::Void);
                 self.assign_fp(fp);
-                return;
+                return self.step();
             }
         }
 
@@ -356,12 +360,18 @@ impl VM {
 
     fn goto_if(&mut self, op: Operation) {
         if Value::Bool(true) == self.load_register(op.gotoif_register()) {
+            if self.debug {
+                println!("branch taken");
+            }
             self._goto(op.gotoif_value());
         }
     }
 
     fn goto_if_not(&mut self, op: Operation) {
         if Value::Bool(false) == self.load_register(op.gotoifnot_register()) {
+            if self.debug {
+                println!("branch taken");
+            }
             self._goto(op.gotoifnot_value());
         }
     }
@@ -496,10 +506,6 @@ impl VM {
             self.pc = 0;
         } else {
             // TODO: return error
-        }
-
-        if self.debug {
-            println!("ending call");
         }
     }
 }

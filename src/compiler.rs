@@ -98,6 +98,7 @@ impl Compiler {
     }
 
     fn restore_register(&mut self, target: Register) -> Option<ASM> {
+        self.invalidate_register(target);
         self.sp -= 1;
         let mut key = None;
         for (k, p) in self.stack_mapping.iter() {
@@ -116,6 +117,7 @@ impl Compiler {
 
         if let Some(k) = key {
             self.stack_mapping.remove(&k);
+            self.reg_mapping.insert(k, target);
         }
 
         Some(ASM::Restore(target))
@@ -236,11 +238,13 @@ impl Compiler {
         let op = v.remove(0);
         let mut instructions = vec![];
         let mut vused = used.iter().collect::<Vec<_>>();
-        for &&r in vused.iter() {
-            if let Some(i) = self.save_register(r) {
-                instructions.push(i);
+        //if !self.last_expr {
+            for &&r in vused.iter() {
+                if let Some(i) = self.save_register(r) {
+                    instructions.push(i);
+                }
             }
-        }
+        //}
 
         let mut i = 1;
         let mut u = HashSet::new();
@@ -300,11 +304,13 @@ impl Compiler {
             instructions.push(ASM::Move(target, Register(0)));
         }
 
-        // We have to restore in reverse order
-        vused.reverse();
-        for &r in vused {
-            if let Some(i) = self.restore_register(r) {
-                instructions.push(i);
+        if !self.last_expr {
+            // We have to restore in reverse order
+            vused.reverse();
+            for &r in vused {
+                if let Some(i) = self.restore_register(r) {
+                    instructions.push(i);
+                }
             }
         }
 
