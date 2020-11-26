@@ -203,9 +203,6 @@ impl<'a> Parser<'a> {
             if self.tokens.peek()?.is_right_paren() {
                 self.tokens.next();
                 parens -= 1;
-            } else if self.tokens.peek()?.is_left_paren() {
-                parens += 1;
-                list_rev.push(self._parse_quote()?);
             } else {
                 list_rev.push(self._parse_quote()?);
             }
