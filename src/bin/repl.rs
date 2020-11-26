@@ -6,7 +6,7 @@ extern crate string_interner;
 extern crate vm;
 
 use akuma::{ParseError, Token};
-use vm::{assemble, init_env, Environment, Operation, Register, VM};
+use vm::{assemble, init_env, Environment, Operation, Register, Value, VM};
 
 use rustyline::{Context, Editor, Helper};
 use rustyline::completion::{Completer, FilenameCompleter, Pair};
@@ -15,7 +15,7 @@ use rustyline::error::ReadlineError;
 use rustyline::highlight::{Highlighter, MatchingBracketHighlighter};
 use rustyline::hint::Hinter;
 use rustyline::validate::{Validator, ValidationResult, ValidationContext};
-use string_interner::INTERNER;
+use string_interner::{get_symbol, get_value};
 
 use std::borrow::Cow;
 use std::fs::File;
@@ -36,7 +36,7 @@ fn main() {
     if let Ok(mut f) = File::open("~/.config/akuma/init.ss") {
         let mut input = String::new();
         f.read_to_string(&mut input).unwrap();
-        run(&mut vm, input);
+        run(&mut vm, None, input);
     }
 
     let config = config::Builder::new()
@@ -49,7 +49,7 @@ fn main() {
 
     let mut ctrlc = false;
     loop {
-        let s = INTERNER.lock().unwrap().get_symbol("$PROMPT".into());
+        let s = get_symbol("$PROMPT".into());
         let prompt = if let Some(v) = env.lookup_variable_value(s) {
             vm.assign_register(Register(0), v);
             vm.load_code(vec![Operation::Call(Register(0))]);
@@ -87,7 +87,7 @@ fn main() {
             break;
         }
 
-        run(&mut vm, input);
+        run(&mut vm, Some(&env), input);
     }
 
 
@@ -95,7 +95,7 @@ fn main() {
     flame::dump_html(&mut std::fs::File::create("profile2.html").unwrap()).unwrap();
 }
 
-fn run(vm: &mut VM, input: String) {
+fn run(vm: &mut VM, env: Option<&Environment>, input: String) {
     let tokens = match akuma::Tokenizer::tokenize(&input) {
         Ok(t) => t,
         Err(e) => {
@@ -122,8 +122,48 @@ fn run(vm: &mut VM, input: String) {
         let result = vm.load_register(Register(0));
         if !result.is_void() {
             println!("{}", result);
+            if let Some(env) = env {
+                swap_cash_vars(env, result);
+            }
         }
     }
+}
+
+fn swap_cash_vars(env: &Environment, v: Value) {
+    let cash1 = get_symbol("$1".into());
+    let cash2 = get_symbol("$2".into());
+    let cash3 = get_symbol("$3".into());
+    let cash4 = get_symbol("$4".into());
+    let cash5 = get_symbol("$5".into());
+    let cash6 = get_symbol("$6".into());
+    let cash7 = get_symbol("$7".into());
+    let cash8 = get_symbol("$8".into());
+    let cash9 = get_symbol("$9".into());
+    if let Some(v) = env.lookup_variable_value(cash8) {
+        env.define_variable(cash9, v);
+    }
+    if let Some(v) = env.lookup_variable_value(cash7) {
+        env.define_variable(cash8, v);
+    }
+    if let Some(v) = env.lookup_variable_value(cash6) {
+        env.define_variable(cash7, v);
+    }
+    if let Some(v) = env.lookup_variable_value(cash5) {
+        env.define_variable(cash6, v);
+    }
+    if let Some(v) = env.lookup_variable_value(cash4) {
+        env.define_variable(cash5, v);
+    }
+    if let Some(v) = env.lookup_variable_value(cash3) {
+        env.define_variable(cash4, v);
+    }
+    if let Some(v) = env.lookup_variable_value(cash2) {
+        env.define_variable(cash3, v);
+    }
+    if let Some(v) = env.lookup_variable_value(cash1) {
+        env.define_variable(cash2, v);
+    }
+    env.define_variable(cash1, v);
 }
 
 struct Repl {
@@ -140,7 +180,7 @@ impl Repl {
             .map(|s| s.clone())
             .collect();
         let mut defs = self.env.get_definitions().iter()
-            .map(|s| INTERNER.lock().unwrap().get_value(*s).unwrap())
+            .map(|s| get_value(*s).unwrap())
             .filter(|s| s.starts_with(start))
             .collect();
         keywords.append(&mut defs);
@@ -159,7 +199,7 @@ impl Completer for Repl {
                     if l.chars().last().unwrap().is_whitespace() {
                         (pos, self.get_defs(""))
                     } else {
-                        let s = INTERNER.lock().unwrap().get_value(*s).unwrap();
+                        let s = get_value(*s).unwrap();
                         (pos - s.len(), self.get_defs(&s))
                     }
                 } else {
