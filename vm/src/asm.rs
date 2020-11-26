@@ -1,6 +1,6 @@
 use {Instruction, Environment, Operation, Value};
 
-use string_interner::{INTERNER, Symbol};
+use string_interner::{get_value, Symbol};
 
 use std::collections::HashMap;
 use std::fmt;
@@ -82,7 +82,7 @@ pub enum GotoValue {
 impl fmt::Display for GotoValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            GotoValue::Label(s) => write!(f, "`{}`", INTERNER.lock().unwrap().get_value(*s).unwrap()),
+            GotoValue::Label(s) => write!(f, "`{}`", get_value(*s).unwrap()),
             GotoValue::Register => write!(f, "LR"),
         }
     }
@@ -148,7 +148,7 @@ impl fmt::Display for ASM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::ASM::*;
         match self {
-            LoadContinue(s) => write!(f, "LOADCONTINUE {}", INTERNER.lock().unwrap().get_value(*s).unwrap()),
+            LoadContinue(s) => write!(f, "LOADCONTINUE {}", get_value(*s).unwrap()),
             SaveContinue => write!(f, "SAVECONTINUE"),
             RestoreContinue => write!(f, "RESTORECONTINUE"),
             Save(r) => write!(f, "SAVE {}", r),
@@ -181,7 +181,7 @@ impl fmt::Display for ASM {
             Lookup(r1, r2) => write!(f, "LOOKUP {}, {}", r1, r2),
             Call(r) => write!(f, "CALL {}", r),
             Return => write!(f, "RETURN"),
-            Label(s) => write!(f, "{}:", INTERNER.lock().unwrap().get_value(*s).unwrap()),
+            Label(s) => write!(f, "{}:", get_value(*s).unwrap()),
         }
     }
 }
@@ -195,7 +195,7 @@ pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {
         match inst {
             ASM::Label(l) => {
                 if labels.contains_key(&l) {
-                    panic!("Label `{}` defined more than once", INTERNER.lock().unwrap().get_value(l).unwrap());
+                    panic!("Label `{}` defined more than once", get_value(l).unwrap());
                 }
                 labels.insert(l, ops.len());
             }
@@ -296,7 +296,7 @@ pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {
         let p = if let Some(p) = labels.get(&label) {
             *p
         } else {
-            panic!("Unknown label `{}`", INTERNER.lock().unwrap().get_value(label).unwrap());
+            panic!("Unknown label `{}`", get_value(label).unwrap());
         };
 
         assert!(i < ops.len());

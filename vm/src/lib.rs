@@ -12,7 +12,7 @@ pub use bytecode::{Instruction, Operation};
 pub use value::Value;
 pub use value::heap_repr::{Lambda, Pair};
 
-use string_interner::{INTERNER, Symbol};
+use string_interner::Symbol;
 
 use std::{io, mem};
 use std::io::Write;
@@ -274,12 +274,12 @@ impl VM {
 
     /// Convert `symbol` to a Symbol.
     pub fn intern_symbol(symbol: String) -> Symbol {
-        INTERNER.lock().unwrap().get_symbol(symbol)
+        string_interner::get_symbol(symbol)
     }
 
     /// Get the string value of `symbol`.
     pub fn get_symbol_value(symbol: Symbol) -> String {
-        INTERNER.lock().unwrap().get_value(symbol).unwrap()
+        string_interner::get_value(symbol).unwrap()
     }
 
     /// Assign a label to the `continue` register.

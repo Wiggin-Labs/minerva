@@ -1,6 +1,6 @@
 use vm::{ASM, GotoValue, Register, Value};
 
-use string_interner::{INTERNER, Symbol};
+use string_interner::{get_symbol, Symbol};
 
 use std::collections::{HashMap, HashSet};
 use std::mem;
@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 fn make_label() -> Symbol {
     static LABEL: AtomicUsize = AtomicUsize::new(0);
     let l = LABEL.fetch_add(1, Ordering::SeqCst).to_string();
-    INTERNER.lock().unwrap().get_symbol(l)
+    get_symbol(l)
 }
 
 fn get_register(used: &HashSet<Register>) -> Option<Register> {
@@ -25,7 +25,7 @@ pub fn compile(exp: Ast) -> Vec<ASM> {
     let mut used = HashSet::new();
     let mut c = Compiler {
         def: None,
-        def_label: INTERNER.lock().unwrap().get_symbol("".to_string()),
+        def_label: get_symbol("".to_string()),
         last_expr: false,
         reg_mapping: HashMap::new(),
         stack_mapping: HashMap::new(),

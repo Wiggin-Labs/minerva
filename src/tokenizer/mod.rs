@@ -1,7 +1,7 @@
 use {ParseError, Token};
 
 use regex::Regex;
-use string_interner::{INTERNER, Symbol};
+use string_interner::get_symbol;
 
 use std::iter::Peekable;
 use std::str::Chars;
@@ -12,10 +12,6 @@ pub struct Tokenizer<'a> {
     position: usize,
     input: Peekable<Chars<'a>>,
     tokens: Vec<Token>,
-}
-
-fn get_symbol<S: Into<String>>(s: S) -> Symbol {
-    INTERNER.lock().unwrap().get_symbol(s.into())
 }
 
 impl<'a> Tokenizer<'a> {

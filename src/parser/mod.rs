@@ -83,7 +83,6 @@ impl<'a> Parser<'a> {
     fn parse_expr(&mut self) -> Result<Ast, ParseError> {
         match self.tokens.next()? {
             Token::Symbol(s) => match get_value(*s).unwrap().as_str() {
-            //Token::Symbol(s) => match INTERNER.lock().unwrap().get_value(*s).unwrap().as_str() {
                 "define" => self.parse_define(),
                 "lambda" => self.parse_lambda(),
                 "if" => self.parse_if(),
