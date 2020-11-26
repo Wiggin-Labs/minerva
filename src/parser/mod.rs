@@ -100,17 +100,39 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_define(&mut self) -> Result<Ast, ParseError> {
-        let name = if let Token::Symbol(s) = self.tokens.next()? {
-            s
-        } else {
-            return Err(ParseError::Input);
+        let mut proc = false;
+        let name = match self.tokens.next()? {
+            Token::Symbol(s) => *s,
+            Token::LeftParen => if let Token::Symbol(s) = self.tokens.next()? {
+                proc = true;
+                *s
+            } else {
+                return Err(ParseError::Input);
+            },
+            _ => return Err(ParseError::Input),
         };
 
-        let value = self._parse()?;
-        self.read_closer()?;
+        let value = if proc {
+            let mut args = Vec::new();
+            loop {
+                match self.tokens.next()? {
+                    Token::Symbol(s) => args.push(*s),
+                    Token::RightParen => break,
+                    _ => return Err(ParseError::Input),
+                }
+            }
+            Ast::Lambda{
+                args: args,
+                body: self.lambda_body()?,
+            }
+        } else {
+            let v = self._parse()?;
+            self.read_closer()?;
+            v
+        };
 
         Ok(Ast::Define {
-            name: *name,
+            name: name,
             value: Box::new(value)
         })
     }
@@ -130,17 +152,21 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let body = match self.tokens.peek()? {
-            Token::LeftParen => self.parse_begin()?.unwrap_begin(),
+        let body = self.lambda_body()?;
+
+        Ok(Ast::Lambda { args, body })
+    }
+
+    fn lambda_body(&mut self) -> Result<Vec<Ast>, ParseError> {
+        match self.tokens.peek()? {
+            Token::LeftParen => Ok(self.parse_begin()?.unwrap_begin()),
             Token::RightParen => return Err(ParseError::UnexpectedCloseParen),
             _ => {
                 let v = vec![self._parse()?];
                 self.read_closer()?;
-                v
+                Ok(v)
             }
-        };
-
-        Ok(Ast::Lambda { args, body })
+        }
     }
 
     fn parse_if(&mut self) -> Result<Ast, ParseError> {
