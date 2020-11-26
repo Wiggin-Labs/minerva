@@ -9,6 +9,10 @@ use std::fmt;
 pub struct Register(pub u8);
 
 impl Register {
+    pub const FP: Self = Register(29);
+    pub const SP: Self = Register(30);
+    pub const XZR: Self = Register(31);
+
     pub fn from_str(r: &str) -> Option<Self> {
         Some(Register(match r {
             "X0" => 0,

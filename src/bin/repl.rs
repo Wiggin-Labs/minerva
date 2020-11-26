@@ -6,7 +6,7 @@ extern crate string_interner;
 extern crate vm;
 
 use akuma::{ParseError, Token};
-use vm::{assemble, init_env, Environment, Register, VM};
+use vm::{assemble, init_env, Environment, Operation, Register, VM};
 
 use rustyline::{Context, Editor, Helper};
 use rustyline::completion::{Completer, FilenameCompleter, Pair};
@@ -18,6 +18,8 @@ use rustyline::validate::{Validator, ValidationResult, ValidationContext};
 use string_interner::INTERNER;
 
 use std::borrow::Cow;
+use std::fs::File;
+use std::io::Read;
 
 fn main() {
     let mut vm = VM::new();
@@ -25,11 +27,17 @@ fn main() {
     let env = init_env();
     vm.assign_environment(env.clone());
     let repl = Repl {
-        env: env,
+        env: env.clone(),
         keywords: vec!["define".into(), "if".into(), "lambda".into(), "begin".into()],
         path: FilenameCompleter::new(),
         m: MatchingBracketHighlighter::new(),
     };
+
+    if let Ok(mut f) = File::open("~/.config/akuma/init.ss") {
+        let mut input = String::new();
+        f.read_to_string(&mut input).unwrap();
+        run(&mut vm, input);
+    }
 
     let config = config::Builder::new()
         .completion_type(CompletionType::List)
@@ -41,7 +49,26 @@ fn main() {
 
     let mut ctrlc = false;
     loop {
-        let input = match rl.readline(">> ") {
+        let s = INTERNER.lock().unwrap().get_symbol("$PROMPT".into());
+        let prompt = if let Some(v) = env.lookup_variable_value(s) {
+            vm.assign_register(Register(0), v);
+            vm.load_code(vec![Operation::Call(Register(0))]);
+            vm.run();
+            let p = vm.load_register(Register(0));
+            if p.is_string() {
+                let v = p.to_string();
+                let s = v.p.clone();
+                Box::into_raw(v);
+                s
+            } else {
+                println!("ERROR: Expected $PROMPT to produce a string!");
+                ">> ".to_string()
+            }
+        } else {
+            ">> ".to_string()
+        };
+
+        let input = match rl.readline(&prompt) {
             Ok(i) => i,
             Err(e) => match e {
                 ReadlineError::Eof => return,
@@ -60,39 +87,43 @@ fn main() {
             break;
         }
 
-        let tokens = match akuma::Tokenizer::tokenize(&input) {
-            Ok(t) => t,
-            Err(e) => {
-                println!("ERROR: {}", e);
-                continue;
-            }
-        };
-
-        let ast = match akuma::Token::build_ast(tokens) {
-            Ok(o) => o,
-            Err(e) => {
-                println!("ERROR: {}", e);
-                continue;
-            }
-        };
-
-        for ast in ast {
-            let asm = akuma::compile(ast);
-            for i in &asm {
-                println!("{}", i);
-            }
-            vm.load_code(assemble(asm));
-            vm.run();
-            let result = vm.load_register(Register(0));
-            if !result.is_void() {
-                println!("{}", result);
-            }
-        }
+        run(&mut vm, input);
     }
 
 
     #[cfg(feature="profile")]
     flame::dump_html(&mut std::fs::File::create("profile2.html").unwrap()).unwrap();
+}
+
+fn run(vm: &mut VM, input: String) {
+    let tokens = match akuma::Tokenizer::tokenize(&input) {
+        Ok(t) => t,
+        Err(e) => {
+            println!("ERROR: {}", e);
+            return;
+        }
+    };
+
+    let ast = match akuma::Parser::parse(tokens) {
+        Ok(o) => o,
+        Err(e) => {
+            println!("ERROR: {}", e);
+            return;
+        }
+    };
+
+    for ast in ast {
+        let asm = akuma::compile(ast);
+        for i in &asm {
+            println!("{}", i);
+        }
+        vm.load_code(assemble(asm));
+        vm.run();
+        let result = vm.load_register(Register(0));
+        if !result.is_void() {
+            println!("{}", result);
+        }
+    }
 }
 
 struct Repl {

@@ -1,4 +1,4 @@
-#![feature(nll, try_trait)]
+#![feature(try_trait)]
 #![cfg_attr(feature="profile", feature(plugin, custom_attribute))]
 #![cfg_attr(feature="profile", plugin(flamer))]
 #[cfg(feature="profile")]
@@ -19,5 +19,5 @@ mod tokenizer;
 
 pub use compiler::{Ast, compile, CompilePrimitive};
 pub use error::Error;
-pub use parser::{ParseError, Token};
+pub use parser::{Parser, ParseError, Token};
 pub use tokenizer::Tokenizer;
