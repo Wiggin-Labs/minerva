@@ -56,9 +56,9 @@ impl Compiler {
         }
     }
 
-    fn compile_self_evaluating(&mut self, p: CompilePrimitive, target: Register, used: &mut HashSet<Register>) -> Vec<ASM> {
+    fn compile_self_evaluating(&mut self, p: Value, target: Register, used: &mut HashSet<Register>) -> Vec<ASM> {
         used.insert(target);
-        vec![ASM::LoadConst(target, p.to_value())]
+        vec![ASM::LoadConst(target, p)]
     }
 
     fn load_variable(&mut self, i: Symbol, target: Register) -> Option<Vec<ASM>> {
@@ -335,7 +335,7 @@ pub enum Ast {
     Begin(Vec<Ast>),
     Apply(Vec<Ast>),
     Ident(Symbol),
-    Primitive(CompilePrimitive),
+    Primitive(Value),
 }
 
 impl Ast {
@@ -365,28 +365,6 @@ impl Ast {
         match self {
             Ast::Begin(b) => b,
             _ => unreachable!(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum CompilePrimitive {
-    Nil,
-    Bool(bool),
-    Integer(i32),
-    Float(f64),
-    String(String),
-}
-
-impl CompilePrimitive {
-    pub fn to_value(self) -> Value {
-        use self::CompilePrimitive::*;
-        match self {
-            Nil => Value::Nil,
-            Bool(b) => Value::Bool(b),
-            Integer(i) => Value::Integer(i),
-            Float(i) => Value::Float(i),
-            String(s) => Value::String(s),
         }
     }
 }

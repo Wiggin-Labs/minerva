@@ -2,7 +2,8 @@ mod error;
 
 pub use self::error::ParseError;
 
-use {Ast, CompilePrimitive};
+use {Ast};
+use vm::Value;
 
 use string_interner::{get_value, Symbol};
 
@@ -31,13 +32,13 @@ pub enum Token {
 }
 
 impl Token {
-    fn to_primitive(&self) -> CompilePrimitive {
+    fn to_primitive(&self) -> Value {
         match self {
-            Token::Nil => CompilePrimitive::Nil,
-            Token::Bool(b) => CompilePrimitive::Bool(*b),
-            Token::String(s) => CompilePrimitive::String(s.to_string()),
-            Token::Integer(i) => CompilePrimitive::Integer(*i),
-            Token::Float(i) => CompilePrimitive::Float(*i),
+            Token::Nil => Value::Nil,
+            Token::Bool(b) => Value::Bool(*b),
+            Token::String(s) => Value::String(s.to_string()),
+            Token::Integer(i) => Value::Integer(*i),
+            Token::Float(i) => Value::Float(*i),
             _ => unreachable!(),
         }
     }
@@ -183,7 +184,39 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_quote(&mut self) -> Result<Ast, ParseError> {
-        todo!()
+        Ok(Ast::Primitive(self._parse_quote()?))
+    }
+    fn _parse_quote(&mut self) -> Result<Value, ParseError> {
+        match self.tokens.next()? {
+            Token::LeftParen => self.quote_list(),
+            Token::Symbol(s) => Ok(Value::Symbol(*s)),
+            t @ Token::Nil | t @ Token::Bool(_) | t @ Token::String(_) |
+                t @ Token::Integer(_) | t @ Token::Float(_) => Ok(t.to_primitive()),
+            _ => Err(ParseError::Input),
+        }
+    }
+
+    fn quote_list(&mut self) -> Result<Value, ParseError> {
+        let mut parens = 1;
+        let mut list_rev = Vec::new();
+        while parens != 0 {
+            if self.tokens.peek()?.is_right_paren() {
+                self.tokens.next();
+                parens -= 1;
+            } else if self.tokens.peek()?.is_left_paren() {
+                parens += 1;
+                list_rev.push(self._parse_quote()?);
+            } else {
+                list_rev.push(self._parse_quote()?);
+            }
+        }
+
+        let mut list = Value::Nil;
+        for i in 0..list_rev.len() {
+            list = Value::Pair(list_rev[list_rev.len()-1-i], list);
+        }
+
+        Ok(list)
     }
 
     fn read_closer(&mut self) -> Result<(), ParseError> {

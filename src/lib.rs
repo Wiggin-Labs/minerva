@@ -17,7 +17,7 @@ mod error;
 mod parser;
 mod tokenizer;
 
-pub use compiler::{Ast, compile, CompilePrimitive};
+pub use compiler::{Ast, compile};
 pub use error::Error;
 pub use parser::{Parser, ParseError, Token};
 pub use tokenizer::Tokenizer;
