@@ -69,7 +69,7 @@ impl<'a> Parser<'a> {
         match self.tokens.next()? {
             Token::Comment(_) | Token::BlockComment(_) => self._parse(),
             Token::LeftParen => self.parse_expr(),
-            Token::Quote => self.parse_quote(),
+            Token::Quote => self.parse_quote(false),
             Token::Symbol(s) => Ok(Ast::Ident(*s)),
             t @ Token::Nil | t @ Token::Bool(_) | t @ Token::String(_) |
                 t @ Token::Integer(_) | t @ Token::Float(_) => Ok(Ast::Primitive(t.to_primitive())),
@@ -88,6 +88,7 @@ impl<'a> Parser<'a> {
                 "lambda" => self.parse_lambda(),
                 "if" => self.parse_if(),
                 "begin" => self.parse_begin(),
+                "quote" => self.parse_quote(true),
                 _ => self.parse_application(Ast::Ident(*s)),
             }
             Token::LeftParen => {
@@ -183,9 +184,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_quote(&mut self) -> Result<Ast, ParseError> {
-        Ok(Ast::Primitive(self._parse_quote()?))
+    fn parse_quote(&mut self, read_closer: bool) -> Result<Ast, ParseError> {
+        let p = Ast::Primitive(self._parse_quote()?);
+        if read_closer {
+            self.read_closer()?;
+        }
+        Ok(p)
     }
+
     fn _parse_quote(&mut self) -> Result<Value, ParseError> {
         match self.tokens.next()? {
             Token::LeftParen => self.quote_list(),
