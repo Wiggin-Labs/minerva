@@ -1,16 +1,23 @@
+#![feature(once_cell)]
+
 extern crate string_interner;
+
 mod asm;
 mod bytecode;
 mod environment;
+mod gc;
 mod init;
 mod value;
 
 pub use asm::{assemble, GotoValue, ASM, Register};
 pub use environment::Environment;
+pub use gc::*;
 pub use init::init_env;
 pub use bytecode::{Instruction, Operation};
 pub use value::Value;
 pub use value::heap_repr::{Lambda, Pair};
+
+use value::VType;
 
 use string_interner::Symbol;
 
@@ -194,6 +201,7 @@ impl VM {
             Instruction::Call => self.call(op),
             Instruction::Return => self.pc = self.operations.len(),
         }
+        self.gc();
     }
 
     /// Reset the machine. Keeps the current code and constants.
@@ -419,7 +427,7 @@ impl VM {
     fn string_to_symbol(&mut self, op: Operation) {
         // TODO: handle case where `string` isn't a string
         let pointer = self.load_register(op.stringtosymbol_value()).to_string();
-        let sym = VM::intern_symbol(pointer.p.clone());
+        let sym = VM::intern_symbol(pointer.str.clone());
         self.assign_register(op.stringtosymbol_register(), Value::Symbol(sym));
         // Make sure this value isn't freed.
         Box::into_raw(pointer);
@@ -428,7 +436,6 @@ impl VM {
     fn cons(&mut self, op: Operation) {
         let car = self.load_register(op.cons_car());
         let cdr = self.load_register(op.cons_cdr());
-        // TODO: gc bits
         let pointer = Value::Pair(car, cdr);
 
         self.assign_register(op.cons_register(), pointer);
@@ -507,6 +514,75 @@ impl VM {
         } else {
             // TODO: return error
         }
+    }
+
+    pub fn gc(&mut self) {
+        if self.debug { println!("Beginning garbage collection") }
+        if self.debug { println!("marking") }
+        self.mark();
+        if self.debug { println!("sweeping") }
+        self.sweep();
+        if self.debug { println!("Done with garbage collection") }
+    }
+
+    fn mark(&mut self) {
+        for i in 0..32 {
+            self.load_register(Register(i)).mark();
+        }
+
+        for v in &self.stack {
+            v.mark();
+        }
+
+        // TODO: constants
+        self.environment.mark();
+    }
+
+    fn sweep(&mut self) {
+        let mut current = get_head();
+        let mut previous = None;
+        let mut new_root = 0;
+        while current != 0 {
+            let ty = VType::from(current >> 56);
+            // Perform sign extension, we make sure that the lowest bit is set to 0
+            let ptr = if (current >> 55) & 1 == 1 {
+                current & 0xFF_FF_FF_FF_FF_FF_FF_FE
+            } else {
+                current & 0x00_00_FF_FF_FF_FF_FF_FE
+            };
+            macro_rules! ty_match {
+                ($T:ty, $ptr:ident, $current:ident, $previous:ident, $new_root:ident) => {
+                    {
+                        let mut p = unsafe { Box::from_raw($ptr as *mut $T) };
+                        if p.gc & 1 != 1 {
+                            if let Some(previous) = $previous {
+                                Value::set_gc(previous, p.gc);
+                            }
+                            $current = p.gc;
+                            mem::drop(p);
+                        } else {
+                            if $new_root == 0 {
+                                $new_root = $current;
+                            }
+                            p.gc = p.gc - 1;
+                            $previous = Some($current);
+                            $current = p.gc;
+                            Box::into_raw(p);
+                        }
+                    }
+                };
+            }
+
+            match ty {
+                VType::Lambda => ty_match!(Lambda, ptr, current, previous, new_root),
+                VType::Pair => ty_match!(Pair, ptr, current, previous, new_root),
+                VType::String => ty_match!(value::heap_repr::SString, ptr, current, previous, new_root),
+                VType::Vec => ty_match!(value::heap_repr::SVec, ptr, current, previous, new_root),
+                _ => unreachable!(),
+            }
+        }
+
+        set_head(new_root, VType::from(new_root >> 56));
     }
 }
 

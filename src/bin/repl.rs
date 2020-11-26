@@ -57,7 +57,7 @@ fn main() {
             let p = vm.load_register(Register(0));
             if p.is_string() {
                 let v = p.to_string();
-                let s = v.p.clone();
+                let s = v.str.clone();
                 Box::into_raw(v);
                 s
             } else {

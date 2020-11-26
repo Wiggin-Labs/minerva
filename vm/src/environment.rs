@@ -69,6 +69,10 @@ impl Environment {
     pub fn get_definitions(&self) -> Vec<Symbol> {
         self.env.borrow().get_definitions()
     }
+
+    pub fn mark(&self) {
+        self.env.borrow().mark()
+    }
 }
 
 #[derive(Default)]
@@ -120,5 +124,14 @@ impl _Environment {
             definitions.append(&mut env.get_definitions());
         }
         definitions
+    }
+
+    pub fn mark(&self) {
+        for v in self.bindings.values() {
+            v.mark();
+        }
+        if let Some(ref env) = self.parent {
+            env.mark()
+        }
     }
 }

@@ -218,8 +218,7 @@ pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {
             ASM::MakeClosure(r, code) => {
                 // Compile lambda
                 let lambda_code = assemble(*code);
-                // TODO: gc, arity
-                let lambda = Value::Lambda(Environment::new(), 0, lambda_code);
+                let lambda = Value::Lambda(Environment::new(), lambda_code);
                 ops.push(Operation::MakeClosure(r));
                 ops.push(Operation(lambda.0 as u32));
                 ops.push(Operation((lambda.0 >> 32) as u32));
