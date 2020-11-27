@@ -38,6 +38,24 @@ macro_rules! register {
     };
 }
 
+macro_rules! register_constant {
+    ($instruction:ident, $register:ident, $constant:ident) => {
+        pub fn $instruction(register: Register, constant: usize) -> Self {
+            let register = register.0 as u32;
+            let constant = constant as u32;
+            Operation((constant << 16) | (register << 8) | ($instruction as u32))
+        }
+
+        pub fn $register(self) -> Register {
+            Register::from((self.0 >> 8) & 0xFF)
+        }
+
+        pub fn $constant(self) -> usize {
+            (self.0 >> 16) as usize
+        }
+    };
+}
+
 macro_rules! register2 {
     ($instruction:ident, $to:ident, $from:ident) => {
         pub fn $instruction(to: Register, from: Register) -> Self {
@@ -221,10 +239,10 @@ impl Operation {
 
 
     // Create a LoadConst instruction. The register to load into uses 1 byte.
-    register!(LoadConst, loadconst_register);
+    register_constant!(LoadConst, loadconst_register, loadconst_constant);
 
     // Create a MakeClosure instruction. The register to load into uses 1 byte.
-    register!(MakeClosure, makeclosure_register);
+    register_constant!(MakeClosure, makeclosure_register, makeclosure_constant);
 
     // Creates a Move instruction. Takes the form `from-to-Move`.
     // Retrieve the `to` register used in a Move instruction.

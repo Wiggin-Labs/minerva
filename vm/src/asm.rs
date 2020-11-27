@@ -186,8 +186,9 @@ impl fmt::Display for ASM {
     }
 }
 
-pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {
+pub fn assemble(asm: Vec<ASM>) -> (Vec<Operation>, Vec<Value>) {
     let mut ops = Vec::new();
+    let mut consts = Vec::new();
     let mut labels = HashMap::new();
     let mut jumps = Vec::new();
 
@@ -211,17 +212,15 @@ pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {
             ASM::Restore(r) => ops.push(Operation::Restore(r)),
             ASM::ReadStack(r, p) => ops.push(Operation::ReadStack(r, p)),
             ASM::LoadConst(r, v) => {
-                ops.push(Operation::LoadConst(r));
-                ops.push(Operation(v.0 as u32));
-                ops.push(Operation((v.0 >> 32) as u32));
+                ops.push(Operation::LoadConst(r, consts.len()));
+                consts.push(v);
             }
             ASM::MakeClosure(r, code) => {
                 // Compile lambda
-                let lambda_code = assemble(*code);
-                let lambda = Value::Lambda(Environment::new(), lambda_code);
-                ops.push(Operation::MakeClosure(r));
-                ops.push(Operation(lambda.0 as u32));
-                ops.push(Operation((lambda.0 >> 32) as u32));
+                let (lambda_code, lambda_consts) = assemble(*code);
+                let lambda = Value::Lambda(Environment::new(), lambda_code, lambda_consts);
+                ops.push(Operation::MakeClosure(r, consts.len()));
+                consts.push(lambda);
             }
             ASM::Move(r1, r2) => ops.push(Operation::Move(r1, r2)),
             ASM::Goto(l) => match l {
@@ -308,5 +307,5 @@ pub fn assemble(asm: Vec<ASM>) -> Vec<Operation> {
         }
     }
 
-    ops
+    (ops, consts)
 }

@@ -196,9 +196,9 @@ impl Value {
         Symbol::new(self.0 as u32 as usize)
     }
 
-    pub fn Lambda(env: Environment, code: Vec<Operation>) -> Self {
+    pub fn Lambda(env: Environment, code: Vec<Operation>, consts: Vec<Value>) -> Self {
         let next = get_head();
-        let lambda = Box::into_raw(Box::new(Lambda::new(next, env, code)));
+        let lambda = Box::into_raw(Box::new(Lambda::new(next, env, code, consts)));
         let p = lambda as u64;
         set_head(p, VType::Lambda);
         Value(NAN | LAMBDA_TAG | (p & ((1 << 48) - 1)))
@@ -279,22 +279,33 @@ impl Value {
         match self.to_type() {
             VType::Lambda => {
                 let mut p = self.to_lambda();
-                p.gc = p.gc | 1;
+                if p.gc & 1 != 1 {
+                    p.gc = p.gc | 1;
+                    // TODO
+                    for v in &p.consts {
+                        v.mark();
+                    }
+                    p.env.mark();
+                }
                 Box::into_raw(p);
             }
             VType::Pair => {
                 let mut p = self.to_pair();
-                p.gc = p.gc | 1;
-                p.car.mark();
-                p.cdr.mark();
+                if p.gc & 1 != 1 {
+                    p.gc = p.gc | 1;
+                    p.car.mark();
+                    p.cdr.mark();
+                }
                 Box::into_raw(p);
             }
             VType::Vec => {
                 let mut p = self.to_vec();
-                for v in &p.vec {
-                    v.mark();
+                if p.gc & 1 != 1 {
+                    p.gc = p.gc | 1;
+                    for v in &p.vec {
+                        v.mark();
+                    }
                 }
-                p.gc = p.gc | 1;
                 Box::into_raw(p);
             }
             VType::String => {
@@ -422,14 +433,16 @@ pub mod heap_repr {
         pub(crate) gc: u64,
         pub env: Environment,
         pub code: Vec<Operation>,
+        pub consts: Vec<Value>,
     }
 
     impl Lambda {
-        pub fn new(root: u64, env: Environment, code: Vec<Operation>) -> Self {
+        pub fn new(gc: u64, env: Environment, code: Vec<Operation>, consts: Vec<Value>) -> Self {
             Lambda {
-                gc: root & 0xff_ffff_ffff_ffff,
+                gc: gc,
                 env: env,
-                code,
+                code: code,
+                consts: consts,
             }
         }
     }
@@ -443,8 +456,6 @@ pub mod heap_repr {
     impl Pair {
         pub fn new(gc: u64, car: Value, cdr: Value) -> Self {
             Pair {
-                // set top byte to 0 so it can be used for gc
-                //gc: root & 0xff_ffff_ffff_ffff,
                 gc: gc,
                 car,
                 cdr,

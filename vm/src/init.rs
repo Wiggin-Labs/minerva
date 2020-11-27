@@ -32,6 +32,6 @@ pub fn init_env() -> Environment {
 }
 
 fn add_primitive(env: &Environment, name: String, code: Vec<ASM>) {
-    let code = assemble(code);
-    env.define_variable(VM::intern_symbol(name), Value::Lambda(env.clone(), code));
+    let (code, consts) = assemble(code);
+    env.define_variable(VM::intern_symbol(name), Value::Lambda(env.clone(), code, consts));
 }

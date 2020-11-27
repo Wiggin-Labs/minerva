@@ -30,6 +30,7 @@ pub struct VM {
     debug: bool,
     step: usize,
     operations: Vec<Operation>,
+    constants: Vec<Value>,
     environment: Environment,
     stack: Vec<Value>,
     kontinue_stack: Vec<usize>,
@@ -56,6 +57,7 @@ impl VM {
             debug: false,
             step: 0,
             operations: vec![],
+            constants: vec![],
             environment: Environment::new(),
             stack: vec![],
             kontinue_stack: vec![],
@@ -153,9 +155,10 @@ impl VM {
                     println!("ending call");
                 }
                 // Restore the saved program counter, code, and environment
-                let SaveState { pc, code, env, sp, fp } = self.saved_state.pop().unwrap();
+                let SaveState { pc, code, consts, env, sp, fp } = self.saved_state.pop().unwrap();
                 self.pc = pc;
                 self.operations = code;
+                self.constants = consts;
                 self.environment = env;
                 self.assign_sp(sp);
                 self.stack.resize(sp.to_integer() as usize, Value::Void);
@@ -237,8 +240,9 @@ impl VM {
     }
 
     /// Load code into the machine.
-    pub fn load_code(&mut self, code: Vec<Operation>) {
+    pub fn load_code(&mut self, code: Vec<Operation>, consts: Vec<Value>) {
         self.operations = code;
+        self.constants = consts;
         self.pc = 0;
     }
 
@@ -336,18 +340,12 @@ impl VM {
     }
 
     fn load_const(&mut self, op: Operation) {
-        let c = (self.operations[self.pc+1].0 as u64) << 32;
-        let c = c | (self.operations[self.pc].0 as u64);
-        let constant = Value(c);
-        self.pc += 2;
+        let constant = self.constants[op.loadconst_constant()];
         self.assign_register(op.loadconst_register(), constant);
     }
 
     fn make_closure(&mut self, op: Operation) {
-        let c = (self.operations[self.pc+1].0 as u64) << 32;
-        let c = c | (self.operations[self.pc].0 as u64);
-        let pointer = Value(c);
-        self.pc += 2;
+        let pointer = self.constants[op.loadconst_constant()];
         let mut lambda = pointer.to_lambda();
         // TODO extend env?
         (*lambda).env = self.environment.extend();
@@ -494,8 +492,10 @@ impl VM {
             let lambda = v.to_lambda();
             // Save the current code and env
             let mut code = lambda.code.clone();
+            let mut consts = lambda.consts.clone();
             let mut env = lambda.env.procedure_local();
             mem::swap(&mut code, &mut self.operations);
+            mem::swap(&mut consts, &mut self.constants);
             mem::swap(&mut env, &mut self.environment);
             // Make sure we don't free this
             Box::into_raw(lambda);
@@ -506,6 +506,7 @@ impl VM {
                 sp: self.load_sp(),
                 fp: self.load_fp(),
                 code: code,
+                consts: consts,
                 env: env,
             };
             //self.assign_fp(s.sp);
@@ -534,8 +535,17 @@ impl VM {
             v.mark();
         }
 
-        // TODO: constants
+        for v in &self.constants {
+            v.mark();
+        }
         self.environment.mark();
+
+        for s in &self.saved_state {
+            for v in &s.consts {
+                v.mark();
+            }
+            s.env.mark();
+        }
     }
 
     fn sweep(&mut self) {
@@ -590,6 +600,7 @@ impl VM {
 struct SaveState {
     pc: usize,
     code: Vec<Operation>,
+    consts: Vec<Value>,
     env: Environment,
     sp: Value,
     fp: Value,

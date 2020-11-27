@@ -52,7 +52,7 @@ fn main() {
         let s = get_symbol("$PROMPT".into());
         let prompt = if let Some(v) = env.lookup_variable_value(s) {
             vm.assign_register(Register(0), v);
-            vm.load_code(vec![Operation::Call(Register(0))]);
+            vm.load_code(vec![Operation::Call(Register(0))], vec![]);
             vm.run();
             let p = vm.load_register(Register(0));
             if p.is_string() {
@@ -117,7 +117,8 @@ fn run(vm: &mut VM, env: Option<&Environment>, input: String) {
         for i in &asm {
             println!("{}", i);
         }
-        vm.load_code(assemble(asm));
+        let (code, consts) = assemble(asm);
+        vm.load_code(code, consts);
         vm.run();
         let result = vm.load_register(Register(0));
         if !result.is_void() {
