@@ -434,38 +434,38 @@ mod test {
 
     #[test]
     fn save() {
-        let op = Operation::Save(Register::A);
+        let op = Operation::Save(Register(0));
         assert_eq!(Save, op.instruction());
-        assert_eq!(Register::A, op.save_register());
+        assert_eq!(Register(0), op.save_register());
     }
 
     #[test]
     fn restore() {
-        let op = Operation::Restore(Register::A);
+        let op = Operation::Restore(Register(0));
         assert_eq!(Restore, op.instruction());
-        assert_eq!(Register::A, op.restore_register());
+        assert_eq!(Register(0), op.restore_register());
     }
 
     #[test]
     fn load_const() {
-        let op = Operation::LoadConst(Register::A);
+        let op = Operation::LoadConst(Register(0));
         assert_eq!(LoadConst, op.instruction());
-        assert_eq!(Register::A, op.loadconst_register());
+        assert_eq!(Register(0), op.loadconst_register());
     }
 
     #[test]
     fn make_closure() {
-        let op = Operation::MakeClosure(Register::A);
+        let op = Operation::MakeClosure(Register(0));
         assert_eq!(MakeClosure, op.instruction());
-        assert_eq!(Register::A, op.makeclosure_register());
+        assert_eq!(Register(0), op.makeclosure_register());
     }
 
     #[test]
     fn mov() {
-        let op = Operation::Move(Register::A, Register::A);
+        let op = Operation::Move(Register(0), Register(0));
         assert_eq!(Move, op.instruction());
-        assert_eq!(Register::A, op.move_to());
-        assert_eq!(Register::A, op.move_from());
+        assert_eq!(Register(0), op.move_to());
+        assert_eq!(Register(0), op.move_from());
     }
 
     #[test]
@@ -481,14 +481,14 @@ mod test {
 
     #[test]
     fn goto_if() {
-        let op = Operation::GotoIf(Register::Flag, None);
+        let op = Operation::GotoIf(Register(4), None);
         assert_eq!(GotoIf, op.instruction());
-        assert_eq!(Register::Flag, op.gotoif_register());
+        assert_eq!(Register(4), op.gotoif_register());
         assert_eq!(None, op.gotoif_value());
 
-        let op = Operation::GotoIf(Register::Flag, Some(1));
+        let op = Operation::GotoIf(Register(4), Some(1));
         assert_eq!(GotoIf, op.instruction());
-        assert_eq!(Register::Flag, op.gotoif_register());
+        assert_eq!(Register(4), op.gotoif_register());
         assert_eq!(Some(1), op.gotoif_value());
         let op = op.gotoif_set_label(2);
         assert_eq!(Some(2), op.gotoif_value());
@@ -496,14 +496,14 @@ mod test {
 
     #[test]
     fn goto_if_not() {
-        let op = Operation::GotoIfNot(Register::Flag, None);
+        let op = Operation::GotoIfNot(Register(4), None);
         assert_eq!(GotoIfNot, op.instruction());
-        assert_eq!(Register::Flag, op.gotoifnot_register());
+        assert_eq!(Register(4), op.gotoifnot_register());
         assert_eq!(None, op.gotoifnot_value());
 
-        let op = Operation::GotoIfNot(Register::Flag, Some(1));
+        let op = Operation::GotoIfNot(Register(4), Some(1));
         assert_eq!(GotoIfNot, op.instruction());
-        assert_eq!(Register::Flag, op.gotoifnot_register());
+        assert_eq!(Register(4), op.gotoifnot_register());
         assert_eq!(Some(1), op.gotoifnot_value());
         let op = op.gotoifnot_set_label(2);
         assert_eq!(Some(2), op.gotoifnot_value());
@@ -511,101 +511,101 @@ mod test {
 
     #[test]
     fn add() {
-        let op = Operation::Add(Register::A, Register::A, Register::A);
+        let op = Operation::Add(Register(0), Register(0), Register(0));
         assert_eq!(Add, op.instruction());
-        assert_eq!(Register::A, op.add_register());
-        assert_eq!(Register::A, op.add_left());
-        assert_eq!(Register::A, op.add_right());
+        assert_eq!(Register(0), op.add_register());
+        assert_eq!(Register(0), op.add_left());
+        assert_eq!(Register(0), op.add_right());
     }
 
     #[test]
     fn sub() {
-        let op = Operation::Sub(Register::A, Register::A, Register::A);
+        let op = Operation::Sub(Register(0), Register(0), Register(0));
         assert_eq!(Sub, op.instruction());
-        assert_eq!(Register::A, op.sub_register());
-        assert_eq!(Register::A, op.sub_left());
-        assert_eq!(Register::A, op.sub_right());
+        assert_eq!(Register(0), op.sub_register());
+        assert_eq!(Register(0), op.sub_left());
+        assert_eq!(Register(0), op.sub_right());
     }
 
     #[test]
     fn mul() {
-        let op = Operation::Mul(Register::A, Register::A, Register::A);
+        let op = Operation::Mul(Register(0), Register(0), Register(0));
         assert_eq!(Mul, op.instruction());
-        assert_eq!(Register::A, op.mul_register());
-        assert_eq!(Register::A, op.mul_left());
-        assert_eq!(Register::A, op.mul_right());
+        assert_eq!(Register(0), op.mul_register());
+        assert_eq!(Register(0), op.mul_left());
+        assert_eq!(Register(0), op.mul_right());
     }
 
     #[test]
     fn symbol_to_string() {
-        let op = Operation::StringToSymbol(Register::A, Register::A);
+        let op = Operation::StringToSymbol(Register(0), Register(0));
         assert_eq!(StringToSymbol, op.instruction());
-        assert_eq!(Register::A, op.stringtosymbol_register());
-        assert_eq!(Register::A, op.stringtosymbol_value());
+        assert_eq!(Register(0), op.stringtosymbol_register());
+        assert_eq!(Register(0), op.stringtosymbol_value());
     }
 
     #[test]
     fn cons() {
-        let op = Operation::Cons(Register::A, Register::A, Register::A);
+        let op = Operation::Cons(Register(0), Register(0), Register(0));
         assert_eq!(Cons, op.instruction());
-        assert_eq!(Register::A, op.cons_register());
-        assert_eq!(Register::A, op.cons_car());
-        assert_eq!(Register::A, op.cons_cdr());
+        assert_eq!(Register(0), op.cons_register());
+        assert_eq!(Register(0), op.cons_car());
+        assert_eq!(Register(0), op.cons_cdr());
     }
 
     #[test]
     fn car() {
-        let op = Operation::Car(Register::A, Register::A);
+        let op = Operation::Car(Register(0), Register(0));
         assert_eq!(Car, op.instruction());
-        assert_eq!(Register::A, op.car_to());
-        assert_eq!(Register::A, op.car_from());
+        assert_eq!(Register(0), op.car_to());
+        assert_eq!(Register(0), op.car_from());
     }
 
     #[test]
     fn cdr() {
-        let op = Operation::Cdr(Register::A, Register::A);
+        let op = Operation::Cdr(Register(0), Register(0));
         assert_eq!(Cdr, op.instruction());
-        assert_eq!(Register::A, op.cdr_to());
-        assert_eq!(Register::A, op.cdr_from());
+        assert_eq!(Register(0), op.cdr_to());
+        assert_eq!(Register(0), op.cdr_from());
     }
 
     #[test]
     fn setcar() {
-        let op = Operation::SetCar(Register::A, Register::A);
+        let op = Operation::SetCar(Register(0), Register(0));
         assert_eq!(SetCar, op.instruction());
-        assert_eq!(Register::A, op.setcar_register());
-        assert_eq!(Register::A, op.setcar_value());
+        assert_eq!(Register(0), op.setcar_register());
+        assert_eq!(Register(0), op.setcar_value());
     }
 
     #[test]
     fn setcdr() {
-        let op = Operation::SetCdr(Register::A, Register::A);
+        let op = Operation::SetCdr(Register(0), Register(0));
         assert_eq!(SetCdr, op.instruction());
-        assert_eq!(Register::A, op.setcdr_register());
-        assert_eq!(Register::A, op.setcdr_value());
+        assert_eq!(Register(0), op.setcdr_register());
+        assert_eq!(Register(0), op.setcdr_value());
     }
 
     #[test]
     fn define() {
-        let op = Operation::Define(Register::A, Register::A);
+        let op = Operation::Define(Register(0), Register(0));
         assert_eq!(Define, op.instruction());
-        assert_eq!(Register::A, op.define_name());
-        assert_eq!(Register::A, op.define_value());
+        assert_eq!(Register(0), op.define_name());
+        assert_eq!(Register(0), op.define_value());
     }
 
     #[test]
     fn lookup() {
-        let op = Operation::Lookup(Register::A, Register::A);
+        let op = Operation::Lookup(Register(0), Register(0));
         assert_eq!(Lookup, op.instruction());
-        assert_eq!(Register::A, op.lookup_register());
-        assert_eq!(Register::A, op.lookup_name());
+        assert_eq!(Register(0), op.lookup_register());
+        assert_eq!(Register(0), op.lookup_name());
     }
 
     #[test]
     fn call() {
-        let op = Operation::Call(Register::A);
+        let op = Operation::Call(Register(0));
         assert_eq!(Call, op.instruction());
-        assert_eq!(Register::A, op.call_register());
+        assert_eq!(Register(0), op.call_register());
     }
 
     #[test]
