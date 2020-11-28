@@ -15,7 +15,7 @@ pub use gc::*;
 pub use init::init_env;
 pub use bytecode::{Instruction, Operation};
 pub use value::Value;
-pub use value::heap_repr::{Lambda, Pair};
+pub use value::heap_repr;
 
 use value::VType;
 
@@ -418,7 +418,6 @@ impl VM {
     fn lt(&mut self, op: Operation) {
         let left = self.load_register(op.lt_left()).to_integer();
         let right = self.load_register(op.lt_right()).to_integer();
-        //println!("{} < {}", left, right);
         self.assign_register(op.lt_register(), Value::Bool(left < right));
     }
 
@@ -584,10 +583,10 @@ impl VM {
             }
 
             match ty {
-                VType::Lambda => ty_match!(Lambda, ptr, current, previous, new_root),
-                VType::Pair => ty_match!(Pair, ptr, current, previous, new_root),
-                VType::String => ty_match!(value::heap_repr::SString, ptr, current, previous, new_root),
-                VType::Vec => ty_match!(value::heap_repr::SVec, ptr, current, previous, new_root),
+                VType::Lambda => ty_match!(heap_repr::Lambda, ptr, current, previous, new_root),
+                VType::Pair => ty_match!(heap_repr::Pair, ptr, current, previous, new_root),
+                VType::String => ty_match!(heap_repr::SString, ptr, current, previous, new_root),
+                VType::Vec => ty_match!(heap_repr::SVec, ptr, current, previous, new_root),
                 _ => unreachable!(),
             }
         }

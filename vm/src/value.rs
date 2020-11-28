@@ -6,6 +6,7 @@ use self::heap_repr::*;
 use string_interner::{get_value, Symbol};
 
 use std::{fmt, ops};
+use std::collections::HashMap;
 
 pub enum VType {
     Void = 0,
@@ -18,6 +19,9 @@ pub enum VType {
     Pair = 7,
     Vec = 8,
     String = 9,
+    HashMap = 10,
+    BigInt = 11,
+    Other = 12,
 }
 
 impl From<u64> for VType {
@@ -30,6 +34,12 @@ impl From<u64> for VType {
             VType::Lambda
         } else if p == VType::Pair as u64 {
             VType::Pair
+        } else if p == VType::HashMap as u64 {
+            VType::HashMap
+        } else if p == VType::BigInt as u64 {
+            VType::BigInt
+        } else if p == VType::Other as u64 {
+            VType::Other
         } else if p == VType::Void as u64 {
             VType::Void
         } else {
@@ -67,9 +77,9 @@ const VEC_TAG: u64 =    0b011 << 48;
 const STRING_TAG: u64 = 0b100 << 48;
 
 
-//const OTHER_TAG: u64 = 0b101 << 48;
-//const OTHER_TAG: u64 = 0b110 << 48;
-//const OTHER_TAG: u64 = 0b111 << 48;
+const HASHMAP_TAG: u64 = 0b101 << 48;
+//const BIGINT_TAG: u64 = 0b110 << 48;
+const OTHER_TAG: u64 = 0b111 << 48;
 
 // TODO: replace middle & with && when it is allowed in const fn
 macro_rules! is_imm {
@@ -104,7 +114,7 @@ macro_rules! is_pointer {
 }
 
 macro_rules! to_pointer {
-    ($name:ident, $t:ident) => {
+    ($name:ident, $t:ty) => {
         pub fn $name(self) -> Box<$t> {
             let pointer = self.to_pointer();
             unsafe { Box::from_raw(pointer as *mut $t) }
@@ -154,7 +164,7 @@ impl Value {
     pub const True: Self = Value(NAN | BOOL_TAG | TRUE);
     // TODO: make const when if is allowed
     pub fn is_true(self) -> bool {
-        !self.is_false()
+        self.is_bool() && ((self.0 & TRUE) == TRUE)
     }
 
     pub const False: Self = Value(NAN | BOOL_TAG | FALSE);
@@ -262,6 +272,28 @@ impl Value {
     is_pointer!(is_string, STRING_TAG);
     to_pointer!(to_string, SString);
 
+    pub fn HashMap(m: HashMap<Self, Self>) -> Self {
+        let next = get_head();
+        let str = Box::into_raw(Box::new(SHashMap::new(next, m)));
+        let p = str as u64;
+        set_head(p, VType::HashMap);
+        Value(NAN | HASHMAP_TAG | (p & ((1 << 48) - 1)))
+    }
+    is_pointer!(is_hashmap, HASHMAP_TAG);
+    to_pointer!(to_hashmap, SHashMap);
+
+    /*
+    pub fn Other(v: T) -> Self {
+        let next = get_head();
+        let str = Box::into_raw(Box::new(Other::new(next, v)));
+        let p = str as u64;
+        set_head(p, VType::Other);
+        Value(NAN | OTHER_TAG | (p & ((1 << 48) - 1)))
+    }
+    is_pointer!(is_other, OTHER_TAG);
+    to_pointer!(to_other, Other);
+    */
+
     // TODO: make const when if is allowed
     pub fn to_pointer(self) -> u64 {
         // Amd64 currently only uses the lower 48 bits for pointers, which is what makes NANboxing
@@ -313,6 +345,11 @@ impl Value {
                 p.gc = p.gc | 1;
                 Box::into_raw(p);
             }
+            VType::HashMap => {
+                let mut p = self.to_hashmap();
+                p.gc = p.gc | 1;
+                Box::into_raw(p);
+            }
             _ => (),
         }
     }
@@ -360,9 +397,9 @@ impl fmt::Display for Value {
         } else if self.is_symbol() {
             let s = self.to_symbol();
             write!(f, "{}", get_value(s).unwrap())
-        } else if *self == Value::True {
+        } else if self.is_true() {
             write!(f, "#t")
-        } else if *self == Value::False {
+        } else if self.is_false() {
             write!(f, "#f")
         } else if self.is_nil() {
             write!(f, "()")
@@ -429,6 +466,8 @@ pub mod heap_repr {
     use super::Value;
     use {Environment, Operation};
 
+    use std::collections::HashMap;
+
     pub struct Lambda {
         pub(crate) gc: u64,
         pub env: Environment,
@@ -490,4 +529,34 @@ pub mod heap_repr {
             }
         }
     }
+
+    pub struct SHashMap {
+        pub(crate) gc: u64,
+        pub map: HashMap<Value, Value>,
+    }
+
+    impl SHashMap {
+        pub fn new(gc: u64, m: HashMap<Value, Value>) -> Self {
+            SHashMap {
+                gc: gc,
+                map: m,
+            }
+        }
+    }
+
+    /*
+    pub struct Other<T> {
+        pub(crate) gc: u64,
+        pub value: T,
+    }
+
+    impl<T> Other<T> {
+        pub fn new(gc: u64, value: T) -> Self {
+            Other {
+                gc: gc,
+                value: value,
+            }
+        }
+    }
+    */
 }
