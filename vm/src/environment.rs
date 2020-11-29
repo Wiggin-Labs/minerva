@@ -70,7 +70,7 @@ impl Environment {
         self.env.borrow().get_definitions()
     }
 
-    pub fn mark(&self) {
+    pub(crate) fn mark(&self) {
         self.env.borrow().mark()
     }
 }
@@ -113,8 +113,8 @@ impl _Environment {
         } else if let Some(ref env) = self.parent {
             env.set_variable_value(name, value)
         } else {
-            //Sexp::Error(Error::UnboundVariable(name))
-            panic!("");
+            self.define_variable(name, value);
+            value
         }
     }
 
@@ -126,7 +126,7 @@ impl _Environment {
         definitions
     }
 
-    pub fn mark(&self) {
+    pub(crate) fn mark(&self) {
         for v in self.bindings.values() {
             v.mark();
         }

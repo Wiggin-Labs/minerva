@@ -21,7 +21,7 @@ use value::VType;
 
 use string_interner::Symbol;
 
-use std::{io, mem};
+use std::{fmt, io, mem};
 use std::io::Write;
 
 /// A Virtual Machine for Scheme.
@@ -200,7 +200,14 @@ impl VM {
             Instruction::SetCar => self.set_car(op),
             Instruction::SetCdr => self.set_cdr(op),
             Instruction::Define => self.define(op),
-            Instruction::Lookup => self.lookup(op),
+            Instruction::Lookup => if let Err(e) = self.lookup(op) {
+                // TODO
+                println!("{}", e);
+                self.saved_state.clear();
+                self.pc = 0;
+                self.operations.clear();
+                self.stack.clear();
+            },
             Instruction::Call => self.call(op),
             Instruction::Return => self.pc = self.operations.len(),
         }
@@ -422,8 +429,9 @@ impl VM {
     }
 
     fn string_to_symbol(&mut self, op: Operation) {
-        // TODO: handle case where `string` isn't a string
-        let pointer = self.load_register(op.stringtosymbol_value()).to_string();
+        let p = self.load_register(op.stringtosymbol_value());
+        assert!(p.is_string());
+        let pointer = p.to_string();
         let sym = VM::intern_symbol(pointer.str.clone());
         self.assign_register(op.stringtosymbol_register(), Value::Symbol(sym));
         // Make sure this value isn't freed.
@@ -449,8 +457,9 @@ impl VM {
     }
 
     fn set(&mut self, op: Operation) {
-        // TODO: handle error when name is not a symbol
-        let name = self.load_register(op.set_name()).to_symbol();
+        let n = self.load_register(op.set_name());
+        assert!(n.is_symbol());
+        let name = n.to_symbol();
         let value = self.load_register(op.set_value());
         self.environment.set_variable_value(name, value);
     }
@@ -466,18 +475,25 @@ impl VM {
     }
 
     fn define(&mut self, op: Operation) {
-        // TODO: handle error when name is not a symbol
-        let name = self.load_register(op.define_name()).to_symbol();
+        let n = self.load_register(op.define_name());
+        assert!(n.is_symbol());
+        let name = n.to_symbol();
         let value = self.load_register(op.define_value());
         self.environment.define_variable(name, value);
     }
 
-    fn lookup(&mut self, op: Operation) {
-        // TODO: handle error when name is not a symbol
-        let name = self.load_register(op.lookup_name()).to_symbol();
-        // TODO: we want an error if `name` is undefined
-        let value = self.environment.lookup_variable_value(name).unwrap_or(Value::Void);
+    fn lookup(&mut self, op: Operation) -> Result<(), VmError> {
+        let n = self.load_register(op.lookup_name());
+        assert!(n.is_symbol());
+        let name = n.to_symbol();
+        let value = if let Some(v) = self.environment.lookup_variable_value(name) {
+            v
+        } else {
+            self.assign_register(Register(0), Value::Void);
+            return Err(VmError::Undefined(name));
+        };
         self.assign_register(op.lookup_register(), value);
+        Ok(())
     }
 
     fn call(&mut self, op: Operation) {
@@ -603,4 +619,20 @@ struct SaveState {
     env: Environment,
     sp: Value,
     fp: Value,
+}
+
+#[derive(Debug, Clone)]
+enum VmError {
+    Undefined(Symbol),
+    User(String),
+}
+
+impl fmt::Display for VmError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            VmError::Undefined(s) =>
+                write!(f, "Exception: variable {} is not bound", string_interner::get_value(*s).unwrap()),
+            VmError::User(s) => write!(f, "Exception in {}", s),
+        }
+    }
 }
