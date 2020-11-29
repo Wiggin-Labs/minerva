@@ -1,11 +1,13 @@
+extern crate string_interner;
 extern crate vm;
 
+use string_interner::get_symbol;
 use vm::*;
 
 #[test]
 fn object_size() {
     assert_eq!(8, std::mem::size_of::<Value>());
-    assert_eq!(32, std::mem::size_of::<ASM>());
+    assert_eq!(24, std::mem::size_of::<ASM>());
     assert_eq!(4, std::mem::size_of::<Operation>());
     assert_eq!(1, std::mem::size_of::<Instruction>());
 }
@@ -14,37 +16,38 @@ fn object_size() {
 fn recursive_factorial() {
     let mut vm = VM::new();
     let code = vec![
-        ASM::LoadContinue("done".to_string()),
-        ASM::LoadConst(Register::C, Value::Integer(1)),
+        ASM::LoadContinue(get_symbol("done".to_string())),
+        ASM::LoadConst(Register(2), Value::Integer(1)),
         // loop
-        ASM::Label("loop".to_string()),
-        ASM::Eq(Register::Flag, Register::A, Register::C),
-        ASM::GotoIf(GotoValue::Label("base-case".to_string()), Register::Flag),
-        ASM::Save(Register::A),
+        ASM::Label(get_symbol("loop".to_string())),
+        ASM::Eq(Register(4), Register(0), Register(2)),
+        ASM::GotoIf(GotoValue::Label(get_symbol("base-case".to_string())), Register(4)),
+        ASM::Save(Register(0)),
         ASM::SaveContinue,
-        ASM::LoadContinue("after-fact".to_string()),
-        ASM::Sub(Register::A, Register::A, Register::C),
-        ASM::Goto(GotoValue::Label("loop".to_string())),
+        ASM::LoadContinue(get_symbol("after-fact".to_string())),
+        ASM::Sub(Register(0), Register(0), Register(2)),
+        ASM::Goto(GotoValue::Label(get_symbol("loop".to_string()))),
         // base case
-        ASM::Label("base-case".to_string()),
-        ASM::LoadConst(Register::B, Value::Integer(1)),
+        ASM::Label(get_symbol("base-case".to_string())),
+        ASM::LoadConst(Register(1), Value::Integer(1)),
         ASM::Goto(GotoValue::Register),
         // after-fact
-        ASM::Label("after-fact".to_string()),
+        ASM::Label(get_symbol("after-fact".to_string())),
         ASM::RestoreContinue,
-        ASM::Restore(Register::A),
-        ASM::Mul(Register::B, Register::B, Register::A),
+        ASM::Restore(Register(0)),
+        ASM::Mul(Register(1), Register(1), Register(0)),
         ASM::Goto(GotoValue::Register),
         // Done
-        ASM::Label("done".to_string()),
-        ASM::Move(Register::A, Register::B),
+        ASM::Label(get_symbol("done".to_string())),
+        ASM::Move(Register(0), Register(1)),
     ];
 
-    vm.load_code(assemble(code));
-    vm.assign_register(Register::A, Value::Integer(5));
+    let (code, consts) = assemble(code);
+    vm.load_code(code, consts);
+    vm.assign_register(Register(0), Value::Integer(5));
     vm.run();
 
-    assert_eq!(Value::Integer(120), vm.load_register(Register::A));
+    assert_eq!(Value::Integer(120), vm.load_register(Register(0)));
     assert_eq!(vm.stack_size(), 0);
 }
 
@@ -52,27 +55,28 @@ fn recursive_factorial() {
 fn iterative_factorial() {
     let mut vm = VM::new();
     let code = vec![
-        ASM::LoadConst(Register::B, Value::Integer(1)),
-        ASM::LoadConst(Register::C, Value::Integer(1)),
-        ASM::LoadConst(Register::D, Value::Integer(0)),
+        ASM::LoadConst(Register(1), Value::Integer(1)),
+        ASM::LoadConst(Register(2), Value::Integer(1)),
+        ASM::LoadConst(Register(3), Value::Integer(0)),
         // iter
-        ASM::Label("iter".to_string()),
-        ASM::LT(Register::Flag, Register::A, Register::D),
-        ASM::GotoIf(GotoValue::Label("done".to_string()), Register::Flag),
-        ASM::Eq(Register::Flag, Register::A, Register::D),
-        ASM::GotoIf(GotoValue::Label("done".to_string()), Register::Flag),
-        ASM::Mul(Register::B, Register::B, Register::A),
-        ASM::Sub(Register::A, Register::A, Register::C),
-        ASM::Goto(GotoValue::Label("iter".to_string())),
+        ASM::Label(get_symbol("iter".to_string())),
+        ASM::LT(Register(4), Register(0), Register(3)),
+        ASM::GotoIf(GotoValue::Label(get_symbol("done".to_string())), Register(4)),
+        ASM::Eq(Register(4), Register(0), Register(3)),
+        ASM::GotoIf(GotoValue::Label(get_symbol("done".to_string())), Register(4)),
+        ASM::Mul(Register(1), Register(1), Register(0)),
+        ASM::Sub(Register(0), Register(0), Register(2)),
+        ASM::Goto(GotoValue::Label(get_symbol("iter".to_string()))),
         // done
-        ASM::Label("done".to_string()),
-        ASM::Move(Register::A, Register::B),
+        ASM::Label(get_symbol("done".to_string())),
+        ASM::Move(Register(0), Register(1)),
     ];
-    vm.load_code(assemble(code));
-    vm.assign_register(Register::A, Value::Integer(5));
+    let (code, consts) = assemble(code);
+    vm.load_code(code, consts);
+    vm.assign_register(Register(0), Value::Integer(5));
     vm.run();
 
-    assert_eq!(Value::Integer(120), vm.load_register(Register::A));
+    assert_eq!(Value::Integer(120), vm.load_register(Register(0)));
     assert_eq!(vm.stack_size(), 0);
 }
 
@@ -80,113 +84,137 @@ fn iterative_factorial() {
 fn recursive_fibonacci() {
     let mut vm = VM::new();
     let code = vec![
-        ASM::LoadContinue("done".to_string()),
+        ASM::LoadContinue(get_symbol("done".to_string())),
         // Fib loop
-        ASM::Label("fib-loop".to_string()),
-        ASM::LoadConst(Register::C, Value::Integer(2)),
-        ASM::LT(Register::Flag, Register::A, Register::C),
-        ASM::GotoIf(GotoValue::Label("immediate-answer".to_string()), Register::Flag),
+        ASM::Label(get_symbol("fib-loop".to_string())),
+        ASM::LoadConst(Register(2), Value::Integer(2)),
+        ASM::LT(Register(4), Register(0), Register(2)),
+        ASM::GotoIf(GotoValue::Label(get_symbol("immediate-answer".to_string())), Register(4)),
         ASM::SaveContinue,
-        ASM::LoadContinue("after-fib-1".to_string()),
-        ASM::Save(Register::A),
-        ASM::LoadConst(Register::C, Value::Integer(1)),
-        ASM::Sub(Register::A, Register::A, Register::C),
-        ASM::Goto(GotoValue::Label("fib-loop".to_string())),
+        ASM::LoadContinue(get_symbol("after-fib-1".to_string())),
+        ASM::Save(Register(0)),
+        ASM::LoadConst(Register(2), Value::Integer(1)),
+        ASM::Sub(Register(0), Register(0), Register(2)),
+        ASM::Goto(GotoValue::Label(get_symbol("fib-loop".to_string()))),
         //afterfib n-1
-        ASM::Label("after-fib-1".to_string()),
-        ASM::Restore(Register::A),
-        ASM::LoadConst(Register::C, Value::Integer(2)),
-        ASM::Sub(Register::A, Register::A, Register::C),
-        ASM::LoadContinue("after-fib-2".to_string()),
-        ASM::Save(Register::B),
-        ASM::Goto(GotoValue::Label("fib-loop".to_string())),
+        ASM::Label(get_symbol("after-fib-1".to_string())),
+        ASM::Restore(Register(0)),
+        ASM::LoadConst(Register(2), Value::Integer(2)),
+        ASM::Sub(Register(0), Register(0), Register(2)),
+        ASM::LoadContinue(get_symbol("after-fib-2".to_string())),
+        ASM::Save(Register(1)),
+        ASM::Goto(GotoValue::Label(get_symbol("fib-loop".to_string()))),
         //afterfib n-2
-        ASM::Label("after-fib-2".to_string()),
-        ASM::Move(Register::A, Register::B),
-        ASM::Restore(Register::B),
+        ASM::Label(get_symbol("after-fib-2".to_string())),
+        ASM::Move(Register(0), Register(1)),
+        ASM::Restore(Register(1)),
         ASM::RestoreContinue,
-        ASM::Add(Register::B, Register::B, Register::A),
+        ASM::Add(Register(1), Register(1), Register(0)),
         ASM::Goto(GotoValue::Register),
         // immediate answer
-        ASM::Label("immediate-answer".to_string()),
-        ASM::Move(Register::B, Register::A),
+        ASM::Label(get_symbol("immediate-answer".to_string())),
+        ASM::Move(Register(1), Register(0)),
         ASM::Goto(GotoValue::Register),
         // Fib done
-        ASM::Label("done".to_string()),
-        ASM::Move(Register::A, Register::B),
+        ASM::Label(get_symbol("done".to_string())),
+        ASM::Move(Register(0), Register(1)),
     ];
 
-    vm.load_code(assemble(code));
-    vm.assign_register(Register::A, Value::Integer(5));
+    let (code, consts) = assemble(code);
+    vm.load_code(code, consts);
+    vm.assign_register(Register(0), Value::Integer(5));
     vm.run();
 
-    assert_eq!(Value::Integer(5), vm.load_register(Register::A));
+    assert_eq!(Value::Integer(5), vm.load_register(Register(0)));
     assert_eq!(vm.stack_size(), 0);
 }
 
+/*
 #[test]
 fn sum_ints() {
     let mut vm = VM::new();
     let code = vec![
         // Setup
-        ASM::LoadContinue("done".to_string()),
-        ASM::LoadConst(Register::C, Value::Integer(0)),
-        ASM::Eq(Register::Flag, Register::A, Register::C),
-        ASM::GotoIf(GotoValue::Label("done".to_string()), Register::Flag),
-        ASM::LoadConst(Register::C, Value::Nil),
-        ASM::Cons(Register::B, Register::A, Register::C),
-        ASM::LoadConst(Register::C, Value::Integer(1)),
-        ASM::Sub(Register::A, Register::A, Register::C),
+        ASM::LoadContinue(get_symbol("done".to_string())),
+        ASM::LoadConst(Register(2), Value::Integer(0)),
+        ASM::Eq(Register(4), Register(0), Register(2)),
+        ASM::GotoIf(GotoValue::Label(get_symbol("done".to_string())), Register(4)),
+        ASM::LoadConst(Register(2), Value::Nil),
+        ASM::Cons(Register(1), Register(0), Register(2)),
+        ASM::LoadConst(Register(2), Value::Integer(1)),
+        ASM::Sub(Register(0), Register(0), Register(2)),
         // list builder loop
-        ASM::Label("build-list".to_string()),
-        ASM::LoadConst(Register::C, Value::Integer(0)),
-        ASM::Eq(Register::Flag, Register::A, Register::C),
-        ASM::GotoIf(GotoValue::Label("sum-list".to_string()), Register::Flag),
-        ASM::Cons(Register::B, Register::A, Register::B),
-        ASM::LoadConst(Register::C, Value::Integer(1)),
-        ASM::Sub(Register::A, Register::A, Register::C),
-        ASM::Goto(GotoValue::Label("build-list".to_string())),
+        ASM::Label(get_symbol("build-list".to_string())),
+        ASM::LoadConst(Register(2), Value::Integer(0)),
+        ASM::Eq(Register(4), Register(0), Register(2)),
+        ASM::GotoIf(GotoValue::Label(get_symbol("sum-list".to_string())), Register(4)),
+        ASM::Cons(Register(1), Register(0), Register(1)),
+        ASM::LoadConst(Register(2), Value::Integer(1)),
+        ASM::Sub(Register(0), Register(0), Register(2)),
+        ASM::Goto(GotoValue::Label(get_symbol("build-list".to_string()))),
         // sum list
-        ASM::Label("sum-list".to_string()),
-        ASM::LoadConst(Register::C, Value::Nil),
-        ASM::Eq(Register::Flag, Register::B, Register::C),
-        ASM::GotoIf(GotoValue::Label("done".to_string()), Register::Flag),
-        ASM::Car(Register::C, Register::B),
-        ASM::Add(Register::A, Register::A, Register::C),
-        ASM::Cdr(Register::B, Register::B),
-        ASM::Goto(GotoValue::Label("sum-list".to_string())),
+        ASM::Label(get_symbol("sum-list".to_string())),
+        ASM::LoadConst(Register(2), Value::Nil),
+        ASM::Eq(Register(4), Register(1), Register(2)),
+        ASM::GotoIf(GotoValue::Label(get_symbol("done".to_string())), Register(4)),
+        ASM::Car(Register(2), Register(1)),
+        ASM::Add(Register(0), Register(0), Register(2)),
+        ASM::Cdr(Register(1), Register(1)),
+        ASM::Goto(GotoValue::Label(get_symbol("sum-list".to_string()))),
         // done
-        ASM::Label("done".to_string()),
+        ASM::Label(get_symbol("done".to_string())),
         ASM::Return,
     ];
 
-    vm.load_code(assemble(code));
-    vm.assign_register(Register::A, Value::Integer(5));
+    let (code, consts) = assemble(code);
+    vm.load_code(code, consts);
+    vm.assign_register(Register(0), Value::Integer(5));
     vm.run();
 
-    assert_eq!(Value::Integer(15), vm.load_register(Register::A));
+    assert_eq!(Value::Integer(15), vm.load_register(Register(0)));
     assert_eq!(vm.stack_size(), 0);
 }
+*/
 
 #[test]
 #[ignore]
 fn count_to_1billion() {
     let mut vm = VM::new();
     let code = vec![
-        ASM::LoadConst(Register::B, Value::Integer(1)),
-        ASM::LoadConst(Register::C, Value::Integer(1)),
+        ASM::LoadConst(Register(1), Value::Integer(1)),
+        ASM::LoadConst(Register(2), Value::Integer(1)),
         // iter
-        ASM::Label("iter".to_string()),
-        ASM::Eq(Register::Flag, Register::A, Register::B),
-        ASM::GotoIf(GotoValue::Label("done".to_string()), Register::Flag),
-        ASM::Add(Register::B, Register::B, Register::C),
-        ASM::Goto(GotoValue::Label("iter".to_string())),
+        ASM::Label(get_symbol("iter".to_string())),
+        ASM::Eq(Register(4), Register(0), Register(1)),
+        ASM::GotoIf(GotoValue::Label(get_symbol("done".to_string())), Register(4)),
+        ASM::Add(Register(1), Register(1), Register(2)),
+        ASM::Goto(GotoValue::Label(get_symbol("iter".to_string()))),
         // done
-        ASM::Label("done".to_string()),
-        ASM::Move(Register::A, Register::B),
+        ASM::Label(get_symbol("done".to_string())),
+        ASM::Move(Register(0), Register(1)),
     ];
 
-    vm.load_code(assemble(code));
-    vm.assign_register(Register::A, Value::Integer(1_000_000_000));
+    let (code, consts) = assemble(code);
+    vm.load_code(code, consts);
+    vm.assign_register(Register(0), Value::Integer(1_000_000_000));
     vm.run();
 }
+
+/*
+#[test]
+fn cons() {
+    let mut vm = VM::new();
+    let code = vec![
+        ASM::LoadConst(Register(1), Value::Integer(1)),
+        ASM::LoadConst(Register(2), Value::Integer(2)),
+        // iter
+        ASM::Label(get_symbol("iter".to_string())),
+        ASM::Cons(Register(0), Register(1), Register(2)),
+        ASM::Goto(GotoValue::Label(get_symbol("iter".to_string()))),
+    ];
+
+    let (code, consts) = assemble(code);
+    vm.load_code(code, consts);
+    vm.run();
+}
+*/

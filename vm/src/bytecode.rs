@@ -466,14 +466,14 @@ mod test {
 
     #[test]
     fn load_const() {
-        let op = Operation::LoadConst(Register(0));
+        let op = Operation::LoadConst(Register(0), 0);
         assert_eq!(LoadConst, op.instruction());
         assert_eq!(Register(0), op.loadconst_register());
     }
 
     #[test]
     fn make_closure() {
-        let op = Operation::MakeClosure(Register(0));
+        let op = Operation::MakeClosure(Register(0), 0);
         assert_eq!(MakeClosure, op.instruction());
         assert_eq!(Register(0), op.makeclosure_register());
     }
