@@ -26,28 +26,28 @@ use std::io::Write;
 
 /// A Virtual Machine for Scheme.
 #[derive(Debug)]
-pub struct VM {
+pub struct VM<T> {
     debug: bool,
     step: usize,
     operations: Vec<Operation>,
-    constants: Vec<Value>,
-    environment: Environment,
-    stack: Vec<Value>,
+    constants: Vec<Value<T>>,
+    environment: Environment<T>,
+    stack: Vec<Value<T>>,
     kontinue_stack: Vec<usize>,
     // Registers
     pc: usize,
     kontinue: usize,
-    registers: [Value; 32],
-    saved_state: Vec<SaveState>,
+    registers: [Value<T>; 32],
+    saved_state: Vec<SaveState<T>>,
 }
 
-impl Default for VM {
+impl<T> Default for VM<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl VM {
+impl<T> VM<T> {
     /// Create a new `VM`.
     pub fn new() -> Self {
         let mut registers = [Value::Nil; 32];
@@ -247,19 +247,19 @@ impl VM {
     }
 
     /// Load code into the machine.
-    pub fn load_code(&mut self, code: Vec<Operation>, consts: Vec<Value>) {
+    pub fn load_code(&mut self, code: Vec<Operation>, consts: Vec<Value<T>>) {
         self.operations = code;
         self.constants = consts;
         self.pc = 0;
     }
 
     /// Set `register` to `value`.
-    pub fn assign_register(&mut self, register: Register, value: Value) {
+    pub fn assign_register(&mut self, register: Register, value: Value<T>) {
         self.registers[register.0 as usize] = value;
     }
 
     /// Get the value of `register`.
-    pub fn load_register(&self, register: Register) -> Value {
+    pub fn load_register(&self, register: Register) -> Value<T> {
         if register.0 == 31 {
             Value::Integer(0)
         } else {
@@ -267,23 +267,23 @@ impl VM {
         }
     }
 
-    fn load_sp(&self) -> Value {
+    fn load_sp(&self) -> Value<T> {
         self.load_register(Register(30))
     }
 
-    fn assign_sp(&mut self, value: Value) {
+    fn assign_sp(&mut self, value: Value<T>) {
         self.assign_register(Register(30), value)
     }
 
-    fn load_fp(&self) -> Value {
+    fn load_fp(&self) -> Value<T> {
         self.load_register(Register(29))
     }
 
-    fn assign_fp(&mut self, value: Value) {
+    fn assign_fp(&mut self, value: Value<T>) {
         self.assign_register(Register(29), value)
     }
 
-    pub fn assign_environment(&mut self, env: Environment) {
+    pub fn assign_environment(&mut self, env: Environment<T>) {
         self.environment = env;
     }
 
@@ -432,7 +432,7 @@ impl VM {
         let p = self.load_register(op.stringtosymbol_value());
         assert!(p.is_string());
         let pointer = p.to_string();
-        let sym = VM::intern_symbol(pointer.str.clone());
+        let sym = Self::intern_symbol(pointer.str.clone());
         self.assign_register(op.stringtosymbol_register(), Value::Symbol(sym));
         // Make sure this value isn't freed.
         Box::into_raw(pointer);
@@ -581,7 +581,7 @@ impl VM {
                         let mut p = unsafe { Box::from_raw($ptr as *mut $T) };
                         if p.gc & 1 != 1 {
                             if let Some(previous) = $previous {
-                                Value::set_gc(previous, p.gc);
+                                Value::<T>::set_gc(previous, p.gc);
                             }
                             $current = p.gc;
                             mem::drop(p);
@@ -599,10 +599,12 @@ impl VM {
             }
 
             match ty {
-                VType::Lambda => ty_match!(heap_repr::Lambda, ptr, current, previous, new_root),
-                VType::Pair => ty_match!(heap_repr::Pair, ptr, current, previous, new_root),
+                VType::Lambda => ty_match!(heap_repr::Lambda<T>, ptr, current, previous, new_root),
+                VType::Pair => ty_match!(heap_repr::Pair<T>, ptr, current, previous, new_root),
                 VType::String => ty_match!(heap_repr::SString, ptr, current, previous, new_root),
-                VType::Vec => ty_match!(heap_repr::SVec, ptr, current, previous, new_root),
+                VType::Vec => ty_match!(heap_repr::SVec<T>, ptr, current, previous, new_root),
+                VType::HashMap => ty_match!(heap_repr::SHashMap<T>, ptr, current, previous, new_root),
+                VType::Other => ty_match!(heap_repr::Other<T>, ptr, current, previous, new_root),
                 _ => unreachable!(),
             }
         }
@@ -612,13 +614,13 @@ impl VM {
 }
 
 #[derive(Debug, Clone)]
-struct SaveState {
+struct SaveState<T> {
     pc: usize,
     code: Vec<Operation>,
-    consts: Vec<Value>,
-    env: Environment,
-    sp: Value,
-    fp: Value,
+    consts: Vec<Value<T>>,
+    env: Environment<T>,
+    sp: Value<T>,
+    fp: Value<T>,
 }
 
 #[derive(Debug, Clone)]
