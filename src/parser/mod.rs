@@ -32,7 +32,7 @@ pub enum Token {
 }
 
 impl Token {
-    fn to_primitive(&self) -> Value {
+    fn to_primitive<T>(&self) -> Value<T> {
         match self {
             Token::Nil => Value::Nil,
             Token::Bool(b) => Value::Bool(*b),
@@ -44,13 +44,13 @@ impl Token {
     }
 }
 
-pub struct Parser<'a> {
-    ast: Vec<Ast>,
+pub struct Parser<'a, T> {
+    ast: Vec<Ast<T>>,
     tokens: Peekable<Iter<'a, Token>>,
 }
 
-impl<'a> Parser<'a> {
-    pub fn parse(tokens: Vec<Token>) -> Result<Vec<Ast>, ParseError> {
+impl<'a, T> Parser<'a, T> {
+    pub fn parse(tokens: Vec<Token>) -> Result<Vec<Ast<T>>, ParseError> {
         let ast = vec![];
         let tokens = tokens.iter().peekable();
         let mut parser = Parser {
@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
         Ok(parser.ast)
     }
 
-    fn _parse(&mut self) -> Result<Ast, ParseError> {
+    fn _parse(&mut self) -> Result<Ast<T>, ParseError> {
         match self.tokens.next()? {
             Token::Comment(_) | Token::BlockComment(_) => self._parse(),
             Token::LeftParen => self.parse_expr(),
@@ -81,7 +81,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_expr(&mut self) -> Result<Ast, ParseError> {
+    fn parse_expr(&mut self) -> Result<Ast<T>, ParseError> {
         match self.tokens.next()? {
             Token::Symbol(s) => match get_value(*s).unwrap().as_str() {
                 "define" => self.parse_define(),
@@ -99,7 +99,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_define(&mut self) -> Result<Ast, ParseError> {
+    fn parse_define(&mut self) -> Result<Ast<T>, ParseError> {
         let mut proc = false;
         let name = match self.tokens.next()? {
             Token::Symbol(s) => *s,
@@ -137,7 +137,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_lambda(&mut self) -> Result<Ast, ParseError> {
+    fn parse_lambda(&mut self) -> Result<Ast<T>, ParseError> {
         let mut args = vec![];
 
         if !self.tokens.next()?.is_left_paren() {
@@ -157,7 +157,7 @@ impl<'a> Parser<'a> {
         Ok(Ast::Lambda { args, body })
     }
 
-    fn lambda_body(&mut self) -> Result<Vec<Ast>, ParseError> {
+    fn lambda_body(&mut self) -> Result<Vec<Ast<T>>, ParseError> {
         match self.tokens.peek()? {
             Token::LeftParen => Ok(self.parse_begin()?.unwrap_begin()),
             Token::RightParen => return Err(ParseError::UnexpectedCloseParen),
@@ -169,7 +169,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_if(&mut self) -> Result<Ast, ParseError> {
+    fn parse_if(&mut self) -> Result<Ast<T>, ParseError> {
         let predicate = Box::new(self._parse()?);
         let consequent = Box::new(self._parse()?);
         let alternative = Box::new(self._parse()?);
@@ -183,7 +183,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_begin(&mut self) -> Result<Ast, ParseError> {
+    fn parse_begin(&mut self) -> Result<Ast<T>, ParseError> {
         let mut sequence = vec![];
         loop {
             match self.tokens.next()? {
@@ -198,7 +198,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_application(&mut self, op: Ast) -> Result<Ast, ParseError> {
+    fn parse_application(&mut self, op: Ast<T>) -> Result<Ast<T>, ParseError> {
         let mut args = vec![op];
         loop {
             if self.tokens.peek()?.is_right_paren() {
@@ -210,7 +210,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_quote(&mut self, read_closer: bool) -> Result<Ast, ParseError> {
+    fn parse_quote(&mut self, read_closer: bool) -> Result<Ast<T>, ParseError> {
         let p = Ast::Primitive(self._parse_quote()?);
         if read_closer {
             self.read_closer()?;
@@ -218,7 +218,7 @@ impl<'a> Parser<'a> {
         Ok(p)
     }
 
-    fn _parse_quote(&mut self) -> Result<Value, ParseError> {
+    fn _parse_quote(&mut self) -> Result<Value<T>, ParseError> {
         match self.tokens.next()? {
             Token::LeftParen => self.quote_list(),
             Token::Symbol(s) => Ok(Value::Symbol(*s)),
@@ -228,7 +228,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn quote_list(&mut self) -> Result<Value, ParseError> {
+    fn quote_list(&mut self) -> Result<Value<T>, ParseError> {
         let mut parens = 1;
         let mut list_rev = Vec::new();
         while parens != 0 {
