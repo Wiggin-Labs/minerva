@@ -44,7 +44,7 @@ fn main() {
         .edit_mode(EditMode::Vi)
         .auto_add_history(true)
         .build();
-    let mut rl: Editor<Repl> = Editor::with_config(config);
+    let mut rl: Editor<Repl<()>> = Editor::with_config(config);
     rl.set_helper(Some(repl));
 
     let mut ctrlc = false;
@@ -95,7 +95,7 @@ fn main() {
     flame::dump_html(&mut std::fs::File::create("profile2.html").unwrap()).unwrap();
 }
 
-fn run(vm: &mut VM, env: Option<&Environment>, input: String) {
+fn run<T>(vm: &mut VM<T>, env: Option<&Environment<T>>, input: String) {
     let tokens = match akuma::Tokenizer::tokenize(&input) {
         Ok(t) => t,
         Err(e) => {
@@ -104,7 +104,7 @@ fn run(vm: &mut VM, env: Option<&Environment>, input: String) {
         }
     };
 
-    let ast = match akuma::Parser::parse(tokens) {
+    let ast: Vec<akuma::Ast<T>> = match akuma::Parser::parse(tokens) {
         Ok(o) => o,
         Err(e) => {
             println!("ERROR: {}", e);
@@ -113,10 +113,17 @@ fn run(vm: &mut VM, env: Option<&Environment>, input: String) {
     };
 
     for ast in ast {
-        let asm = akuma::compile(ast);
-        for i in &asm {
+        let ir = akuma::compile(ast);
+        let ir = akuma::optimize(ir);
+        for i in &ir {
             println!("{}", i);
         }
+        println!();
+        //let asm = akuma::output_asm(ir);
+        //for i in &asm {
+        //    println!("{}", i);
+        //}
+        /*
         let (code, consts) = assemble(asm);
         vm.load_code(code, consts);
         vm.run();
@@ -127,10 +134,11 @@ fn run(vm: &mut VM, env: Option<&Environment>, input: String) {
                 swap_cash_vars(env, result);
             }
         }
+        */
     }
 }
 
-fn swap_cash_vars(env: &Environment, v: Value) {
+fn swap_cash_vars<T>(env: &Environment<T>, v: Value<T>) {
     let cash1 = get_symbol("$1".into());
     let cash2 = get_symbol("$2".into());
     let cash3 = get_symbol("$3".into());
@@ -167,14 +175,14 @@ fn swap_cash_vars(env: &Environment, v: Value) {
     env.define_variable(cash1, v);
 }
 
-struct Repl {
-    env: Environment,
+struct Repl<T> {
+    env: Environment<T>,
     path: FilenameCompleter,
     keywords: Vec<String>,
     m: MatchingBracketHighlighter,
 }
 
-impl Repl {
+impl<T> Repl<T> {
     fn get_defs(&self, start: &str) -> Vec<String> {
         let mut keywords: Vec<String> = self.keywords.iter()
             .filter(|s| s.starts_with(start))
@@ -189,7 +197,7 @@ impl Repl {
     }
 }
 
-impl Completer for Repl {
+impl<T> Completer for Repl<T> {
     type Candidate = Pair;
 
     fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>), ReadlineError> {
@@ -217,7 +225,7 @@ impl Completer for Repl {
     }
 }
 
-impl Validator for Repl {
+impl<T> Validator for Repl<T> {
     fn validate(&self, ctx: &mut ValidationContext<'_>) -> Result<ValidationResult, ReadlineError> {
         match akuma::Tokenizer::tokenize(ctx.input()) {
             Ok(tokens) => if tokens.is_empty() ||
@@ -238,16 +246,16 @@ impl Validator for Repl {
     }
 }
 
-impl Helper for Repl {
+impl<T> Helper for Repl<T> {
 }
 
-impl Hinter for Repl {
+impl<T> Hinter for Repl<T> {
     fn hint(&self, _line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<String> {
         None
     }
 }
 
-impl Highlighter for Repl {
+impl<T> Highlighter for Repl<T> {
     fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
         self.m.highlight(line, pos)
     }
