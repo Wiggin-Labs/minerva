@@ -172,7 +172,11 @@ impl<'a> Parser<'a> {
     fn parse_if(&mut self) -> Result<Ast, ParseError> {
         let predicate = Box::new(self._parse()?);
         let consequent = Box::new(self._parse()?);
-        let alternative = Box::new(self._parse()?);
+        let alternative = if Token::RightParen == **self.tokens.peek()? {
+            Box::new(Ast::Primitive(Value::Void))
+        } else {
+            Box::new(self._parse()?)
+        };
 
         self.read_closer()?;
 
