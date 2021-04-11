@@ -1,4 +1,8 @@
-use {ParseError, Token};
+mod token;
+
+pub use self::token::Token;
+
+use ParseError;
 
 use regex::Regex;
 use string_interner::get_symbol;
