@@ -21,8 +21,7 @@ pub enum Token {
     Quasiquote,
     Unquote,
     UnquoteSplice,
-    Nil,
-    Bool(bool),
+    Pound,
     String(String),
     Integer(i32),
     Float(f64),
@@ -32,10 +31,15 @@ pub enum Token {
 }
 
 impl Token {
+    fn is_primitive(&self) -> bool {
+        match self {
+            Token::String(_) | Token::Integer(_) | Token::Float(_) => true,
+            _ => false,
+        }
+    }
+
     fn to_primitive(&self) -> Value {
         match self {
-            Token::Nil => Value::Nil,
-            Token::Bool(b) => Value::Bool(*b),
             Token::String(s) => Value::String(s.to_string()),
             Token::Integer(i) => Value::Integer(*i),
             Token::Float(i) => Value::Float(*i),
@@ -71,13 +75,27 @@ impl<'a> Parser<'a> {
             Token::LeftParen => self.parse_expr(),
             Token::Quote => self.parse_quote(false),
             Token::Symbol(s) => Ok(Ast::Ident(*s)),
-            t @ Token::Nil | t @ Token::Bool(_) | t @ Token::String(_) |
-                t @ Token::Integer(_) | t @ Token::Float(_) => Ok(Ast::Primitive(t.to_primitive())),
+            t if t.is_primitive() => Ok(Ast::Primitive(t.to_primitive())),
             Token::RightParen => Err(ParseError::UnexpectedCloseParen),
+            Token::Pound => self.parse_pound(),
             Token::Dot => Err(ParseError::IllegalUse),
             Token::Quasiquote => unimplemented!(),
             Token::Unquote => unimplemented!(),
             Token::UnquoteSplice => unimplemented!(),
+            Token::String(_) | Token::Float(_) | Token::Integer(_) => unreachable!(),
+        }
+    }
+
+    fn parse_pound(&mut self) -> Result<Ast, ParseError> {
+        match self.tokens.next()? {
+            Token::Symbol(s) => match get_value(*s).unwrap().as_str() {
+                "t" => Ok(Ast::Primitive(Value::Bool(true))),
+                "f" => Ok(Ast::Primitive(Value::Bool(false))),
+                _ => todo!(),
+            }
+            //Token::LeftParen => {
+            //}
+            _ => todo!(),
         }
     }
 
@@ -194,9 +212,7 @@ impl<'a> Parser<'a> {
                 Token::RightParen => return Ok(Ast::Begin(sequence)),
                 Token::LeftParen => sequence.push(self.parse_expr()?),
                 Token::Symbol(s) => sequence.push(Ast::Ident(*s)),
-                token @ Token::Bool(_) => sequence.push(Ast::Primitive(token.to_primitive())),
-                token @ Token::Integer(_) => sequence.push(Ast::Primitive(token.to_primitive())),
-                token @ Token::String(_) => sequence.push(Ast::Primitive(token.to_primitive())),
+                t if t.is_primitive() => sequence.push(Ast::Primitive(t.to_primitive())),
                 _ => return Err(ParseError::Input),
             }
         }
@@ -226,8 +242,7 @@ impl<'a> Parser<'a> {
         match self.tokens.next()? {
             Token::LeftParen => self.quote_list(),
             Token::Symbol(s) => Ok(Value::Symbol(*s)),
-            t @ Token::Nil | t @ Token::Bool(_) | t @ Token::String(_) |
-                t @ Token::Integer(_) | t @ Token::Float(_) => Ok(t.to_primitive()),
+            t if t.is_primitive() => Ok(t.to_primitive()),
             _ => Err(ParseError::Input),
         }
     }
@@ -245,8 +260,8 @@ impl<'a> Parser<'a> {
         }
 
         let mut list = Value::Nil;
-        for i in 0..list_rev.len() {
-            list = Value::Pair(list_rev[list_rev.len()-1-i], list);
+        while !list_rev.is_empty() {
+            list = Value::Pair(list_rev.pop().unwrap(), list);
         }
 
         Ok(list)
