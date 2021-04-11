@@ -8,119 +8,105 @@ use string_interner::Symbol;
 
 use std::collections::HashMap;
 
-pub fn optimize<T>(ir: Vec<IR<T>>) -> Vec<IR<T>> {
-    let ir = optimize_lambda_formals(ir);
-    let ir = optimize_lookups(ir);
-    let ir = optimize_copies(ir);
+pub fn optimize<T>(mut ir: Vec<IR<T>>) -> Vec<IR<T>> {
+    optimize_lambda_formals(&mut ir);
+    optimize_lookups(&mut ir);
+    optimize_copies(&mut ir);
     ir
 }
 
-fn optimize_lambda_formals<T>(ir: Vec<IR<T>>) -> Vec<IR<T>> {
-    fn inner<T>(f: IR<T>) -> IR<T> {
-        let (target, formals, ir) = if let IR::Fn(a, b, c) = f { (a, b, c) } else { unreachable!() };
-        let mut new = Vec::new();
-        for i in ir {
-            match i {
-                IR::Fn(_, _, _) => new.push(inner(i)),
+fn optimize_lambda_formals<T>(ir: &mut Vec<IR<T>>) {
+    fn inner<T>(f: &mut IR<T>) {
+        let (formals, ir) = if let IR::Fn(_, b, c) = f { (b, c) } else { unreachable!() };
+        for i in ir.iter_mut() {
+            match *i {
+                IR::Fn(_, _, _) => inner(i),
                 IR::Lookup(t, ident) => if formals.contains(&ident) {
-                    new.push(IR::Copy(t, ident));
-                } else {
-                    new.push(i);
+                    *i = IR::Copy(t, ident);
                 },
-                _ => new.push(i),
+                _ => (),
             }
         }
-        IR::Fn(target, formals, new)
     }
 
-    let mut new = Vec::new();
-    for i in ir {
-        match i {
-            IR::Fn(_, _, _) => new.push(inner(i)),
-            _ => new.push(i),
+    for i in ir.iter_mut() {
+        if let IR::Fn(_, _, _) = *i {
+            inner(i);
         }
     }
-    new
 }
 
-fn optimize_lookups<T>(ir: Vec<IR<T>>) -> Vec<IR<T>> {
+fn optimize_lookups<T>(ir: &mut Vec<IR<T>>) {
     let mut lookups = HashMap::new();
 
-    let mut new = Vec::new();
-    for i in ir {
+    for i in ir.iter_mut() {
         match i {
-            IR::Lookup(target, ident) => if let Some(t) = lookups.get(&ident) {
-                new.push(IR::Copy(target, *t));
-            } else {
-                lookups.insert(ident, target);
-                new.push(i);
-            },
-            IR::Fn(a, b, ir) => new.push(IR::Fn(a, b, optimize_lookups(ir))),
-            _ => new.push(i),
+            IR::Lookup(target, ident) => {
+                // Shitty bc
+                let ident = *ident;
+                if let Some(t) = lookups.get(&ident) {
+                    *i = IR::Copy(*target, *t);
+                } else {
+                    lookups.insert(ident, *target);
+                }
+            }
+            IR::Fn(_, _, ir) => optimize_lookups(ir),
+            _ => (),
         }
     }
-    new
 }
 
-fn optimize_copies<T>(ir: Vec<IR<T>>) -> Vec<IR<T>> {
+fn optimize_copies<T>(ir: &mut Vec<IR<T>>) {
     let mut copies = HashMap::new();
 
-    let mut new = Vec::new();
-    for i in ir {
-        match i {
-            IR::Copy(target, s) => if let Some(&t) = copies.get(&s) {
-                copies.insert(target, t);
+    let mut idx = 0;
+    while idx < ir.len() {
+        match &mut ir[idx] {
+            IR::Copy(target, s) => if let Some(&t) = copies.get(s) {
+                copies.insert(*target, t);
+                ir.remove(idx);
+                continue;
             } else {
-                copies.insert(target, s);
+                copies.insert(*target, *s);
+                ir.remove(idx);
+                continue;
             },
-            IR::Return(s) => if let Some(t) = copies.get(&s) {
-                new.push(IR::Return(*t));
-            } else {
-                new.push(i);
+            IR::Return(s) => if let Some(t) = copies.get(s) {
+                ir[idx] = IR::Return(*t);
             },
-            IR::GotoIf(a, s) => if let Some(t) = copies.get(&s) {
-                new.push(IR::GotoIf(a, *t));
-            } else {
-                new.push(i);
+            IR::GotoIf(a, s) => if let Some(t) = copies.get(s) {
+                ir[idx] = IR::GotoIf(*a, *t);
             },
-            IR::GotoIfNot(a, s) => if let Some(t) = copies.get(&s) {
-                new.push(IR::GotoIfNot(a, *t));
-            } else {
-                new.push(i);
+            IR::GotoIfNot(a, s) => if let Some(t) = copies.get(s) {
+                ir[idx] = IR::GotoIfNot(*a, *t);
             },
             IR::Phi(a, s1, s2) => {
-                let s1 = if let Some(t) = copies.get(&s1) {
+                let s1 = if let Some(t) = copies.get(s1) {
                     *t
                 } else {
-                    s1
+                    *s1
                 };
-                let s2 = if let Some(t) = copies.get(&s2) {
+                let s2 = if let Some(t) = copies.get(s2) {
                     *t
                 } else {
-                    s2
+                    *s2
                 };
-                new.push(IR::Phi(a, s1, s2));
+                ir[idx] = IR::Phi(*a, s1, s2);
             }
-            IR::Define(a, b, s) => if let Some(t) = copies.get(&s) {
-                new.push(IR::Define(a, b, *t));
-            } else {
-                new.push(i);
+            IR::Define(a, b, s) => if let Some(t) = copies.get(s) {
+                ir[idx] = IR::Define(*a, *b, *t);
             },
-            IR::Param(s) => if let Some(t) = copies.get(&s) {
-                new.push(IR::Param(*t));
-            } else {
-                new.push(i);
+            IR::Param(s) => if let Some(t) = copies.get(s) {
+                ir[idx] = IR::Param(*t);
             },
-            IR::Call(a, s, b) => if let Some(t) = copies.get(&s) {
-                new.push(IR::Call(a, *t, b));
-            } else {
-                new.push(i);
+            IR::Call(a, s, b) => if let Some(t) = copies.get(s) {
+                ir[idx] = IR::Call(*a, *t, *b);
             },
-            IR::Fn(a, b, ir) => new.push(IR::Fn(a, b, optimize_copies(ir))),
-            _ => new.push(i),
+            IR::Fn(_, _, ir) => optimize_copies(ir),
+            _ => (),
         }
+        idx += 1;
     }
-    new
 }
 
 pub fn output_asm<T>(ir: Vec<IR<T>>) -> Vec<ASM<T>> {
