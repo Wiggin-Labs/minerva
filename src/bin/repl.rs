@@ -15,9 +15,8 @@ use rustyline::hint::Hinter;
 use rustyline::validate::{Validator, ValidationResult, ValidationContext};
 use string_interner::{get_symbol, get_value};
 
+use std::fs;
 use std::borrow::Cow;
-use std::fs::File;
-use std::io::Read;
 
 fn main() {
     let mut vm = VM::new();
@@ -31,9 +30,7 @@ fn main() {
         m: MatchingBracketHighlighter::new(),
     };
 
-    if let Ok(mut f) = File::open("~/.config/minerva/init.ss") {
-        let mut input = String::new();
-        f.read_to_string(&mut input).unwrap();
+    if let Ok(input) = fs::read_to_string("~/.config/minerva/init.ss") {
         run(&mut vm, None, input);
     }
 
@@ -87,10 +84,6 @@ fn main() {
 
         run(&mut vm, Some(&env), input);
     }
-
-
-    #[cfg(feature="profile")]
-    flame::dump_html(&mut std::fs::File::create("profile2.html").unwrap()).unwrap();
 }
 
 fn run<T>(vm: &mut VM<T>, env: Option<&Environment<T>>, input: String) {
