@@ -140,6 +140,7 @@ pub enum ASM<T> {
     Define(Register, Register),
     Lookup(Register, Register),
     Call(Register),
+    TailCall(Register),
     Return,
     Label(Symbol),
 }
@@ -180,6 +181,7 @@ impl<T> fmt::Display for ASM<T> {
             Define(r1, r2) => write!(f, "DEFINE {}, {}", r1, r2),
             Lookup(r1, r2) => write!(f, "LOOKUP {}, {}", r1, r2),
             Call(r) => write!(f, "CALL {}", r),
+            TailCall(r) => write!(f, "TAILCALL {}", r),
             Return => write!(f, "RETURN"),
             Label(s) => write!(f, "{}:", get_value(*s).unwrap()),
         }
@@ -286,6 +288,7 @@ pub fn assemble<T>(asm: Vec<ASM<T>>) -> (Vec<Operation>, Vec<Value<T>>) {
                 ops.push(Operation::Lookup(r, a));
             }
             ASM::Call(r) => ops.push(Operation::Call(r)),
+            ASM::TailCall(r) => ops.push(Operation::TailCall(r)),
             ASM::Return => ops.push(Operation::Return),
         };
     }

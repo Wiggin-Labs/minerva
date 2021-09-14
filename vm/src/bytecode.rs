@@ -16,7 +16,7 @@ impl fmt::Display for Operation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.instruction() {
             LoadContinue | SaveContinue | RestoreContinue => self.print_continue(f),
-            Save | Restore | ReadStack | LoadConst | MakeClosure | Call => self.print_register(f),
+            Save | Restore | ReadStack | LoadConst | MakeClosure | Call | TailCall => self.print_register(f),
             Move | Car | Cdr | StringToSymbol | Set | SetCar | SetCdr | Define | Lookup => self.print_register2(f),
             Add | Sub | Mul | Eq | LT | Cons => self.print_register_opvalue2(f),
             Goto | GotoIf | GotoIfNot => self.print_goto(f),
@@ -147,6 +147,7 @@ impl Operation {
             LoadConst => write!(f, "LOADCONST {}", self.loadconst_register()),
             MakeClosure => write!(f, "MAKECLOSURE {}", self.makeclosure_register()),
             Call => write!(f, "CALL {}", self.call_register()),
+            TailCall => write!(f, "TAILCALL {}", self.call_register()),
             _ => unreachable!(),
         }
     }
@@ -319,6 +320,7 @@ impl Operation {
     // Creates a Call instruction. The register to call from uses 1 byte.
     // Retrieve the register from a Call instruction.
     register!(Call, call_register);
+    register!(TailCall, tail_call_register);
 
     // Creates a Return instruction.
     pub const Return: Self = Operation(Return as u32);
@@ -388,6 +390,7 @@ pub enum Instruction {
     Return = 25,
     ReadStack = 26,
     Set = 27,
+    TailCall = 28,
 }
 
 impl From<u32> for Instruction {
@@ -422,6 +425,7 @@ impl From<u32> for Instruction {
             25 => Return,
             26 => ReadStack,
             27 => Set,
+            28 => TailCall,
             _ => panic!("Invalid Instruction value {}", r),
         }
     }

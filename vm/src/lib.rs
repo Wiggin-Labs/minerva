@@ -201,17 +201,26 @@ impl<T> VM<T> {
             Instruction::SetCdr => self.set_cdr(op),
             Instruction::Define => self.define(op),
             Instruction::Lookup => if let Err(e) = self.lookup(op) {
-                // TODO
-                println!("{}", e);
-                self.saved_state.clear();
-                self.pc = 0;
-                self.operations.clear();
-                self.stack.clear();
+                self.handle_error(e);
             },
-            Instruction::Call => self.call(op),
+            Instruction::Call => if let Err(e) = self.call(op) {
+                self.handle_error(e);
+            },
+            Instruction::TailCall => if let Err(e) = self.tail_call(op) {
+                self.handle_error(e);
+            },
             Instruction::Return => self.pc = self.operations.len(),
         }
         self.gc();
+    }
+
+    fn handle_error(&mut self, e: VmError<T>) {
+        // TODO
+        println!("{}", e);
+        self.saved_state.clear();
+        self.pc = 0;
+        self.operations.clear();
+        self.stack.clear();
     }
 
     /// Reset the machine. Keeps the current code and constants.
@@ -482,7 +491,7 @@ impl<T> VM<T> {
         self.environment.define_variable(name, value);
     }
 
-    fn lookup(&mut self, op: Operation) -> Result<(), VmError> {
+    fn lookup(&mut self, op: Operation) -> Result<(), VmError<T>> {
         let n = self.load_register(op.lookup_name());
         assert!(n.is_symbol());
         let name = n.to_symbol();
@@ -496,7 +505,7 @@ impl<T> VM<T> {
         Ok(())
     }
 
-    fn call(&mut self, op: Operation) {
+    fn call(&mut self, op: Operation) -> Result<(), VmError<T>> {
         if self.debug {
             println!("beginning call");
         }
@@ -527,8 +536,31 @@ impl<T> VM<T> {
             //self.assign_fp(s.sp);
             self.saved_state.push(s);
             self.pc = 0;
+            Ok(())
         } else {
-            // TODO: return error
+            Err(VmError::NonProcedure(v))
+        }
+    }
+
+    fn tail_call(&mut self, op: Operation) -> Result<(), VmError<T>> {
+        if self.debug {
+            println!("beginning tail call");
+        }
+
+        // TODO
+        let v = self.load_register(op.tail_call_register());
+        if v.is_lambda() {
+            let lambda = v.to_lambda();
+            self.operations = lambda.code.clone();
+            self.constants = lambda.consts.clone();
+            self.environment = lambda.env.procedure_local();
+            // Make sure we don't free this
+            Box::into_raw(lambda);
+
+            self.pc = 0;
+            Ok(())
+        } else {
+            Err(VmError::NonProcedure(v))
         }
     }
 
@@ -624,16 +656,19 @@ struct SaveState<T> {
 }
 
 #[derive(Debug, Clone)]
-enum VmError {
+enum VmError<T> {
     Undefined(Symbol),
+    NonProcedure(Value<T>),
     User(String),
 }
 
-impl fmt::Display for VmError {
+impl<T> fmt::Display for VmError<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             VmError::Undefined(s) =>
                 write!(f, "Exception: variable {} is not bound", string_interner::get_value(*s).unwrap()),
+            VmError::NonProcedure(v) =>
+                write!(f, "Exception: attempt to apply non-procedure {}", v),
             VmError::User(s) => write!(f, "Exception in {}", s),
         }
     }
