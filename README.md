@@ -1,8 +1,6 @@
-# Akuma
+# Minerva
 
 A scheme interpreter
-
-Dedicated to the Nissan Fairlady S30 240z.
 
 ### TODO
 - real scheme throws error on (= 1 2 't) because of symbol. Our interpreter allows
@@ -11,32 +9,19 @@ are all primitives type checked?
 - Support other scheme types, rat, floating point, complex, vectors
   - This mostly requires improving the parser
 - Implement more primitives
-- Support more of r7rs
 - Add quasiquoting with unquoting
-- Emulate racket when displaying quoted values
-- Lazy lists
 - Parallel pipelines? https://adamdrake.com/command-line-tools-can-be-235x-faster-than-your-hadoop-cluster.html
   - https://lparallel.org
 - Browser interaction
   - Webdriver API
 - Module system
 - JIT compilation
-  - Maybe look at Cretonne
-  - A tiered compiler like SpiderMonkey would be interesting
-
-#### Priority
-- Macros
-- Rust FFI
-- REPL/environment
-- Continuations
-- Bytecode
-
 
 #### stdlib
 - HTTP lib
   - maybe look at Golang's net/http or Common Lisp's Caveman/ningle
   - Should be easy to make requests
-  - Should be capable running a server, but maybe doesn't need something akin to RoR
+  - Should be capable running a server, but doesn't need something akin to RoR
 - Database interaction
   - Should have easy drivers for common databases, Psql, SQLite, etc
   - Should have some key/value store like Golang's Boltdb
