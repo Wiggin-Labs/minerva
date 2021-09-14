@@ -1,5 +1,4 @@
 use std::fmt::{self, Display, Formatter};
-use std::option::NoneError;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParseError {
@@ -11,12 +10,6 @@ pub enum ParseError {
     BadQuote,
     UnexpectedCloseParen,
     IllegalUse,
-}
-
-impl From<NoneError> for ParseError {
-    fn from(_e: NoneError) -> ParseError {
-        ParseError::EOF
-    }
 }
 
 impl Display for ParseError {

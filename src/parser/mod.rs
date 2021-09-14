@@ -10,6 +10,16 @@ use string_interner::{get_value, Symbol};
 use std::iter::Peekable;
 use std::slice::Iter;
 
+macro_rules! t {
+    ($e:expr) => {
+        if let Some(e) = $e {
+            e
+        } else {
+            return Err(ParseError::EOF);
+        }
+    };
+}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd, is_enum_variant)]
 pub enum Token {
     Comment(String),
@@ -66,7 +76,7 @@ impl<'a, T> Parser<'a, T> {
     }
 
     fn _parse(&mut self) -> Result<Ast<T>, ParseError> {
-        match self.tokens.next()? {
+        match t!(self.tokens.next()) {
             Token::Comment(_) | Token::BlockComment(_) => self._parse(),
             Token::LeftParen => self.parse_expr(),
             Token::Quote => self.parse_quote(false),
@@ -82,7 +92,7 @@ impl<'a, T> Parser<'a, T> {
     }
 
     fn parse_expr(&mut self) -> Result<Ast<T>, ParseError> {
-        match self.tokens.next()? {
+        match t!(self.tokens.next()) {
             Token::Symbol(s) => match get_value(*s).unwrap().as_str() {
                 "define" => self.parse_define(),
                 "lambda" => self.parse_lambda(),
@@ -101,9 +111,9 @@ impl<'a, T> Parser<'a, T> {
 
     fn parse_define(&mut self) -> Result<Ast<T>, ParseError> {
         let mut proc = false;
-        let name = match self.tokens.next()? {
+        let name = match t!(self.tokens.next()) {
             Token::Symbol(s) => *s,
-            Token::LeftParen => if let Token::Symbol(s) = self.tokens.next()? {
+            Token::LeftParen => if let Token::Symbol(s) = t!(self.tokens.next()) {
                 proc = true;
                 *s
             } else {
@@ -115,7 +125,7 @@ impl<'a, T> Parser<'a, T> {
         let value = if proc {
             let mut args = Vec::new();
             loop {
-                match self.tokens.next()? {
+                match t!(self.tokens.next()) {
                     Token::Symbol(s) => args.push(*s),
                     Token::RightParen => break,
                     _ => return Err(ParseError::Input),
@@ -140,12 +150,12 @@ impl<'a, T> Parser<'a, T> {
     fn parse_lambda(&mut self) -> Result<Ast<T>, ParseError> {
         let mut args = vec![];
 
-        if !self.tokens.next()?.is_left_paren() {
+        if !t!(self.tokens.next()).is_left_paren() {
             return Err(ParseError::Input);
         }
 
         loop {
-            match self.tokens.next()? {
+            match t!(self.tokens.next()) {
                 Token::Symbol(s) => args.push(*s),
                 Token::RightParen => break,
                 _ => return Err(ParseError::Input),
@@ -158,7 +168,7 @@ impl<'a, T> Parser<'a, T> {
     }
 
     fn lambda_body(&mut self) -> Result<Vec<Ast<T>>, ParseError> {
-        match self.tokens.peek()? {
+        match t!(self.tokens.peek()) {
             Token::LeftParen => Ok(self.parse_begin()?.unwrap_begin()),
             Token::RightParen => return Err(ParseError::UnexpectedCloseParen),
             _ => {
@@ -186,7 +196,7 @@ impl<'a, T> Parser<'a, T> {
     fn parse_begin(&mut self) -> Result<Ast<T>, ParseError> {
         let mut sequence = vec![];
         loop {
-            match self.tokens.next()? {
+            match t!(self.tokens.next()) {
                 Token::RightParen => return Ok(Ast::Begin(sequence)),
                 Token::LeftParen => sequence.push(self.parse_expr()?),
                 Token::Symbol(s) => sequence.push(Ast::Ident(*s)),
@@ -201,7 +211,7 @@ impl<'a, T> Parser<'a, T> {
     fn parse_application(&mut self, op: Ast<T>) -> Result<Ast<T>, ParseError> {
         let mut args = vec![op];
         loop {
-            if self.tokens.peek()?.is_right_paren() {
+            if t!(self.tokens.peek()).is_right_paren() {
                 self.tokens.next();
                 return Ok(Ast::Apply(args));
             } else {
@@ -219,7 +229,7 @@ impl<'a, T> Parser<'a, T> {
     }
 
     fn _parse_quote(&mut self) -> Result<Value<T>, ParseError> {
-        match self.tokens.next()? {
+        match t!(self.tokens.next()) {
             Token::LeftParen => self.quote_list(),
             Token::Symbol(s) => Ok(Value::Symbol(*s)),
             t @ Token::Nil | t @ Token::Bool(_) | t @ Token::String(_) |
@@ -232,7 +242,7 @@ impl<'a, T> Parser<'a, T> {
         let mut parens = 1;
         let mut list_rev = Vec::new();
         while parens != 0 {
-            if self.tokens.peek()?.is_right_paren() {
+            if t!(self.tokens.peek()).is_right_paren() {
                 self.tokens.next();
                 parens -= 1;
             } else {
