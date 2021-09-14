@@ -1,9 +1,3 @@
-#![feature(try_trait)]
-#![cfg_attr(feature="profile", feature(plugin, custom_attribute))]
-#![cfg_attr(feature="profile", plugin(flamer))]
-#[cfg(feature="profile")]
-extern crate flame;
-
 #[macro_use]
 extern crate derive_is_enum_variant;
 #[macro_use]

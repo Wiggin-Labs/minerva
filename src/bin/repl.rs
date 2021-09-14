@@ -1,6 +1,4 @@
 extern crate akuma;
-#[cfg(feature="profile")]
-extern crate flame;
 extern crate rustyline;
 extern crate string_interner;
 extern crate vm;
@@ -78,7 +76,7 @@ fn main() {
                     ctrlc = true;
                     continue;
                 },
-                _ => panic!(e),
+                _ => panic!("{}", e),
             }
         };
         ctrlc = false;
@@ -115,15 +113,20 @@ fn run<T>(vm: &mut VM<T>, env: Option<&Environment<T>>, input: String) {
     for ast in ast {
         let ir = akuma::compile(ast);
         let ir = akuma::optimize(ir);
+        println!("IR:");
         for i in &ir {
             println!("{}", i);
         }
         println!();
-        //let asm = akuma::output_asm(ir);
-        //for i in &asm {
-        //    println!("{}", i);
-        //}
-        /*
+
+        println!("ASM:");
+        let asm = akuma::output_asm(ir);
+        for i in &asm {
+            println!("{}", i);
+        }
+        println!();
+
+        println!("RESULT:");
         let (code, consts) = assemble(asm);
         vm.load_code(code, consts);
         vm.run();
@@ -134,7 +137,6 @@ fn run<T>(vm: &mut VM<T>, env: Option<&Environment<T>>, input: String) {
                 swap_cash_vars(env, result);
             }
         }
-        */
     }
 }
 
