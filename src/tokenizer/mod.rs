@@ -1,4 +1,8 @@
-use {ParseError, Token};
+mod token;
+
+pub use self::token::Token;
+
+use ParseError;
 
 use regex::Regex;
 use string_interner::get_symbol;
@@ -62,10 +66,12 @@ impl<'a> Tokenizer<'a> {
                 ';' => self.tokenize_comment(c)?,
                 '#' => {
                     match self.peek() {
-                        Some('|') => self.tokenize_block_comment()?,
-                        _ => {},
+                        Some('|') => {
+                            self.next();
+                            self.tokenize_block_comment()?;
+                        }
+                        _ => self.tokens.push(Token::Pound),
                     }
-                    //self.tokenize_bool()?,
                 }
                 c if c.is_whitespace() => {}
                 '.' => match self.peek() {
@@ -214,26 +220,6 @@ impl<'a> Tokenizer<'a> {
         }
         Err(ParseError::InString)
     }
-
-    /*
-    pub fn tokenize_bool(&mut self) -> Result<(), ParseError> {
-        match self.next() {
-            Some('t') => self.tokens.push(Token::Bool(true)),
-            Some('f') => self.tokens.push(Token::Bool(false)),
-            Some(_) => return Err(ParseError::Input),
-            _ => return Err(ParseError::EOF),
-        }
-
-        match self.next() {
-            Some(c) if c.is_whitespace() => {},
-            Some('(') => self.tokens.push(Token::LeftParen),
-            Some(')') => self.tokens.push(Token::RightParen),
-            Some(_) => return Err(ParseError::Input),
-            None => {},
-        }
-        Ok(())
-    }
-    */
 
     fn tokenize_block_comment(&mut self) -> ParseResult {
         let mut buf = String::from("#|");

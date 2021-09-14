@@ -1,11 +1,13 @@
+mod ast;
 mod error;
 
+pub use self::ast::Ast;
 pub use self::error::ParseError;
 
-use {Ast};
+use Token;
 use vm::Value;
 
-use string_interner::{get_value, Symbol};
+use string_interner::get_value;
 
 use std::iter::Peekable;
 use std::slice::Iter;
@@ -18,40 +20,6 @@ macro_rules! t {
             return Err(ParseError::EOF);
         }
     };
-}
-
-#[derive(Debug, Clone, PartialEq, PartialOrd, is_enum_variant)]
-pub enum Token {
-    Comment(String),
-    BlockComment(String),
-    LeftParen,
-    RightParen,
-    Dot,
-    Quote,
-    Quasiquote,
-    Unquote,
-    UnquoteSplice,
-    Nil,
-    Bool(bool),
-    String(String),
-    Integer(i32),
-    Float(f64),
-    //ComplexExact(Option<String>, Option<String>),
-    //ComplexFloating(Option<String>, Option<String>),
-    Symbol(Symbol),
-}
-
-impl Token {
-    fn to_primitive<T>(&self) -> Value<T> {
-        match self {
-            Token::Nil => Value::Nil,
-            Token::Bool(b) => Value::Bool(*b),
-            Token::String(s) => Value::String(s.to_string()),
-            Token::Integer(i) => Value::Integer(*i),
-            Token::Float(i) => Value::Float(*i),
-            _ => unreachable!(),
-        }
-    }
 }
 
 pub struct Parser<'a, T> {
@@ -81,13 +49,27 @@ impl<'a, T> Parser<'a, T> {
             Token::LeftParen => self.parse_expr(),
             Token::Quote => self.parse_quote(false),
             Token::Symbol(s) => Ok(Ast::Ident(*s)),
-            t @ Token::Nil | t @ Token::Bool(_) | t @ Token::String(_) |
-                t @ Token::Integer(_) | t @ Token::Float(_) => Ok(Ast::Primitive(t.to_primitive())),
+            t if t.is_primitive() => Ok(Ast::Primitive(t.to_primitive())),
             Token::RightParen => Err(ParseError::UnexpectedCloseParen),
+            Token::Pound => self.parse_pound(),
             Token::Dot => Err(ParseError::IllegalUse),
             Token::Quasiquote => unimplemented!(),
             Token::Unquote => unimplemented!(),
             Token::UnquoteSplice => unimplemented!(),
+            Token::String(_) | Token::Float(_) | Token::Integer(_) => unreachable!(),
+        }
+    }
+
+    fn parse_pound(&mut self) -> Result<Ast<T>, ParseError> {
+        match t!(self.tokens.next()) {
+            Token::Symbol(s) => match get_value(*s).unwrap().as_str() {
+                "t" => Ok(Ast::Primitive(Value::Bool(true))),
+                "f" => Ok(Ast::Primitive(Value::Bool(false))),
+                _ => todo!(),
+            }
+            //Token::LeftParen => {
+            //}
+            _ => todo!(),
         }
     }
 
@@ -182,7 +164,11 @@ impl<'a, T> Parser<'a, T> {
     fn parse_if(&mut self) -> Result<Ast<T>, ParseError> {
         let predicate = Box::new(self._parse()?);
         let consequent = Box::new(self._parse()?);
-        let alternative = Box::new(self._parse()?);
+        let alternative = if Token::RightParen == **t!(self.tokens.peek()) {
+            Box::new(Ast::Primitive(Value::Void))
+        } else {
+            Box::new(self._parse()?)
+        };
 
         self.read_closer()?;
 
@@ -200,9 +186,7 @@ impl<'a, T> Parser<'a, T> {
                 Token::RightParen => return Ok(Ast::Begin(sequence)),
                 Token::LeftParen => sequence.push(self.parse_expr()?),
                 Token::Symbol(s) => sequence.push(Ast::Ident(*s)),
-                token @ Token::Bool(_) => sequence.push(Ast::Primitive(token.to_primitive())),
-                token @ Token::Integer(_) => sequence.push(Ast::Primitive(token.to_primitive())),
-                token @ Token::String(_) => sequence.push(Ast::Primitive(token.to_primitive())),
+                t if t.is_primitive() => sequence.push(Ast::Primitive(t.to_primitive())),
                 _ => return Err(ParseError::Input),
             }
         }
@@ -232,8 +216,7 @@ impl<'a, T> Parser<'a, T> {
         match t!(self.tokens.next()) {
             Token::LeftParen => self.quote_list(),
             Token::Symbol(s) => Ok(Value::Symbol(*s)),
-            t @ Token::Nil | t @ Token::Bool(_) | t @ Token::String(_) |
-                t @ Token::Integer(_) | t @ Token::Float(_) => Ok(t.to_primitive()),
+            t if t.is_primitive() => Ok(t.to_primitive()),
             _ => Err(ParseError::Input),
         }
     }
@@ -251,8 +234,8 @@ impl<'a, T> Parser<'a, T> {
         }
 
         let mut list = Value::Nil;
-        for i in 0..list_rev.len() {
-            list = Value::Pair(list_rev[list_rev.len()-1-i], list);
+        while !list_rev.is_empty() {
+            list = Value::Pair(list_rev.pop().unwrap(), list);
         }
 
         Ok(list)
