@@ -1,7 +1,7 @@
-extern crate akuma;
+extern crate minerva;
 extern crate vm;
 
-use akuma::{Ast, compile, CompilePrimitive};
+use minerva::{Ast, compile, CompilePrimitive};
 use vm::{assemble, init_env, Register, Value, VM};
 
 #[test]

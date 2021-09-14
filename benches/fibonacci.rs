@@ -1,9 +1,9 @@
-extern crate akuma;
+extern crate minerva;
 #[macro_use]
 extern crate criterion;
 extern crate vm;
 
-use akuma::{Parser, Token};
+use minerva::{Parser, Token};
 use vm::{assemble, init_env, VM};
 use criterion::Criterion;
 
@@ -15,14 +15,14 @@ fn recursive_fibonacci(c: &mut Criterion) {
     let input = "(define fib (lambda (n) (if (< n 2) 1 (+ (fib (- n 1)) (fib (- n 2))))))";
     let tokens = Parser::parse(input).unwrap();
     let mut ast = Token::build_ast(tokens).unwrap();
-    let asm = akuma::compile(ast.remove(0));
+    let asm = minerva::compile(ast.remove(0));
     vm.load_code(assemble(asm));
     vm.run();
 
     let input = "(fib 10)";
     let tokens = Parser::parse(input).unwrap();
     let mut ast = Token::build_ast(tokens).unwrap();
-    let asm = akuma::compile(ast.remove(0));
+    let asm = minerva::compile(ast.remove(0));
     let code = assemble(asm);
     c.bench_function("fib 10", move |b| b.iter(|| {
         vm.run();

@@ -1,6 +1,6 @@
 [package]
 authors = ["Hunter Praska <hunter@wiggin-labs.com>"]
-name = "akuma"
+name = "minerva"
 version = "0.1.0"
 autobenches = false
 

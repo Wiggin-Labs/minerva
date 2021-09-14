@@ -1,1 +1,1 @@
-A virtual register machine for Akuma
+A virtual register machine for Minerva

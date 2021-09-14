@@ -1,7 +1,7 @@
-extern crate akuma;
+extern crate minerva;
 
 /*
-use akuma::{eval, init_env, Environment, Sexp, Parser, Token};
+use minerva::{eval, init_env, Environment, Sexp, Parser, Token};
 
 fn run(input: &str, env: &Environment) -> Sexp {
     let tokens = Parser::parse(input).unwrap();

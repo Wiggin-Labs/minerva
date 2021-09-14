@@ -1,8 +1,8 @@
-extern crate akuma;
+extern crate minerva;
 //extern crate ramp;
 
 /*
-use akuma::{Parser, Token, Sexp, ComplexExact, ComplexFloating, Number};
+use minerva::{Parser, Token, Sexp, ComplexExact, ComplexFloating, Number};
 use ramp::Int;
 use ramp::rational::Rational;
 

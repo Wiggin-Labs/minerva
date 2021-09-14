@@ -1,9 +1,9 @@
-extern crate akuma;
+extern crate minerva;
 extern crate rustyline;
 extern crate string_interner;
 extern crate vm;
 
-use akuma::{ParseError, Token};
+use minerva::{ParseError, Token};
 use vm::{assemble, init_env, Environment, Operation, Register, Value, VM};
 
 use rustyline::{Context, Editor, Helper};
@@ -31,7 +31,7 @@ fn main() {
         m: MatchingBracketHighlighter::new(),
     };
 
-    if let Ok(mut f) = File::open("~/.config/akuma/init.ss") {
+    if let Ok(mut f) = File::open("~/.config/minerva/init.ss") {
         let mut input = String::new();
         f.read_to_string(&mut input).unwrap();
         run(&mut vm, None, input);
@@ -94,7 +94,7 @@ fn main() {
 }
 
 fn run<T>(vm: &mut VM<T>, env: Option<&Environment<T>>, input: String) {
-    let tokens = match akuma::Tokenizer::tokenize(&input) {
+    let tokens = match minerva::Tokenizer::tokenize(&input) {
         Ok(t) => t,
         Err(e) => {
             println!("ERROR: {}", e);
@@ -102,7 +102,7 @@ fn run<T>(vm: &mut VM<T>, env: Option<&Environment<T>>, input: String) {
         }
     };
 
-    let ast: Vec<akuma::Ast<T>> = match akuma::Parser::parse(tokens) {
+    let ast: Vec<minerva::Ast<T>> = match minerva::Parser::parse(tokens) {
         Ok(o) => o,
         Err(e) => {
             println!("ERROR: {}", e);
@@ -111,8 +111,8 @@ fn run<T>(vm: &mut VM<T>, env: Option<&Environment<T>>, input: String) {
     };
 
     for ast in ast {
-        let ir = akuma::compile(ast);
-        let ir = akuma::optimize(ir);
+        let ir = minerva::compile(ast);
+        let ir = minerva::optimize(ir);
         println!("IR:");
         for i in &ir {
             println!("{}", i);
@@ -120,7 +120,7 @@ fn run<T>(vm: &mut VM<T>, env: Option<&Environment<T>>, input: String) {
         println!();
 
         println!("ASM:");
-        let asm = akuma::output_asm(ir);
+        let asm = minerva::output_asm(ir);
         for i in &asm {
             println!("{}", i);
         }
@@ -204,7 +204,7 @@ impl<T> Completer for Repl<T> {
 
     fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>), ReadlineError> {
         let l = &line[0..pos];
-        match akuma::Tokenizer::tokenize(l) {
+        match minerva::Tokenizer::tokenize(l) {
             Ok(tokens) => {
                 let (p, candidates) = if let Some(Token::Symbol(s)) = tokens.last() {
                     if l.chars().last().unwrap().is_whitespace() {
@@ -229,7 +229,7 @@ impl<T> Completer for Repl<T> {
 
 impl<T> Validator for Repl<T> {
     fn validate(&self, ctx: &mut ValidationContext<'_>) -> Result<ValidationResult, ReadlineError> {
-        match akuma::Tokenizer::tokenize(ctx.input()) {
+        match minerva::Tokenizer::tokenize(ctx.input()) {
             Ok(tokens) => if tokens.is_empty() ||
                 tokens.iter().filter(|&t| t.is_left_paren()).count()
                 > tokens.iter().filter(|&t| t.is_right_paren()).count()

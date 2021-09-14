@@ -1,6 +1,6 @@
-extern crate akuma;
+extern crate minerva;
 
-use akuma::{Parser, Token};
+use minerva::{Parser, Token};
 
 fn run(input: &str) -> Token {
     Parser::parse(input).unwrap().remove(0)
