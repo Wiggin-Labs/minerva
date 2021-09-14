@@ -51,9 +51,8 @@ impl Compiler {
 
     fn compile_define<T>(&mut self, exp: Ast<T>, target: Symbol) -> Vec<IR<T>> {
         let (name, value) = exp.unwrap_define();
-        let value_var = gen_var();
-        let mut n = self._compile(value, value_var);
-        n.push(IR::Define(target, name, value_var));
+        let mut n = self._compile(value, target);
+        n.push(IR::Define(name, target));
         n
     }
 
@@ -105,12 +104,14 @@ impl Compiler {
 
     fn compile_application<T>(&mut self, mut v: Vec<Ast<T>>, target: Symbol) -> Vec<IR<T>> {
         let op = v.remove(0);
-        let args = v.len();
+        //let args = v.len();
         let mut ir = Vec::new();
+        let mut args = Vec::new();
         for arg in v {
             let arg_symbol = gen_var();
             ir.append(&mut self._compile(arg, arg_symbol));
-            ir.push(IR::Param(arg_symbol));
+            args.push(arg_symbol);
+            //ir.push(IR::Param(arg_symbol));
         }
         let op_symbol = gen_var();
         ir.append(&mut self._compile(op, op_symbol));

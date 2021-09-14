@@ -12,12 +12,13 @@ pub enum IR<T> {
     GotoIf(Symbol, Symbol),
     GotoIfNot(Symbol, Symbol),
     Phi(Symbol, Symbol, Symbol),
-    Define(Symbol, Symbol, Symbol),
+    Define(Symbol, Symbol),
     Primitive(Symbol, Value<T>),
     Lookup(Symbol, Symbol),
     Copy(Symbol, Symbol),
-    Param(Symbol),
-    Call(Symbol, Symbol, usize),
+    //Param(Symbol),
+    //Call(Symbol, Symbol, usize),
+    Call(Symbol, Symbol, Vec<Symbol>),
     Fn(Symbol, Vec<Symbol>, Vec<IR<T>>),
 }
 
@@ -25,16 +26,17 @@ impl<T> fmt::Display for IR<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             IR::Primitive(s, v) => write!(f, "PRIMITIVE {}, {}", get_value(*s).unwrap(), v),
-            IR::Define(t, s1, s2) => write!(f, "{}, DEFINE {}, {}", get_value(*t).unwrap(), get_value(*s1).unwrap(), get_value(*s2).unwrap()),
+            IR::Define(s1, s2) => write!(f, "DEFINE {}, {}", get_value(*s1).unwrap(), get_value(*s2).unwrap()),
             IR::Lookup(t, s) => write!(f, "{}, LOOKUP {}", get_value(*t).unwrap(), get_value(*s).unwrap()),
             IR::Copy(t, s) => write!(f, "COPY {}, {}", get_value(*t).unwrap(), get_value(*s).unwrap()),
-            IR::Param(s) => write!(f, "PARAM {}", get_value(*s).unwrap()),
+            //IR::Param(s) => write!(f, "PARAM {}", get_value(*s).unwrap()),
             IR::Call(s, proc, args) => {
-                write!(f, "{} CALL {}, {}", get_value(*s).unwrap(), get_value(*proc).unwrap(), args)
-                //for arg in args {
-                //    write!(f, "{}, ", get_value(*arg).unwrap())?;
-                //}
-                //write!(f, ")")
+                //write!(f, "{} CALL {}, {}", get_value(*s).unwrap(), get_value(*proc).unwrap(), args)
+                write!(f, "{} CALL {}(", get_value(*s).unwrap(), get_value(*proc).unwrap())?;
+                for arg in args {
+                    write!(f, "{}, ", get_value(*arg).unwrap())?;
+                }
+                write!(f, ")")
             }
             IR::Fn(s, args, ir) => {
                 write!(f, "{}(", get_value(*s).unwrap())?;
