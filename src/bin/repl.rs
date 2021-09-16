@@ -103,7 +103,8 @@ fn run<T>(vm: &mut VM<T>, env: Option<&Environment<T>>, input: String) {
         }
     };
 
-    for ast in ast {
+    for mut ast in ast {
+        threading(&mut ast);
         let ir = minerva::compile(ast);
         let ir = minerva::optimize(ir);
         println!("IR:");
@@ -130,6 +131,89 @@ fn run<T>(vm: &mut VM<T>, env: Option<&Environment<T>>, input: String) {
                 swap_cash_vars(env, result);
             }
         }
+    }
+}
+
+fn threading<T>(ast: &mut minerva::Ast<T>) {
+    use minerva::Ast::*;
+
+    match ast {
+        Define { value, .. } => threading(&mut *value),
+        Lambda { body, .. } => for a in body {
+            threading(a);
+        },
+        If { predicate, consequent, alternative } => {
+            threading(&mut *predicate);
+            threading(&mut *consequent);
+            threading(&mut *alternative);
+        }
+        Begin(v) => for a in v {
+            threading(a);
+        },
+        Apply(v) => match v[0] {
+            Ident(s) => if "->" == get_value(s).unwrap() {
+                let mut v1 = v.clone();
+                v1.remove(0);
+                *v = handle_threading(v1);
+            } else {
+                for a in  v {
+                    threading(a);
+                }
+            }
+            _ => for a in  v {
+                threading(a);
+            },
+        },
+        _ => (),
+    }
+}
+
+fn handle_threading<T>(mut ast: Vec<minerva::Ast<T>>) -> Vec<minerva::Ast<T>> {
+    use minerva::Ast::*;
+    if ast.len() == 0 {
+        return vec![];
+    }
+
+    let mut prev = ast.remove(0);
+    for mut a in ast {
+        match a {
+            Apply(mut v) => {
+                let mut done = false;
+                for s in v.iter_mut() {
+                    match s {
+                        Ident(sym) => {
+                            if "_" == get_value(*sym).unwrap() {
+                                *s = prev.clone();
+                                done = true;
+                            } else {
+                                threading(s);
+                            }
+                        }
+                        _ => threading(s),
+                    }
+                }
+                if !done {
+                    v.push(prev);
+                }
+                prev = Apply(v);
+            }
+            _ => {
+                threading(&mut a);
+                prev = Apply(vec![a, prev]);
+            }
+        }
+    }
+
+    if let Apply(v) = prev {
+        v
+    } else {
+        // TODO
+        let x = get_symbol("x".to_string());
+        let identity = Lambda {
+            args: vec![x],
+            body: vec![Ident(x)],
+        };
+        vec![identity, prev]
     }
 }
 
