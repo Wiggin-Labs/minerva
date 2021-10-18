@@ -322,56 +322,62 @@ impl<T> Value<T> {
         ((self.0.checked_shl(16).unwrap() as i64) >> 16) as u64
     }
 
-    // TODO: the recursion will probably blow the stack for lists.
     pub(crate) fn mark(self) {
-        match self.to_type() {
-            VType::Lambda => {
-                let mut p = self.to_lambda();
-                if p.gc & 1 != 1 {
-                    p.gc = p.gc | 1;
-                    // TODO
-                    for v in &p.consts {
-                        v.mark();
+        let mut list = vec![self];
+        while !list.is_empty() {
+            let cur = list.pop().unwrap();
+            match cur.to_type() {
+                VType::Lambda => {
+                    let mut p = cur.to_lambda();
+                    if p.gc & 1 != 1 {
+                        p.gc = p.gc | 1;
+                        for &v in &p.consts {
+                            list.push(v);
+                        }
+                        p.env.mark();
                     }
-                    p.env.mark();
+                    Box::into_raw(p);
                 }
-                Box::into_raw(p);
-            }
-            VType::Pair => {
-                let mut p = self.to_pair();
-                if p.gc & 1 != 1 {
-                    p.gc = p.gc | 1;
-                    p.car.mark();
-                    p.cdr.mark();
-                }
-                Box::into_raw(p);
-            }
-            VType::Vec => {
-                let mut p = self.to_vec();
-                if p.gc & 1 != 1 {
-                    p.gc = p.gc | 1;
-                    for v in &p.vec {
-                        v.mark();
+                VType::Pair => {
+                    let mut p = cur.to_pair();
+                    if p.gc & 1 != 1 {
+                        p.gc = p.gc | 1;
+                        list.push(p.car);
+                        list.push(p.cdr);
                     }
+                    Box::into_raw(p);
                 }
-                Box::into_raw(p);
+                VType::Vec => {
+                    let mut p = cur.to_vec();
+                    if p.gc & 1 != 1 {
+                        p.gc = p.gc | 1;
+                        for &v in &p.vec {
+                            list.push(v);
+                        }
+                    }
+                    Box::into_raw(p);
+                }
+                VType::String => {
+                    let mut p = cur.to_string();
+                    p.gc = p.gc | 1;
+                    Box::into_raw(p);
+                }
+                VType::HashMap => {
+                    let mut p = cur.to_hashmap();
+                    p.gc = p.gc | 1;
+                    for (&k, &v) in &p.map {
+                        list.push(k);
+                        list.push(v);
+                    }
+                    Box::into_raw(p);
+                }
+                VType::Other => {
+                    let mut p = cur.to_other();
+                    p.gc = p.gc | 1;
+                    Box::into_raw(p);
+                }
+                _ => (),
             }
-            VType::String => {
-                let mut p = self.to_string();
-                p.gc = p.gc | 1;
-                Box::into_raw(p);
-            }
-            VType::HashMap => {
-                let mut p = self.to_hashmap();
-                p.gc = p.gc | 1;
-                Box::into_raw(p);
-            }
-            VType::Other => {
-                let mut p = self.to_other();
-                p.gc = p.gc | 1;
-                Box::into_raw(p);
-            }
-            _ => (),
         }
     }
 
