@@ -98,12 +98,11 @@ const HASHMAP_TAG: u64 = 0b101 << 48;
 //const BIGINT_TAG: u64 = 0b110 << 48;
 const OTHER_TAG: u64 = 0b111 << 48;
 
-// TODO: replace middle & with && when it is allowed in const fn
 macro_rules! is_imm {
     ($name:ident, $tag:ident) => {
         pub const fn $name(self) -> bool {
-            ((self.0 & NAN) == NAN) & ((self.0 & TAG_MASK) == IMMEDIATE_TAG)
-                & ((self.0 & IMMEDIATE_MASK) == $tag)
+            ((self.0 & NAN) == NAN) && ((self.0 & TAG_MASK) == IMMEDIATE_TAG)
+                && ((self.0 & IMMEDIATE_MASK) == $tag)
         }
     };
 }
@@ -121,11 +120,10 @@ macro_rules! create_pointer {
 }
 */
 
-// TODO: replace middle & with && when it is allowed in const fn
 macro_rules! is_pointer {
     ($name:ident, $tag:ident) => {
         pub const fn $name(self) -> bool {
-            ((self.0 & NAN) == NAN) & ((self.0 & TAG_MASK) == $tag)
+            ((self.0 & NAN) == NAN) && ((self.0 & TAG_MASK) == $tag)
         }
     };
 }
@@ -176,22 +174,21 @@ impl<T> Value<T> {
     pub const Nil: Self = Value::new(NAN | NIL_TAG);
     is_imm!(is_nil, NIL_TAG);
 
-    // TODO: make const when if is allowed
-    pub fn Bool(b: bool) -> Self {
+    pub const fn Bool(b: bool) -> Self {
         if b { Self::True } else { Self::False }
     }
     is_imm!(is_bool, BOOL_TAG);
 
     pub const True: Self = Value::new(NAN | BOOL_TAG | TRUE);
-    // TODO: make const when if is allowed
+    // TODO: make this const
     pub fn is_true(self) -> bool {
-        self.is_bool() && ((self.0 & TRUE) == TRUE)
+        self == Self::True
     }
 
     pub const False: Self = Value::new(NAN | BOOL_TAG | FALSE);
-    // TODO: make const when if is allowed
+    // TODO: make this const
     pub fn is_false(self) -> bool {
-        self.is_bool() && ((self.0 & TRUE) == FALSE)
+        self == Self::False
     }
 
     pub const fn Integer(i: i32) -> Self {
@@ -222,7 +219,7 @@ impl<T> Value<T> {
     // 200 GB of RAM so we are presumably safe for now. Of course we can quite easily bump this up
     // 40+ bits which ought to exceed the amount of memory currently available in any computer.
     pub fn Symbol(s: Symbol) -> Self {
-        // TODO: this should probably check that s is only 32/48 bits
+        debug_assert!(*s < (1 << 32));
         Value::new(NAN | SYMBOL_TAG | (*s as u64))
     }
     is_imm!(is_symbol, SYMBOL_TAG);
@@ -317,7 +314,7 @@ impl<T> Value<T> {
     is_pointer!(is_other, OTHER_TAG);
     to_pointer!(to_other, Other<T>);
 
-    // TODO: make const when if is allowed
+    // TODO: make const when Option::unwrap is allowed
     pub fn to_pointer(self) -> u64 {
         // Amd64 currently only uses the lower 48 bits for pointers, which is what makes NANboxing
         // possible. However, it requires that the upper 16 bits of a pointer be the same as the
