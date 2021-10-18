@@ -2,7 +2,8 @@ use vm::Value;
 
 use string_interner::Symbol;
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Clone(bound=""), Debug(bound=""))]
 pub enum Ast<T> {
     Define {
         name: Symbol,

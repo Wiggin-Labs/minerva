@@ -50,7 +50,7 @@ impl From<u64> for VType {
 
 use std::marker::PhantomData;
 
-#[derive(Debug, PartialOrd, Eq)]
+#[derive(PartialOrd, Eq)]
 pub struct Value<T>(pub u64, PhantomData<T>);
 
 impl<T> Copy for Value<T> {}
@@ -422,6 +422,12 @@ impl<T> Value<T> {
             }
             _ => unreachable!(),
         }
+    }
+}
+
+impl<T> fmt::Debug for Value<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
 
