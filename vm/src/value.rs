@@ -71,7 +71,8 @@ impl<T> PartialEq for Value<T> {
 // The left-most bit of the significand must be 0, and at least one of the bottom 51 bits must be 1
 // in order to differentiate from INF/-INF. We need the bottom 48 bits for pointers, which
 // currently only use 48bits on amd64. This leaves us with 4 unused bits (48, 49, 50, and 63). Note
-// that the sign bit does not matter, so we *could* use it as part of the tag.
+// that the sign bit does not matter, so we *could* use it as part of the tag. If we require
+// pointer types to be 64bit aligned we can gain an additional 3 bits for tagging.
 const NAN: u64 = 0x7FF0000000000000;
 const TAG_MASK: u64 = 0b111 << 48;
 const IMMEDIATE_MASK: u64 = 0b1111 << 44;
@@ -216,6 +217,10 @@ impl<T> Value<T> {
         f64::from_bits(self.0)
     }
 
+    // NOTE: We currently expect symbols to be 32bits, which limits us to "only" 4billion symbols.
+    // Even single byte strings are going to require (8+8+8+1)*2=50 bytes to store which results in
+    // 200 GB of RAM so we are presumably safe for now. Of course we can quite easily bump this up
+    // 40+ bits which ought to exceed the amount of memory currently available in any computer.
     pub fn Symbol(s: Symbol) -> Self {
         // TODO: this should probably check that s is only 32/48 bits
         Value::new(NAN | SYMBOL_TAG | (*s as u64))
