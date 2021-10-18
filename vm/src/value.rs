@@ -322,11 +322,7 @@ impl<T> Value<T> {
         // Amd64 currently only uses the lower 48 bits for pointers, which is what makes NANboxing
         // possible. However, it requires that the upper 16 bits of a pointer be the same as the
         // 48th bit, so here we check whether it is 1 or 0 and set them appropriately.
-        if 1 == (self.0 >> 47) & 1 {
-            self.0 | (0xFFFF << 48)
-        } else {
-            self.0 & ((1 << 48) - 1)
-        }
+        ((self.0.checked_shl(16).unwrap() as i64) >> 16) as u64
     }
 
     // TODO: the recursion will probably blow the stack for lists.
