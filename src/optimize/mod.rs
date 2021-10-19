@@ -395,8 +395,8 @@ impl Output {
                     self.var_mapping.insert(s, target);
                     self.live.entry(s).or_insert(idx);
                 }
-                IR::GotoIf(_, s) => self.live.entry(s).or_insert(idx),
-                IR::GotoIfNot(_, s) => self.live.entry(s).or_insert(idx),
+                IR::GotoIf(_, s) => { self.live.entry(s).or_insert(idx); }
+                IR::GotoIfNot(_, s) => { self.live.entry(s).or_insert(idx); }
                 IR::Goto(_) | IR::Label(_) => (),
                 IR::Fn(s, _, _) => if !self.var_mapping.contains_key(&s) {
                     //self.var_mapping.insert(s, target);

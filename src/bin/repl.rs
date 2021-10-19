@@ -11,7 +11,7 @@ use rustyline::completion::{Completer, FilenameCompleter, Pair};
 use rustyline::config::{self, CompletionType, EditMode};
 use rustyline::error::ReadlineError;
 use rustyline::highlight::{Highlighter, MatchingBracketHighlighter};
-use rustyline::hint::Hinter;
+use rustyline::hint::{Hinter, HistoryHinter};
 use rustyline::validate::{Validator, ValidationResult, ValidationContext};
 use string_interner::{get_symbol, get_value};
 
@@ -331,8 +331,8 @@ impl Helper for Repl {
 impl Hinter for Repl {
     type Hint = String;
 
-    fn hint(&self, _line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<Self::Hint> {
-        None
+    fn hint(&self, line: &str, pos: usize, ctx: &Context<'_>) -> Option<Self::Hint> {
+        HistoryHinter{}.hint(line, pos, ctx)
     }
 }
 
