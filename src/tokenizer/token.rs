@@ -2,7 +2,7 @@ use vm::Value;
 
 use string_interner::Symbol;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, is_enum_variant)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Token {
     Comment(String),
     BlockComment(String),
@@ -36,6 +36,20 @@ impl Token {
             Token::Integer(i) => Value::Integer(*i),
             Token::Float(i) => Value::Float(*i),
             _ => unreachable!(),
+        }
+    }
+
+    pub fn is_left_paren(&self) -> bool {
+        match self {
+            Token::LeftParen => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_right_paren(&self) -> bool {
+        match self {
+            Token::RightParen => true,
+            _ => false,
         }
     }
 }
