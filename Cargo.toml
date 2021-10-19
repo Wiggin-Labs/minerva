@@ -25,3 +25,10 @@ harness = false
 [[bench]]
 name = "count"
 harness = false
+
+[profile.debug]
+opt-level = 3
+
+[profile.release]
+lto = true
+codegen-units = 1
