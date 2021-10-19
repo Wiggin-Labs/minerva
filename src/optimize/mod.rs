@@ -304,7 +304,7 @@ impl Output {
         asm
     }
 
-    fn liveness(&mut self, ir: &Vec<IR>) {
+    fn liveness(&mut self, ir: &[IR]) {
         /*
         let mut liveness = HashMap::new();
         for (idx, i) in ir.iter().enumerate().rev() {
@@ -327,16 +327,14 @@ impl Output {
         */
     }
 
-    fn register_allocation(&mut self, ir: &Vec<IR>, target: Register) {
+    fn register_allocation(&mut self, ir: &[IR], target: Register) {
         //let mut params = Vec::new();
         let mut phis = HashMap::new();
         // Iterate in reverse
         for (idx, i) in ir.iter().enumerate().rev() {
             match *i {
                 IR::Call(s, proc, ref args) => {
-                    if !self.live.contains_key(&s) {
-                        self.live.insert(s, idx);
-                    }
+                    self.live.entry(s).or_insert(idx);
                     //self.var_mapping.insert(s, target);
                     self.var_mapping.insert(proc, Register(0));
                     for (i, arg) in args.iter().enumerate() {
@@ -395,16 +393,10 @@ impl Output {
                 }
                 IR::Return(s) => {
                     self.var_mapping.insert(s, target);
-                    if !self.live.contains_key(&s) {
-                        self.live.insert(s, idx);
-                    }
+                    self.live.entry(s).or_insert(idx);
                 }
-                IR::GotoIf(_, s) => if !self.live.contains_key(&s) {
-                    self.live.insert(s, idx);
-                }
-                IR::GotoIfNot(_, s) => if !self.live.contains_key(&s) {
-                    self.live.insert(s, idx);
-                }
+                IR::GotoIf(_, s) => self.live.entry(s).or_insert(idx),
+                IR::GotoIfNot(_, s) => self.live.entry(s).or_insert(idx),
                 IR::Goto(_) | IR::Label(_) => (),
                 IR::Fn(s, _, _) => if !self.var_mapping.contains_key(&s) {
                     //self.var_mapping.insert(s, target);

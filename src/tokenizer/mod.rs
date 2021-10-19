@@ -41,10 +41,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn peek(&mut self) -> Option<char> {
-        match self.input.peek() {
-            Some(c) => Some(*c),
-            None => None,
-        }
+        self.input.peek().copied()
     }
 
     fn _tokenize(&mut self) -> ParseResult {
@@ -287,15 +284,9 @@ fn is_delimiter(c: char) -> bool {
 }
 
 fn is_pair_start(c: char) -> bool {
-    match c {
-        '(' | '[' | '{' => true,
-        _ => false,
-    }
+    matches!(c, '(' | '[' | '{')
 }
 
 fn is_pair_end(c: char) -> bool {
-    match c {
-        ')' | ']' | '}' => true,
-        _ => false,
-    }
+    matches!(c, ')' | ']' | '}')
 }

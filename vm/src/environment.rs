@@ -83,18 +83,10 @@ impl Environment {
     }
 }
 
+#[derive(Default)]
 pub struct _Environment {
     bindings: HashMap<Symbol, Value>,
     parent: Option<Environment>,
-}
-
-impl Default for _Environment {
-    fn default() -> Self {
-        _Environment {
-            bindings: HashMap::new(),
-            parent: None,
-        }
-    }
 }
 
 impl PartialEq for _Environment {
@@ -110,7 +102,7 @@ impl _Environment {
 
     pub fn lookup_variable_value(&self, name: Symbol) -> Option<Value> {
         if let Some(val) = self.bindings.get(&name) {
-            Some(val.clone())
+            Some(*val)
         } else if let Some(ref env) = self.parent {
             env.lookup_variable_value(name)
         } else {
@@ -123,8 +115,8 @@ impl _Environment {
     }
 
     pub fn set_variable_value(&mut self, name: Symbol, value: Value) -> Value {
-        if self.bindings.contains_key(&name) {
-            self.bindings.insert(name, value);
+        if let std::collections::hash_map::Entry::Occupied(mut e) = self.bindings.entry(name) {
+            e.insert(value);
             Value::Void
         } else if let Some(ref env) = self.parent {
             env.set_variable_value(name, value)
@@ -135,7 +127,7 @@ impl _Environment {
     }
 
     pub fn get_definitions(&self) -> Vec<Symbol> {
-        let mut definitions: Vec<_> = self.bindings.keys().map(|x| *x).collect();
+        let mut definitions: Vec<_> = self.bindings.keys().copied().collect();
         if let Some(ref env) = self.parent {
             definitions.append(&mut env.get_definitions());
         }

@@ -170,7 +170,7 @@ fn threading(ast: &mut minerva::Ast) {
 
 fn handle_threading(mut ast: Vec<minerva::Ast>) -> Vec<minerva::Ast> {
     use minerva::Ast::*;
-    if ast.len() == 0 {
+    if ast.is_empty() {
         return vec![];
     }
 
@@ -265,7 +265,7 @@ impl Repl {
     fn get_defs(&self, start: &str) -> Vec<String> {
         let mut keywords: Vec<String> = self.keywords.iter()
             .filter(|s| s.starts_with(start))
-            .map(|s| s.clone())
+            .cloned()
             .collect();
         let mut defs = self.env.get_definitions().iter()
             .map(|s| get_value(*s).unwrap())
@@ -296,7 +296,7 @@ impl Completer for Repl {
                 let candidates = candidates.into_iter().map(|s| Pair { display: s.clone(), replacement: s }).collect();
                 Ok((p, candidates))
             },
-            Err(ParseError::InString) => return self.path.complete_path(line, pos),
+            Err(ParseError::InString) => self.path.complete_path(line, pos),
             // TODO
             _ => unreachable!(),
         }

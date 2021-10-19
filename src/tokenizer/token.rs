@@ -24,10 +24,7 @@ pub enum Token {
 
 impl Token {
     pub fn is_primitive(&self) -> bool {
-        match self {
-            Token::String(_) | Token::Integer(_) | Token::Float(_) => true,
-            _ => false,
-        }
+        matches!(self, Token::String(_) | Token::Integer(_) | Token::Float(_))
     }
 
     pub fn to_primitive(&self) -> Value {
@@ -40,16 +37,10 @@ impl Token {
     }
 
     pub fn is_left_paren(&self) -> bool {
-        match self {
-            Token::LeftParen => true,
-            _ => false,
-        }
+        matches!(self, Token::LeftParen)
     }
 
     pub fn is_right_paren(&self) -> bool {
-        match self {
-            Token::RightParen => true,
-            _ => false,
-        }
+        matches!(self, Token::RightParen)
     }
 }

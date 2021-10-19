@@ -152,7 +152,7 @@ impl<'a> Parser<'a> {
     fn lambda_body(&mut self) -> Result<Vec<Ast>, ParseError> {
         match t!(self.tokens.peek()) {
             Token::LeftParen => Ok(self.parse_begin()?.unwrap_begin()),
-            Token::RightParen => return Err(ParseError::UnexpectedCloseParen),
+            Token::RightParen => Err(ParseError::UnexpectedCloseParen),
             _ => {
                 let v = vec![self._parse()?];
                 self.read_closer()?;
