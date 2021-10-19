@@ -8,27 +8,27 @@ use vm::*;
 fn object_size() {
     use std::mem::{align_of, size_of};
 
-    assert_eq!(8, size_of::<Value<()>>());
-    assert_eq!(24, size_of::<ASM<()>>());
+    assert_eq!(8, size_of::<Value>());
+    assert_eq!(24, size_of::<ASM>());
     assert_eq!(4, size_of::<Operation>());
     assert_eq!(1, size_of::<Instruction>());
 
-    assert_eq!(8, align_of::<heap_repr::Lambda<()>>());
-    assert_eq!(8 + size_of::<Vec<Value<()>>>() + size_of::<Vec<Operation>>() + size_of::<Environment<()>>(), size_of::<heap_repr::Lambda<()>>());
-    assert_eq!(8, align_of::<heap_repr::Pair<()>>());
-    assert_eq!(8 + size_of::<Value<()>>() + size_of::<Value<()>>(), size_of::<heap_repr::Pair<()>>());
+    assert_eq!(8, align_of::<heap_repr::Lambda>());
+    assert_eq!(8 + size_of::<Vec<Value>>() + size_of::<Vec<Operation>>() + size_of::<Environment>(), size_of::<heap_repr::Lambda>());
+    assert_eq!(8, align_of::<heap_repr::Pair>());
+    assert_eq!(8 + size_of::<Value>() + size_of::<Value>(), size_of::<heap_repr::Pair>());
     assert_eq!(8, align_of::<heap_repr::SString>());
     assert_eq!(8 + size_of::<String>(), size_of::<heap_repr::SString>());
-    assert_eq!(8, align_of::<heap_repr::SVec<()>>());
-    assert_eq!(8 + size_of::<Vec<Value<()>>>(), size_of::<heap_repr::SVec<()>>());
-    assert_eq!(8, align_of::<heap_repr::SHashMap<()>>());
-    assert_eq!(8 + size_of::<std::collections::HashMap<Value<()>, Value<()>>>(), size_of::<heap_repr::SHashMap<()>>());
-    assert_eq!(8, align_of::<heap_repr::Other<()>>());
+    assert_eq!(8, align_of::<heap_repr::SVec>());
+    assert_eq!(8 + size_of::<Vec<Value>>(), size_of::<heap_repr::SVec>());
+    assert_eq!(8, align_of::<heap_repr::SHashMap>());
+    assert_eq!(8 + size_of::<std::collections::HashMap<Value, Value>>(), size_of::<heap_repr::SHashMap>());
+    assert_eq!(8, align_of::<heap_repr::Other>());
 }
 
 #[test]
 fn recursive_factorial() {
-    let mut vm: VM<()> = VM::new();
+    let mut vm: VM = VM::new();
     let code = vec![
         ASM::LoadContinue(get_symbol("done".to_string())),
         ASM::LoadConst(Register(2), Value::Integer(1)),
@@ -67,7 +67,7 @@ fn recursive_factorial() {
 
 #[test]
 fn iterative_factorial() {
-    let mut vm: VM<()> = VM::new();
+    let mut vm: VM = VM::new();
     let code = vec![
         ASM::LoadConst(Register(1), Value::Integer(1)),
         ASM::LoadConst(Register(2), Value::Integer(1)),
@@ -96,7 +96,7 @@ fn iterative_factorial() {
 
 #[test]
 fn recursive_fibonacci() {
-    let mut vm: VM<()> = VM::new();
+    let mut vm: VM = VM::new();
     let code = vec![
         ASM::LoadContinue(get_symbol("done".to_string())),
         // Fib loop
@@ -193,7 +193,7 @@ fn sum_ints() {
 #[test]
 #[ignore]
 fn count_to_1billion() {
-    let mut vm: VM<()> = VM::new();
+    let mut vm: VM = VM::new();
     let code = vec![
         ASM::LoadConst(Register(1), Value::Integer(1)),
         ASM::LoadConst(Register(2), Value::Integer(1)),

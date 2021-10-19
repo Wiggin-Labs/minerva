@@ -3,9 +3,8 @@ use vm::Value;
 
 use std::fmt;
 
-#[derive(Derivative, Debug, PartialEq)]
-#[derivative(Clone(bound=""))]
-pub enum IR<T> {
+#[derive(Clone, Debug, PartialEq)]
+pub enum IR {
     Label(Symbol),
     Return(Symbol),
     Goto(Symbol),
@@ -13,16 +12,16 @@ pub enum IR<T> {
     GotoIfNot(Symbol, Symbol),
     Phi(Symbol, Symbol, Symbol),
     Define(Symbol, Symbol),
-    Primitive(Symbol, Value<T>),
+    Primitive(Symbol, Value),
     Lookup(Symbol, Symbol),
     Copy(Symbol, Symbol),
     //Param(Symbol),
     //Call(Symbol, Symbol, usize),
     Call(Symbol, Symbol, Vec<Symbol>),
-    Fn(Symbol, Vec<Symbol>, Vec<IR<T>>),
+    Fn(Symbol, Vec<Symbol>, Vec<IR>),
 }
 
-impl<T> fmt::Display for IR<T> {
+impl fmt::Display for IR {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             IR::Primitive(s, v) => write!(f, "PRIMITIVE {}, {}", get_value(*s).unwrap(), v),

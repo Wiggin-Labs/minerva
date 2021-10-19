@@ -7,11 +7,11 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 #[derive(Default, PartialEq)]
-pub struct Environment<T> {
-    env: Rc<RefCell<_Environment<T>>>,
+pub struct Environment {
+    env: Rc<RefCell<_Environment>>,
 }
 
-impl<T> Clone for Environment<T> {
+impl Clone for Environment {
     fn clone(&self) -> Self {
         Environment {
             env: Rc::clone(&self.env),
@@ -19,20 +19,20 @@ impl<T> Clone for Environment<T> {
     }
 }
 
-impl<T> ::std::fmt::Debug for Environment<T> {
+impl ::std::fmt::Debug for Environment {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(f, "<Environment>")
     }
 }
 
-impl<T> Environment<T> {
+impl Environment {
     pub fn new() -> Self {
         Environment {
             env: Rc::new(RefCell::new(_Environment::new())),
         }
     }
 
-    pub fn from_hashmap(map: HashMap<Symbol, Value<T>>) -> Self {
+    pub fn from_hashmap(map: HashMap<Symbol, Value>) -> Self {
         let env = _Environment {
             bindings: map,
             parent: None,
@@ -51,15 +51,15 @@ impl<T> Environment<T> {
         }
     }
 
-    pub fn lookup_variable_value(&self, name: Symbol) -> Option<Value<T>> {
+    pub fn lookup_variable_value(&self, name: Symbol) -> Option<Value> {
         self.env.borrow().lookup_variable_value(name)
     }
 
-    pub fn define_variable(&self, name: Symbol, value: Value<T>) {
+    pub fn define_variable(&self, name: Symbol, value: Value) {
         self.env.borrow_mut().define_variable(name, value);
     }
 
-    pub fn set_variable_value(&self, name: Symbol, value: Value<T>) -> Value<T> {
+    pub fn set_variable_value(&self, name: Symbol, value: Value) -> Value {
         self.env.borrow_mut().set_variable_value(name, value)
     }
 
@@ -83,12 +83,12 @@ impl<T> Environment<T> {
     }
 }
 
-pub struct _Environment<T> {
-    bindings: HashMap<Symbol, Value<T>>,
-    parent: Option<Environment<T>>,
+pub struct _Environment {
+    bindings: HashMap<Symbol, Value>,
+    parent: Option<Environment>,
 }
 
-impl<T> Default for _Environment<T> {
+impl Default for _Environment {
     fn default() -> Self {
         _Environment {
             bindings: HashMap::new(),
@@ -97,18 +97,18 @@ impl<T> Default for _Environment<T> {
     }
 }
 
-impl<T> PartialEq for _Environment<T> {
+impl PartialEq for _Environment {
     fn eq(&self, _other: &Self) -> bool {
         false
     }
 }
 
-impl<T> _Environment<T> {
+impl _Environment {
     pub fn new() -> Self {
         Default::default()
     }
 
-    pub fn lookup_variable_value(&self, name: Symbol) -> Option<Value<T>> {
+    pub fn lookup_variable_value(&self, name: Symbol) -> Option<Value> {
         if let Some(val) = self.bindings.get(&name) {
             Some(val.clone())
         } else if let Some(ref env) = self.parent {
@@ -118,11 +118,11 @@ impl<T> _Environment<T> {
         }
     }
 
-    pub fn define_variable(&mut self, name: Symbol, value: Value<T>) {
+    pub fn define_variable(&mut self, name: Symbol, value: Value) {
         self.bindings.insert(name, value);
     }
 
-    pub fn set_variable_value(&mut self, name: Symbol, value: Value<T>) -> Value<T> {
+    pub fn set_variable_value(&mut self, name: Symbol, value: Value) -> Value {
         if self.bindings.contains_key(&name) {
             self.bindings.insert(name, value);
             Value::Void

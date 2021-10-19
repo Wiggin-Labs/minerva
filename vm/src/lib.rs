@@ -26,28 +26,28 @@ use std::io::Write;
 
 /// A Virtual Machine for Scheme.
 #[derive(Debug)]
-pub struct VM<T> {
+pub struct VM {
     debug: bool,
     step: usize,
     operations: Vec<Operation>,
-    constants: Vec<Value<T>>,
-    environment: Environment<T>,
-    stack: Vec<Value<T>>,
+    constants: Vec<Value>,
+    environment: Environment,
+    stack: Vec<Value>,
     kontinue_stack: Vec<usize>,
     // Registers
     pc: usize,
     kontinue: usize,
-    registers: [Value<T>; 32],
-    saved_state: Vec<SaveState<T>>,
+    registers: [Value; 32],
+    saved_state: Vec<SaveState>,
 }
 
-impl<T> Default for VM<T> {
+impl Default for VM {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> VM<T> {
+impl VM {
     /// Create a new `VM`.
     pub fn new() -> Self {
         let mut registers = [Value::Nil; 32];
@@ -214,7 +214,7 @@ impl<T> VM<T> {
         self.gc();
     }
 
-    fn handle_error(&mut self, e: VmError<T>) {
+    fn handle_error(&mut self, e: VmError) {
         // TODO
         println!("{}", e);
         self.saved_state.clear();
@@ -256,19 +256,19 @@ impl<T> VM<T> {
     }
 
     /// Load code into the machine.
-    pub fn load_code(&mut self, code: Vec<Operation>, consts: Vec<Value<T>>) {
+    pub fn load_code(&mut self, code: Vec<Operation>, consts: Vec<Value>) {
         self.operations = code;
         self.constants = consts;
         self.pc = 0;
     }
 
     /// Set `register` to `value`.
-    pub fn assign_register(&mut self, register: Register, value: Value<T>) {
+    pub fn assign_register(&mut self, register: Register, value: Value) {
         self.registers[register.0 as usize] = value;
     }
 
     /// Get the value of `register`.
-    pub fn load_register(&self, register: Register) -> Value<T> {
+    pub fn load_register(&self, register: Register) -> Value {
         if register.0 == 31 {
             Value::Integer(0)
         } else {
@@ -276,23 +276,23 @@ impl<T> VM<T> {
         }
     }
 
-    fn load_sp(&self) -> Value<T> {
+    fn load_sp(&self) -> Value {
         self.load_register(Register(30))
     }
 
-    fn assign_sp(&mut self, value: Value<T>) {
+    fn assign_sp(&mut self, value: Value) {
         self.assign_register(Register(30), value)
     }
 
-    fn load_fp(&self) -> Value<T> {
+    fn load_fp(&self) -> Value {
         self.load_register(Register(29))
     }
 
-    fn assign_fp(&mut self, value: Value<T>) {
+    fn assign_fp(&mut self, value: Value) {
         self.assign_register(Register(29), value)
     }
 
-    pub fn assign_environment(&mut self, env: Environment<T>) {
+    pub fn assign_environment(&mut self, env: Environment) {
         self.environment = env;
     }
 
@@ -491,7 +491,7 @@ impl<T> VM<T> {
         self.environment.define_variable(name, value);
     }
 
-    fn lookup(&mut self, op: Operation) -> Result<(), VmError<T>> {
+    fn lookup(&mut self, op: Operation) -> Result<(), VmError> {
         let n = self.load_register(op.lookup_name());
         assert!(n.is_symbol());
         let name = n.to_symbol();
@@ -505,7 +505,7 @@ impl<T> VM<T> {
         Ok(())
     }
 
-    fn call(&mut self, op: Operation) -> Result<(), VmError<T>> {
+    fn call(&mut self, op: Operation) -> Result<(), VmError> {
         if self.debug {
             println!("beginning call");
         }
@@ -542,7 +542,7 @@ impl<T> VM<T> {
         }
     }
 
-    fn tail_call(&mut self, op: Operation) -> Result<(), VmError<T>> {
+    fn tail_call(&mut self, op: Operation) -> Result<(), VmError> {
         if self.debug {
             println!("beginning tail call");
         }
@@ -613,7 +613,7 @@ impl<T> VM<T> {
                         let mut p = unsafe { Box::from_raw($ptr as *mut $T) };
                         if p.gc & 1 != 1 {
                             if let Some(previous) = $previous {
-                                Value::<T>::set_gc(previous, p.gc);
+                                Value::set_gc(previous, p.gc);
                             }
                             $current = p.gc;
                             mem::drop(p);
@@ -631,12 +631,11 @@ impl<T> VM<T> {
             }
 
             match ty {
-                VType::Lambda => ty_match!(heap_repr::Lambda<T>, ptr, current, previous, new_root),
-                VType::Pair => ty_match!(heap_repr::Pair<T>, ptr, current, previous, new_root),
+                VType::Lambda => ty_match!(heap_repr::Lambda, ptr, current, previous, new_root),
+                VType::Pair => ty_match!(heap_repr::Pair, ptr, current, previous, new_root),
                 VType::String => ty_match!(heap_repr::SString, ptr, current, previous, new_root),
-                VType::Vec => ty_match!(heap_repr::SVec<T>, ptr, current, previous, new_root),
-                VType::HashMap => ty_match!(heap_repr::SHashMap<T>, ptr, current, previous, new_root),
-                VType::Other => ty_match!(heap_repr::Other<T>, ptr, current, previous, new_root),
+                VType::Vec => ty_match!(heap_repr::SVec, ptr, current, previous, new_root),
+                VType::HashMap => ty_match!(heap_repr::SHashMap, ptr, current, previous, new_root),
                 _ => unreachable!(),
             }
         }
@@ -646,23 +645,23 @@ impl<T> VM<T> {
 }
 
 #[derive(Debug, Clone)]
-struct SaveState<T> {
+struct SaveState {
     pc: usize,
     code: Vec<Operation>,
-    consts: Vec<Value<T>>,
-    env: Environment<T>,
-    sp: Value<T>,
-    fp: Value<T>,
+    consts: Vec<Value>,
+    env: Environment,
+    sp: Value,
+    fp: Value,
 }
 
 #[derive(Debug, Clone)]
-enum VmError<T> {
+enum VmError {
     Undefined(Symbol),
-    NonProcedure(Value<T>),
+    NonProcedure(Value),
     User(String),
 }
 
-impl<T> fmt::Display for VmError<T> {
+impl fmt::Display for VmError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             VmError::Undefined(s) =>

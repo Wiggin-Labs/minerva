@@ -8,7 +8,7 @@ use string_interner::Symbol;
 
 use std::collections::{HashMap, HashSet};
 
-pub fn optimize<T>(mut ir: Vec<IR<T>>) -> Vec<IR<T>> {
+pub fn optimize(mut ir: Vec<IR>) -> Vec<IR> {
     optimize_lambda_formals(&mut ir);
     optimize_lookups(&mut ir);
     optimize_copies(&mut ir);
@@ -19,8 +19,8 @@ pub fn optimize<T>(mut ir: Vec<IR<T>>) -> Vec<IR<T>> {
 }
 
 // TODO: make recursion jumps rather than calls
-fn optimize_recursion<T>(ir: &mut Vec<IR<T>>) {
-    fn inner<T>(f: &mut IR<T>) {
+fn optimize_recursion(ir: &mut Vec<IR>) {
+    fn inner(f: &mut IR) {
     }
 
     for i in ir.iter_mut() {
@@ -31,8 +31,8 @@ fn optimize_recursion<T>(ir: &mut Vec<IR<T>>) {
 }
 
 // TODO
-fn optimize_tail_call<T>(ir: &mut Vec<IR<T>>) {
-    fn inner<T>(f: &mut IR<T>) {
+fn optimize_tail_call(ir: &mut Vec<IR>) {
+    fn inner(f: &mut IR) {
     }
 
     for i in ir.iter_mut() {
@@ -42,8 +42,8 @@ fn optimize_tail_call<T>(ir: &mut Vec<IR<T>>) {
     }
 }
 
-fn optimize_lambda_formals<T>(ir: &mut Vec<IR<T>>) {
-    fn inner<T>(f: &mut IR<T>) {
+fn optimize_lambda_formals(ir: &mut Vec<IR>) {
+    fn inner(f: &mut IR) {
         let (formals, ir) = if let IR::Fn(_, b, c) = f { (b, c) } else { unreachable!() };
         for i in ir.iter_mut() {
             match *i {
@@ -63,7 +63,7 @@ fn optimize_lambda_formals<T>(ir: &mut Vec<IR<T>>) {
     }
 }
 
-fn optimize_lookups<T>(ir: &mut Vec<IR<T>>) {
+fn optimize_lookups(ir: &mut Vec<IR>) {
     let mut lookups = HashMap::new();
 
     for i in ir.iter_mut() {
@@ -83,7 +83,7 @@ fn optimize_lookups<T>(ir: &mut Vec<IR<T>>) {
     }
 }
 
-fn optimize_dead_code<T>(ir: &mut Vec<IR<T>>) {
+fn optimize_dead_code(ir: &mut Vec<IR>) {
     let mut used = HashSet::new();
     for i in ir.iter().rev() {
         match i {
@@ -131,7 +131,7 @@ fn optimize_dead_code<T>(ir: &mut Vec<IR<T>>) {
     }
 }
 
-fn optimize_copies<T>(ir: &mut Vec<IR<T>>) {
+fn optimize_copies(ir: &mut Vec<IR>) {
     let mut copies = HashMap::new();
 
     let mut idx = 0;
@@ -192,7 +192,7 @@ fn optimize_copies<T>(ir: &mut Vec<IR<T>>) {
     }
 }
 
-pub fn output_asm<T>(ir: Vec<IR<T>>) -> Vec<ASM<T>> {
+pub fn output_asm(ir: Vec<IR>) -> Vec<ASM> {
     let mut output = Output {
         //var_reg: HashMap::new(),
         //var_stack: HashMap::new(),
@@ -228,7 +228,7 @@ struct Output {
 }
 
 impl Output {
-    fn _output_asm<T>(&mut self, ir: Vec<IR<T>>, target: Register) -> Vec<ASM<T>> {
+    fn _output_asm(&mut self, ir: Vec<IR>, target: Register) -> Vec<ASM> {
         self.register_allocation(&ir, target);
 
         let mut asm = Vec::new();
@@ -304,7 +304,7 @@ impl Output {
         asm
     }
 
-    fn liveness<T>(&mut self, ir: &Vec<IR<T>>) {
+    fn liveness(&mut self, ir: &Vec<IR>) {
         /*
         let mut liveness = HashMap::new();
         for (idx, i) in ir.iter().enumerate().rev() {
@@ -327,7 +327,7 @@ impl Output {
         */
     }
 
-    fn register_allocation<T>(&mut self, ir: &Vec<IR<T>>, target: Register) {
+    fn register_allocation(&mut self, ir: &Vec<IR>, target: Register) {
         //let mut params = Vec::new();
         let mut phis = HashMap::new();
         // Iterate in reverse
@@ -463,7 +463,7 @@ impl Output {
         */
     }
 
-    fn get_register<T>(&mut self, s: Symbol, asm: &mut Vec<ASM<T>>) -> Register {
+    fn get_register(&mut self, s: Symbol, asm: &mut Vec<ASM>) -> Register {
         let r = self.lookup_register(s);
         if let Some(s) = self.used.get(&r) {
             self.var_location.insert(*s, M::S(self.stack));
@@ -475,7 +475,7 @@ impl Output {
         r
     }
 
-    fn load_symbol<T>(&mut self, s: Symbol, target: Register, asm: &mut Vec<ASM<T>>) {
+    fn load_symbol(&mut self, s: Symbol, target: Register, asm: &mut Vec<ASM>) {
         if *self.var_location.get(&s).unwrap() != M::R(target) {
             match self.var_location.get(&s).unwrap() {
                 M::R(r) => {
@@ -490,7 +490,7 @@ impl Output {
         }
     }
 
-    fn find_symbol<T>(&mut self, s: Symbol, asm: &mut Vec<ASM<T>>) -> Register {
+    fn find_symbol(&mut self, s: Symbol, asm: &mut Vec<ASM>) -> Register {
         match self.var_location.get(&s).unwrap() {
             M::R(r) => *r,
             M::S(l) => {

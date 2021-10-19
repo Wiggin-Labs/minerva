@@ -91,7 +91,7 @@ impl fmt::Display for GotoValue {
 // TODO: optimize size here. currently 64 bytes...
 /// The instructions for the virtual machine.
 #[derive(Clone, Debug, PartialEq)]
-pub enum ASM<T> {
+pub enum ASM {
     // Instructions for the continue register
     /// Load a Label to the `continue` register.
     LoadContinue(Symbol),
@@ -107,8 +107,8 @@ pub enum ASM<T> {
     ReadStack(Register, usize),
     // Register instructions
     /// LoadConst(reg, arg) Place a constant `arg` in `reg`.
-    LoadConst(Register, Value<T>),
-    MakeClosure(Register, Box<Vec<ASM<T>>>),
+    LoadConst(Register, Value),
+    MakeClosure(Register, Box<Vec<ASM>>),
     /// Move(reg1, reg2) Copy the value in `reg2` to `reg1`.
     Move(Register, Register),
     // Branch instructions
@@ -145,7 +145,7 @@ pub enum ASM<T> {
     Label(Symbol),
 }
 
-impl<T> fmt::Display for ASM<T> {
+impl fmt::Display for ASM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::ASM::*;
         match self {
@@ -188,7 +188,7 @@ impl<T> fmt::Display for ASM<T> {
     }
 }
 
-pub fn assemble<T>(asm: Vec<ASM<T>>) -> (Vec<Operation>, Vec<Value<T>>) {
+pub fn assemble(asm: Vec<ASM>) -> (Vec<Operation>, Vec<Value>) {
     let mut ops = Vec::new();
     let mut consts = Vec::new();
     let mut labels = HashMap::new();

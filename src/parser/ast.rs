@@ -2,29 +2,28 @@ use vm::Value;
 
 use string_interner::Symbol;
 
-#[derive(Derivative)]
-#[derivative(Clone(bound=""), Debug(bound=""))]
-pub enum Ast<T> {
+#[derive(Clone, Debug)]
+pub enum Ast {
     Define {
         name: Symbol,
-        value: Box<Ast<T>>,
+        value: Box<Ast>,
     },
     Lambda {
         args: Vec<Symbol>,
-        body: Vec<Ast<T>>,
+        body: Vec<Ast>,
     },
     If {
-        predicate: Box<Ast<T>>,
-        consequent: Box<Ast<T>>,
-        alternative: Box<Ast<T>>,
+        predicate: Box<Ast>,
+        consequent: Box<Ast>,
+        alternative: Box<Ast>,
     },
-    Begin(Vec<Ast<T>>),
-    Apply(Vec<Ast<T>>),
+    Begin(Vec<Ast>),
+    Apply(Vec<Ast>),
     Ident(Symbol),
-    Primitive(Value<T>),
+    Primitive(Value),
 }
 
-impl<T> Ast<T> {
+impl Ast {
     pub fn unwrap_define(self) -> (Symbol, Self) {
         match self {
             Ast::Define { name, value } => (name, *value),

@@ -39,7 +39,7 @@ fn main() {
         .edit_mode(EditMode::Vi)
         .auto_add_history(true)
         .build();
-    let mut rl: Editor<Repl<()>> = Editor::with_config(config);
+    let mut rl: Editor<Repl> = Editor::with_config(config);
     rl.set_helper(Some(repl));
 
     let mut ctrlc = false;
@@ -86,7 +86,7 @@ fn main() {
     }
 }
 
-fn run<T>(vm: &mut VM<T>, env: Option<&Environment<T>>, input: String) {
+fn run(vm: &mut VM, env: Option<&Environment>, input: String) {
     let tokens = match minerva::Tokenizer::tokenize(&input) {
         Ok(t) => t,
         Err(e) => {
@@ -95,7 +95,7 @@ fn run<T>(vm: &mut VM<T>, env: Option<&Environment<T>>, input: String) {
         }
     };
 
-    let ast: Vec<minerva::Ast<T>> = match minerva::Parser::parse(tokens) {
+    let ast: Vec<minerva::Ast> = match minerva::Parser::parse(tokens) {
         Ok(o) => o,
         Err(e) => {
             println!("ERROR: {}", e);
@@ -134,7 +134,7 @@ fn run<T>(vm: &mut VM<T>, env: Option<&Environment<T>>, input: String) {
     }
 }
 
-fn threading<T>(ast: &mut minerva::Ast<T>) {
+fn threading(ast: &mut minerva::Ast) {
     use minerva::Ast::*;
 
     match ast {
@@ -168,7 +168,7 @@ fn threading<T>(ast: &mut minerva::Ast<T>) {
     }
 }
 
-fn handle_threading<T>(mut ast: Vec<minerva::Ast<T>>) -> Vec<minerva::Ast<T>> {
+fn handle_threading(mut ast: Vec<minerva::Ast>) -> Vec<minerva::Ast> {
     use minerva::Ast::*;
     if ast.len() == 0 {
         return vec![];
@@ -217,7 +217,7 @@ fn handle_threading<T>(mut ast: Vec<minerva::Ast<T>>) -> Vec<minerva::Ast<T>> {
     }
 }
 
-fn swap_cash_vars<T>(env: &Environment<T>, v: Value<T>) {
+fn swap_cash_vars(env: &Environment, v: Value) {
     let cash1 = get_symbol("$1".into());
     let cash2 = get_symbol("$2".into());
     let cash3 = get_symbol("$3".into());
@@ -254,14 +254,14 @@ fn swap_cash_vars<T>(env: &Environment<T>, v: Value<T>) {
     env.define_variable(cash1, v);
 }
 
-struct Repl<T> {
-    env: Environment<T>,
+struct Repl {
+    env: Environment,
     path: FilenameCompleter,
     keywords: Vec<String>,
     m: MatchingBracketHighlighter,
 }
 
-impl<T> Repl<T> {
+impl Repl {
     fn get_defs(&self, start: &str) -> Vec<String> {
         let mut keywords: Vec<String> = self.keywords.iter()
             .filter(|s| s.starts_with(start))
@@ -276,7 +276,7 @@ impl<T> Repl<T> {
     }
 }
 
-impl<T> Completer for Repl<T> {
+impl Completer for Repl {
     type Candidate = Pair;
 
     fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>), ReadlineError> {
@@ -304,7 +304,7 @@ impl<T> Completer for Repl<T> {
     }
 }
 
-impl<T> Validator for Repl<T> {
+impl Validator for Repl {
     fn validate(&self, ctx: &mut ValidationContext<'_>) -> Result<ValidationResult, ReadlineError> {
         match minerva::Tokenizer::tokenize(ctx.input()) {
             Ok(tokens) => if tokens.is_empty() ||
@@ -325,16 +325,16 @@ impl<T> Validator for Repl<T> {
     }
 }
 
-impl<T> Helper for Repl<T> {
+impl Helper for Repl {
 }
 
-impl<T> Hinter for Repl<T> {
+impl Hinter for Repl {
     fn hint(&self, _line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<String> {
         None
     }
 }
 
-impl<T> Highlighter for Repl<T> {
+impl Highlighter for Repl {
     fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
         self.m.highlight(line, pos)
     }

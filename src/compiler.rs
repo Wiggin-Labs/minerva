@@ -18,7 +18,7 @@ fn gen_var() -> Symbol {
     get_symbol(l)
 }
 
-pub fn compile<T>(exp: Ast<T>) -> Vec<IR<T>> {
+pub fn compile(exp: Ast) -> Vec<IR> {
     let mut c = Compiler;
     let target = gen_var();
     let mut ir = c._compile(exp, target);
@@ -29,7 +29,7 @@ pub fn compile<T>(exp: Ast<T>) -> Vec<IR<T>> {
 struct Compiler;
 
 impl Compiler {
-    fn _compile<T>(&mut self, exp: Ast<T>, target: Symbol) -> Vec<IR<T>> {
+    fn _compile(&mut self, exp: Ast, target: Symbol) -> Vec<IR> {
         match exp {
             Ast::Primitive(p) => self.compile_self_evaluating(p, target),
             Ast::Ident(i) => self.compile_variable(i, target),
@@ -41,22 +41,22 @@ impl Compiler {
         }
     }
 
-    fn compile_self_evaluating<T>(&mut self, p: Value<T>, target: Symbol) -> Vec<IR<T>> {
+    fn compile_self_evaluating(&mut self, p: Value, target: Symbol) -> Vec<IR> {
         vec![IR::Primitive(target, p)]
     }
 
-    fn compile_variable<T>(&mut self, i: Symbol, target: Symbol) -> Vec<IR<T>> {
+    fn compile_variable(&mut self, i: Symbol, target: Symbol) -> Vec<IR> {
         vec![IR::Lookup(target, i)]
     }
 
-    fn compile_define<T>(&mut self, exp: Ast<T>, target: Symbol) -> Vec<IR<T>> {
+    fn compile_define(&mut self, exp: Ast, target: Symbol) -> Vec<IR> {
         let (name, value) = exp.unwrap_define();
         let mut n = self._compile(value, target);
         n.push(IR::Define(name, target));
         n
     }
 
-    fn compile_if<T>(&mut self, exp: Ast<T>, target: Symbol) -> Vec<IR<T>> {
+    fn compile_if(&mut self, exp: Ast, target: Symbol) -> Vec<IR> {
         let alt_label = make_label();
         let after_if = make_label();
 
@@ -80,7 +80,7 @@ impl Compiler {
         pred
     }
 
-    fn compile_sequence<T>(&mut self, v: Vec<Ast<T>>, target: Symbol) -> Vec<IR<T>> {
+    fn compile_sequence(&mut self, v: Vec<Ast>, target: Symbol) -> Vec<IR> {
         let mut ir = Vec::new();
         let size = v.len();
         for (i, v) in v.into_iter().enumerate() {
@@ -94,7 +94,7 @@ impl Compiler {
         ir
     }
 
-    fn compile_lambda<T>(&mut self, exp: Ast<T>, target: Symbol) -> Vec<IR<T>> {
+    fn compile_lambda(&mut self, exp: Ast, target: Symbol) -> Vec<IR> {
         let (args, body) = exp.unwrap_lambda();
         let ret = gen_var();
         let mut body = self.compile_sequence(body, ret);
@@ -102,7 +102,7 @@ impl Compiler {
         vec![IR::Fn(target, args, body)]
     }
 
-    fn compile_application<T>(&mut self, mut v: Vec<Ast<T>>, target: Symbol) -> Vec<IR<T>> {
+    fn compile_application(&mut self, mut v: Vec<Ast>, target: Symbol) -> Vec<IR> {
         let op = v.remove(0);
         //let args = v.len();
         let mut ir = Vec::new();

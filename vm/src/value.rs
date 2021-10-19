@@ -21,7 +21,6 @@ pub enum VType {
     String = 9,
     HashMap = 10,
     BigInt = 11,
-    Other = 12,
 }
 
 impl From<u64> for VType {
@@ -38,8 +37,6 @@ impl From<u64> for VType {
             VType::HashMap
         } else if p == VType::BigInt as u64 {
             VType::BigInt
-        } else if p == VType::Other as u64 {
-            VType::Other
         } else if p == VType::Void as u64 {
             VType::Void
         } else {
@@ -48,24 +45,8 @@ impl From<u64> for VType {
     }
 }
 
-use std::marker::PhantomData;
-
-#[derive(PartialOrd, Eq)]
-pub struct Value<T>(pub u64, PhantomData<T>);
-
-impl<T> Copy for Value<T> {}
-
-impl<T> Clone for Value<T> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<T> PartialEq for Value<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
+#[derive(Copy, Clone, PartialEq, PartialOrd, Eq)]
+pub struct Value(pub u64);
 
 // A signaling NAN constant
 // The left-most bit of the significand must be 0, and at least one of the bottom 51 bits must be 1
@@ -96,7 +77,6 @@ const STRING_TAG: u64 = 0b100 << 48;
 
 const HASHMAP_TAG: u64 = 0b101 << 48;
 //const BIGINT_TAG: u64 = 0b110 << 48;
-const OTHER_TAG: u64 = 0b111 << 48;
 
 macro_rules! is_imm {
     ($name:ident, $tag:ident) => {
@@ -137,7 +117,7 @@ macro_rules! to_pointer {
     };
 }
 
-impl<T> Value<T> {
+impl Value {
     pub fn to_type(self) -> VType {
         if self.is_void() {
             VType::Void
@@ -165,7 +145,7 @@ impl<T> Value<T> {
     }
 
     pub const fn new(p: u64) -> Self {
-        Value(p, PhantomData)
+        Value(p)
     }
 
     pub const Void: Self = Value::new(NAN | VOID_TAG);
@@ -228,7 +208,7 @@ impl<T> Value<T> {
         Symbol::new(self.0 as u32 as usize)
     }
 
-    pub fn Lambda(env: Environment<T>, code: Vec<Operation>, consts: Vec<Self>) -> Self {
+    pub fn Lambda(env: Environment, code: Vec<Operation>, consts: Vec<Self>) -> Self {
         let next = get_head();
         let lambda = Box::into_raw(Box::new(Lambda::new(next, env, code, consts)));
         let p = lambda as u64;
@@ -236,7 +216,7 @@ impl<T> Value<T> {
         Value::new(NAN | LAMBDA_TAG | (p & ((1 << 48) - 1)))
     }
     is_pointer!(is_lambda, LAMBDA_TAG);
-    to_pointer!(to_lambda, Lambda<T>);
+    to_pointer!(to_lambda, Lambda);
 
     pub fn Pair(car: Self, cdr: Self) -> Self {
         let next = get_head();
@@ -246,7 +226,7 @@ impl<T> Value<T> {
         Value::new(NAN | PAIR_TAG | (p & ((1 << 48) - 1)))
     }
     is_pointer!(is_pair, PAIR_TAG);
-    to_pointer!(to_pair, Pair<T>);
+    to_pointer!(to_pair, Pair);
 
     pub fn car(self) -> Self {
         let p = self.to_pair();
@@ -282,7 +262,7 @@ impl<T> Value<T> {
         Value::new(NAN | VEC_TAG | (p & ((1 << 48) - 1)))
     }
     is_pointer!(is_vec, VEC_TAG);
-    to_pointer!(to_vec, SVec<T>);
+    to_pointer!(to_vec, SVec);
 
     pub fn String(s: String) -> Self {
         let next = get_head();
@@ -302,17 +282,7 @@ impl<T> Value<T> {
         Value::new(NAN | HASHMAP_TAG | (p & ((1 << 48) - 1)))
     }
     is_pointer!(is_hashmap, HASHMAP_TAG);
-    to_pointer!(to_hashmap, SHashMap<T>);
-
-    pub fn Other(v: T) -> Self {
-        let next = get_head();
-        let str = Box::into_raw(Box::new(Other::new(next, v)));
-        let p = str as u64;
-        set_head(p, VType::Other);
-        Value::new(NAN | OTHER_TAG | (p & ((1 << 48) - 1)))
-    }
-    is_pointer!(is_other, OTHER_TAG);
-    to_pointer!(to_other, Other<T>);
+    to_pointer!(to_hashmap, SHashMap);
 
     // TODO: make const when Option::unwrap is allowed
     pub fn to_pointer(self) -> u64 {
@@ -371,11 +341,6 @@ impl<T> Value<T> {
                     }
                     Box::into_raw(p);
                 }
-                VType::Other => {
-                    let mut p = cur.to_other();
-                    p.gc = p.gc | 1;
-                    Box::into_raw(p);
-                }
                 _ => (),
             }
         }
@@ -391,12 +356,12 @@ impl<T> Value<T> {
 
         match ty {
             VType::Lambda => {
-                let mut p = unsafe { Box::from_raw(ptr as *mut Lambda<T>) };
+                let mut p = unsafe { Box::from_raw(ptr as *mut Lambda) };
                 p.gc = gc;
                 Box::into_raw(p);
             }
             VType::Pair => {
-                let mut p = unsafe { Box::from_raw(ptr as *mut Pair<T>) };
+                let mut p = unsafe { Box::from_raw(ptr as *mut Pair) };
                 p.gc = gc;
                 Box::into_raw(p);
             }
@@ -406,17 +371,12 @@ impl<T> Value<T> {
                 Box::into_raw(p);
             }
             VType::Vec => {
-                let mut p = unsafe { Box::from_raw(ptr as *mut SVec<T>) };
+                let mut p = unsafe { Box::from_raw(ptr as *mut SVec) };
                 p.gc = gc;
                 Box::into_raw(p);
             }
             VType::HashMap => {
-                let mut p = unsafe { Box::from_raw(ptr as *mut SHashMap<T>) };
-                p.gc = gc;
-                Box::into_raw(p);
-            }
-            VType::Other => {
-                let mut p = unsafe { Box::from_raw(ptr as *mut Other<T>) };
+                let mut p = unsafe { Box::from_raw(ptr as *mut SHashMap) };
                 p.gc = gc;
                 Box::into_raw(p);
             }
@@ -425,13 +385,13 @@ impl<T> Value<T> {
     }
 }
 
-impl<T> fmt::Debug for Value<T> {
+impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
     }
 }
 
-impl<T> fmt::Display for Value<T> {
+impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.is_float() {
             write!(f, "{}", self.to_float())
@@ -493,14 +453,14 @@ impl<T> fmt::Display for Value<T> {
     }
 }
 
-impl<T> ops::Deref for Value<T> {
+impl ops::Deref for Value {
     type Target = u64;
     fn deref(&self) -> &u64 {
         &self.0
     }
 }
 
-impl<T> From<u64> for Value<T> {
+impl From<u64> for Value {
     fn from(v: u64) -> Self {
         Value::new(v)
     }
@@ -512,15 +472,15 @@ pub mod heap_repr {
 
     use std::collections::HashMap;
 
-    pub struct Lambda<T> {
+    pub struct Lambda {
         pub(crate) gc: u64,
-        pub env: Environment<T>,
+        pub env: Environment,
         pub code: Vec<Operation>,
-        pub consts: Vec<Value<T>>,
+        pub consts: Vec<Value>,
     }
 
-    impl<T> Lambda<T> {
-        pub fn new(gc: u64, env: Environment<T>, code: Vec<Operation>, consts: Vec<Value<T>>) -> Self {
+    impl Lambda {
+        pub fn new(gc: u64, env: Environment, code: Vec<Operation>, consts: Vec<Value>) -> Self {
             Lambda {
                 gc: gc,
                 env: env,
@@ -530,14 +490,14 @@ pub mod heap_repr {
         }
     }
 
-    pub struct Pair<T> {
+    pub struct Pair {
         pub(crate) gc: u64,
-        pub car: Value<T>,
-        pub cdr: Value<T>,
+        pub car: Value,
+        pub cdr: Value,
     }
 
-    impl<T> Pair<T> {
-        pub fn new(gc: u64, car: Value<T>, cdr: Value<T>) -> Self {
+    impl Pair {
+        pub fn new(gc: u64, car: Value, cdr: Value) -> Self {
             Pair {
                 gc: gc,
                 car,
@@ -560,13 +520,13 @@ pub mod heap_repr {
         }
     }
 
-    pub struct SVec<T> {
+    pub struct SVec {
         pub(crate) gc: u64,
-        pub vec: Vec<Value<T>>,
+        pub vec: Vec<Value>,
     }
 
-    impl<T> SVec<T> {
-        pub fn new(gc: u64, v: Vec<Value<T>>) -> Self {
+    impl SVec {
+        pub fn new(gc: u64, v: Vec<Value>) -> Self {
             SVec {
                 gc: gc,
                 vec: v,
@@ -574,30 +534,16 @@ pub mod heap_repr {
         }
     }
 
-    pub struct SHashMap<T> {
+    pub struct SHashMap {
         pub(crate) gc: u64,
-        pub map: HashMap<Value<T>, Value<T>>,
+        pub map: HashMap<Value, Value>,
     }
 
-    impl<T> SHashMap<T> {
-        pub fn new(gc: u64, m: HashMap<Value<T>, Value<T>>) -> Self {
+    impl SHashMap {
+        pub fn new(gc: u64, m: HashMap<Value, Value>) -> Self {
             SHashMap {
                 gc: gc,
                 map: m,
-            }
-        }
-    }
-
-    pub struct Other<T> {
-        pub(crate) gc: u64,
-        pub value: T,
-    }
-
-    impl<T> Other<T> {
-        pub fn new(gc: u64, value: T) -> Self {
-            Other {
-                gc: gc,
-                value: value,
             }
         }
     }

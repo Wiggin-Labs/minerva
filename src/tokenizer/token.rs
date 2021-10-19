@@ -30,7 +30,7 @@ impl Token {
         }
     }
 
-    pub fn to_primitive<T>(&self) -> Value<T> {
+    pub fn to_primitive(&self) -> Value {
         match self {
             Token::String(s) => Value::String(s.to_string()),
             Token::Integer(i) => Value::Integer(*i),

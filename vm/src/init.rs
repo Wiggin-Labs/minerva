@@ -1,6 +1,6 @@
 use {assemble, ASM, Environment, Register, Value, VM};
 
-pub fn init_env<T>() -> Environment<T> {
+pub fn init_env() -> Environment {
     let env = Environment::new();
 
     let add = vec![ASM::Add(Register(0), Register(1), Register(2))];
@@ -25,13 +25,13 @@ pub fn init_env<T>() -> Environment<T> {
     let cdr = vec![ASM::Cdr(Register(0), Register(1))];
     add_primitive(&env, "cdr".to_string(), cdr);
 
-    env.define_variable(VM::<T>::intern_symbol("pi".to_string()), Value::Float(std::f64::consts::PI));
-    env.define_variable(VM::<T>::intern_symbol("e".to_string()), Value::Float(std::f64::consts::E));
+    env.define_variable(VM::intern_symbol("pi".to_string()), Value::Float(std::f64::consts::PI));
+    env.define_variable(VM::intern_symbol("e".to_string()), Value::Float(std::f64::consts::E));
 
     env
 }
 
-fn add_primitive<T>(env: &Environment<T>, name: String, code: Vec<ASM<T>>) {
+fn add_primitive(env: &Environment, name: String, code: Vec<ASM>) {
     let (code, consts) = assemble(code);
-    env.define_variable(VM::<T>::intern_symbol(name), Value::Lambda(env.clone(), code, consts));
+    env.define_variable(VM::intern_symbol(name), Value::Lambda(env.clone(), code, consts));
 }
