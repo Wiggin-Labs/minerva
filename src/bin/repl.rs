@@ -329,7 +329,9 @@ impl Helper for Repl {
 }
 
 impl Hinter for Repl {
-    fn hint(&self, _line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<String> {
+    type Hint = String;
+
+    fn hint(&self, _line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<Self::Hint> {
         None
     }
 }
