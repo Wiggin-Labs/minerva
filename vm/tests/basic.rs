@@ -6,17 +6,24 @@ use vm::*;
 
 #[test]
 fn object_size() {
-    assert_eq!(8, std::mem::size_of::<Value<()>>());
-    assert_eq!(24, std::mem::size_of::<ASM<()>>());
-    assert_eq!(4, std::mem::size_of::<Operation>());
-    assert_eq!(1, std::mem::size_of::<Instruction>());
+    use std::mem::{align_of, size_of};
 
-    assert_eq!(8, std::mem::align_of::<heap_repr::Lambda<()>>());
-    assert_eq!(8, std::mem::align_of::<heap_repr::Pair<()>>());
-    assert_eq!(8, std::mem::align_of::<heap_repr::SString>());
-    assert_eq!(8, std::mem::align_of::<heap_repr::SVec<()>>());
-    assert_eq!(8, std::mem::align_of::<heap_repr::SHashMap<()>>());
-    assert_eq!(8, std::mem::align_of::<heap_repr::Other<()>>());
+    assert_eq!(8, size_of::<Value<()>>());
+    assert_eq!(24, size_of::<ASM<()>>());
+    assert_eq!(4, size_of::<Operation>());
+    assert_eq!(1, size_of::<Instruction>());
+
+    assert_eq!(8, align_of::<heap_repr::Lambda<()>>());
+    assert_eq!(8 + size_of::<Vec<Value<()>>>() + size_of::<Vec<Operation>>() + size_of::<Environment<()>>(), size_of::<heap_repr::Lambda<()>>());
+    assert_eq!(8, align_of::<heap_repr::Pair<()>>());
+    assert_eq!(8 + size_of::<Value<()>>() + size_of::<Value<()>>(), size_of::<heap_repr::Pair<()>>());
+    assert_eq!(8, align_of::<heap_repr::SString>());
+    assert_eq!(8 + size_of::<String>(), size_of::<heap_repr::SString>());
+    assert_eq!(8, align_of::<heap_repr::SVec<()>>());
+    assert_eq!(8 + size_of::<Vec<Value<()>>>(), size_of::<heap_repr::SVec<()>>());
+    assert_eq!(8, align_of::<heap_repr::SHashMap<()>>());
+    assert_eq!(8 + size_of::<std::collections::HashMap<Value<()>, Value<()>>>(), size_of::<heap_repr::SHashMap<()>>());
+    assert_eq!(8, align_of::<heap_repr::Other<()>>());
 }
 
 #[test]
