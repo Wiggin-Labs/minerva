@@ -1,5 +1,5 @@
-#[macro_use]
-extern crate lazy_static;
+#![feature(once_cell)]
+
 extern crate regex;
 extern crate string_interner;
 extern crate vm;

@@ -10,7 +10,10 @@ pub enum IR {
     Goto(Symbol),
     GotoIf(Symbol, Symbol),
     GotoIfNot(Symbol, Symbol),
-    Phi(Symbol, Symbol, Symbol),
+    // TODO: new PHI
+    Phi(Symbol, Symbol, Vec<IR>, Symbol, Vec<IR>),
+    Move(Symbol, Symbol),
+    //Phi(Symbol, Symbol, Symbol),
     Define(Symbol, Symbol),
     Primitive(Symbol, Value),
     Lookup(Symbol, Symbol),
@@ -54,6 +57,7 @@ impl fmt::Display for IR {
             IR::GotoIf(s1, s2) => write!(f, "GOTOIF {}, {}", get_value(*s1).unwrap(), get_value(*s2).unwrap()),
             IR::GotoIfNot(s1, s2) => write!(f, "GOTOIFNOT {}, {}", get_value(*s1).unwrap(), get_value(*s2).unwrap()),
             IR::Return(s) => write!(f, "RETURN {}", get_value(*s).unwrap()),
+            IR::Move(s1, s2) => write!(f, "MOVE {}, {}", get_value(*s1).unwrap(), get_value(*s2).unwrap()),
         }
     }
 }

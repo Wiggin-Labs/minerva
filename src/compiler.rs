@@ -67,17 +67,39 @@ impl Compiler {
 
         let cons_var = gen_var();
         let mut cons = self._compile(cons, cons_var);
+        cons.push(IR::Move(target, cons_var));
+        cons.push(IR::Goto(after_if));
+
+        let alt_var = gen_var();
+        let mut alt = self._compile(alt, alt_var);
+        cons.insert(0, IR::Label(alt_label));
+        alt.push(IR::Move(target, alt_var));
+
+        pred.push(IR::Label(after_if));
+        pred.push(IR::Phi(target, cons_var, cons, alt_var, alt));
+        pred
+        /*
+        let (pred, cons, alt) = exp.unwrap_if();
+        let pred_var = gen_var();
+        let mut pred = self._compile(pred, pred_var);
+        pred.push(IR::GotoIfNot(alt_label, pred_var));
+
+        let cons_var = gen_var();
+        let mut cons = self._compile(cons, cons_var);
         pred.append(&mut cons);
+        pred.push(IR::Move(target, cons_var));
         pred.push(IR::Goto(after_if));
 
         pred.push(IR::Label(alt_label));
         let alt_var = gen_var();
         let mut alt = self._compile(alt, alt_var);
         pred.append(&mut alt);
+        pred.push(IR::Move(target, alt_var));
 
         pred.push(IR::Label(after_if));
         pred.push(IR::Phi(target, cons_var, alt_var));
         pred
+        */
     }
 
     fn compile_sequence(&mut self, v: Vec<Ast>, target: Symbol) -> Vec<IR> {

@@ -130,14 +130,14 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn distinguish_ambiguous(&mut self, buf: String) -> ParseResult {
-        const _RAT: &'static str = r"\d+(?:/\d+)?";
-        const _REAL: &'static str = r"\d*\.?\d+(?:[eE][-+]?\d+)?";
-        lazy_static! {
-            static ref INTEGER: Regex = Regex::new(r"^([+-]?\d+)$").unwrap();
-            static ref FLOAT: Regex = Regex::new(&format!(r"^([+-]?{})$", _REAL)).unwrap();
-            static ref COMPLEX_RAT: Regex = Regex::new(&format!("^([+-]?{})?(?:([+-](?:{0})?)i)?$", _RAT)).unwrap();
-            static ref COMPLEX_REAL: Regex = Regex::new(&format!("^([+-]?(?:{}|{}))?(?:([+-](?:{0}|{1})?)i)?$", _REAL, _RAT)).unwrap();
-        }
+        use std::sync::LazyLock;
+
+        //const _RAT: &str = r"\d+(?:/\d+)?";
+        const _REAL: &str = r"\d*\.?\d+(?:[eE][-+]?\d+)?";
+        static INTEGER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^([+-]?\d+)$").unwrap());
+        static FLOAT: LazyLock<Regex> = LazyLock::new(|| Regex::new(&format!(r"^([+-]?{})$", _REAL)).unwrap());
+        //static COMPLEX_RAT: SyncLazy<Regex> = SyncLazy::new(|| Regex::new(&format!("^([+-]?{})?(?:([+-](?:{0})?)i)?$", _RAT)).unwrap());
+        //static COMPLEX_REAL: SyncLazy<Regex> = SyncLazy::new(|| Regex::new(&format!("^([+-]?(?:{}|{}))?(?:([+-](?:{0}|{1})?)i)?$", _REAL, _RAT)).unwrap());
 
 
         /*

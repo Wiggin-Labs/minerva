@@ -98,8 +98,8 @@ fn optimize_dead_code(ir: &mut Vec<IR>) {
                     used.insert(*arg);
                 }
             }
-            // TODO
-            IR::Phi(s1, s2, s3) => {
+            // TODO: PHI
+            IR::Phi(s1, s2, _, s3, _) => {
                 used.insert(*s1);
                 used.insert(*s2);
                 used.insert(*s3);
@@ -146,6 +146,9 @@ fn optimize_copies(ir: &mut Vec<IR>) {
                 ir.remove(idx);
                 continue;
             },
+            IR::Move(target, s) => if let Some(t) = copies.get(s) {
+                ir[idx] = IR::Move(*target, *t);
+            },
             IR::Return(s) => if let Some(t) = copies.get(s) {
                 ir[idx] = IR::Return(*t);
             },
@@ -155,7 +158,8 @@ fn optimize_copies(ir: &mut Vec<IR>) {
             IR::GotoIfNot(a, s) => if let Some(t) = copies.get(s) {
                 ir[idx] = IR::GotoIfNot(*a, *t);
             },
-            IR::Phi(a, s1, s2) => {
+            // TODO: PHI
+            IR::Phi(a, s1, ir1, s2, ir2) => {
                 let s1 = if let Some(t) = copies.get(s1) {
                     *t
                 } else {
@@ -166,7 +170,7 @@ fn optimize_copies(ir: &mut Vec<IR>) {
                 } else {
                     *s2
                 };
-                ir[idx] = IR::Phi(*a, s1, s2);
+                ir[idx] = IR::Phi(*a, s1, ir1, s2, ir2);
             }
             IR::Define(b, s) => if let Some(t) = copies.get(s) {
                 ir[idx] = IR::Define(*b, *t);
@@ -232,10 +236,10 @@ impl Output {
         self.register_allocation(&ir, target);
 
         let mut asm = Vec::new();
-        for i in ir {
+        for (idx, i) in ir.into_iter().enumerate() {
             match i {
                 IR::Primitive(s, v) => {
-                    let r = self.get_register(s, &mut asm);
+                    let r = self.get_register(s, &mut asm, idx);
                     asm.push(ASM::LoadConst(r, v));
                 },
                 IR::Define(n, s2) => {
@@ -246,12 +250,18 @@ impl Output {
                     asm.push(ASM::Define(r, r2));
                 }
                 IR::Lookup(s, ident) => {
-                    let r = self.get_register(s, &mut asm);
+                    let r = self.get_register(s, &mut asm, idx);
                     asm.push(ASM::LoadConst(r, Value::Symbol(ident)));
                     asm.push(ASM::Lookup(r, r));
                 }
                 IR::Call(s, proc, args) => {
-                    // TODO: save used registers
+                    for (r, s) in &self.used {
+                        if idx < *self.live.get(s).unwrap() {
+                            self.var_location.insert(*s, M::S(self.stack));
+                            self.stack += 1;
+                            asm.push(ASM::Save(*r));
+                        }
+                    }
                     for (i, arg) in args.iter().enumerate() {
                         self.load_symbol(*arg, Register(i as u8 + 1), &mut asm);
                     }
@@ -262,6 +272,8 @@ impl Output {
                         asm.push(ASM::Move(self.lookup_register(s), Register(0)));
                     }
                     self.var_location.insert(s, M::R(self.lookup_register(s)));
+                    self.used.clear();
+                    self.used.insert(self.lookup_register(s), s);
                 }
                 IR::Fn(s, args, ir) => {
                     let mut output = Output {
@@ -279,9 +291,10 @@ impl Output {
                     for (i, arg) in args.iter().enumerate() {
                         output.var_mapping.insert(*arg, Register(i as u8 + 1));
                         output.var_location.insert(*arg, M::R(Register(i as u8 + 1)));
+                        output.used.insert(Register(i as u8 + 1), *arg);
                     }
                     let instructions = output._output_asm(ir, Register(0));
-                    let r = self.get_register(s, &mut asm);
+                    let r = self.get_register(s, &mut asm, idx);
                     asm.push(ASM::MakeClosure(r, Box::new(instructions)));
                 }
                 IR::Label(s) => asm.push(ASM::Label(s)),
@@ -289,13 +302,24 @@ impl Output {
                 IR::GotoIf(l, s) => asm.push(ASM::GotoIf(GotoValue::Label(l), self.lookup_register(s))),
                 IR::GotoIfNot(l, s) => asm.push(ASM::GotoIfNot(GotoValue::Label(l), self.lookup_register(s))),
                 IR::Return(s) => {
+                    self.load_symbol(s, target, &mut asm);
+                    /*
                     if target != self.lookup_register(s) {
                         asm.push(ASM::Move(target, self.lookup_register(s)));
                     }
+                    */
                     asm.push(ASM::Return);
                 }
+                IR::Move(t, s) => {
+                    self.load_symbol(s, *self.var_mapping.get(&t).unwrap(), &mut asm);
+                }
                 // Not needed after register allocation
-                IR::Phi(_, _, _) => (),
+                IR::Phi(a, consp, cons, altp, alt) => {
+                    // TODO: save variables that outlive this PHI, convert cons to asm followed by
+                    // alt
+                    assert_eq!(self.var_location.get(&b).unwrap(), self.var_location.get(&c).unwrap());
+                    self.var_location.insert(a, *self.var_location.get(&b).unwrap());
+                }
                 //IR::Param(_) => (),
                 // Only used for optimization
                 IR::Copy(_, _) => unreachable!(),
@@ -335,13 +359,15 @@ impl Output {
             match *i {
                 IR::Call(s, proc, ref args) => {
                     self.live.entry(s).or_insert(idx);
+                    self.live.entry(proc).or_insert(idx);
                     //self.var_mapping.insert(s, target);
                     self.var_mapping.insert(proc, Register(0));
                     for (i, arg) in args.iter().enumerate() {
                         self.var_mapping.insert(*arg, Register(i as u8 + 1));
-                        if !self.live.contains_key(arg) {
-                            self.live.insert(s, idx);
-                        }
+                        self.live.entry(*arg).or_insert(idx);
+                        //if !self.live.contains_key(arg) {
+                        //    self.live.insert(s, idx);
+                        //}
                     }
                     //if args > 0 {
                     //    params.push((args as u8, idx));
@@ -371,7 +397,7 @@ impl Output {
                     //    self.var_mapping.insert(s, target);
                     //}
                 }
-                IR::Phi(s1, s2, s3) => {
+                IR::Phi(s1, s2, ir2, s3, ir3) => {
                     if let Some(&r) = self.var_mapping.get(&s1) {
                         self.var_mapping.insert(s2, r);
                         self.var_mapping.insert(s3, r);
@@ -391,6 +417,8 @@ impl Output {
                         self.live.insert(s3, idx);
                     }
                 }
+                // Already allocated in Phi
+                IR::Move(_, _) => (),
                 IR::Return(s) => {
                     self.var_mapping.insert(s, target);
                     self.live.entry(s).or_insert(idx);
@@ -455,12 +483,14 @@ impl Output {
         */
     }
 
-    fn get_register(&mut self, s: Symbol, asm: &mut Vec<ASM>) -> Register {
+    fn get_register(&mut self, s: Symbol, asm: &mut Vec<ASM>, idx: usize) -> Register {
         let r = self.lookup_register(s);
         if let Some(s) = self.used.get(&r) {
-            self.var_location.insert(*s, M::S(self.stack));
-            self.stack += 1;
-            asm.push(ASM::Save(r));
+            if idx <= *self.live.get(s).unwrap() {
+                self.var_location.insert(*s, M::S(self.stack));
+                self.stack += 1;
+                asm.push(ASM::Save(r));
+            }
         }
         self.used.insert(r, s);
         self.var_location.insert(s, M::R(r));
@@ -468,17 +498,18 @@ impl Output {
     }
 
     fn load_symbol(&mut self, s: Symbol, target: Register, asm: &mut Vec<ASM>) {
-        if *self.var_location.get(&s).unwrap() != M::R(target) {
-            match self.var_location.get(&s).unwrap() {
-                M::R(r) => {
-                    asm.push(ASM::Move(target, *r));
-                    self.var_location.insert(s, M::R(target));
-                }
-                M::S(l) => {
-                    asm.push(ASM::ReadStack(target, self.stack-l));
-                    self.var_location.insert(s, M::R(target));
-                }
-            }
+        println!("{} {}", ::string_interner::get_value(s).unwrap(), target);
+        match self.var_location.get(&s) {
+            Some(M::R(t)) if *t == target => (),
+            None => (),
+            Some(M::R(r)) => {
+                asm.push(ASM::Move(target, *r));
+                self.var_location.insert(s, M::R(target));
+            },
+            Some(M::S(l)) => {
+                asm.push(ASM::ReadStack(target, self.stack-l));
+                self.var_location.insert(s, M::R(target));
+            },
         }
     }
 
@@ -486,14 +517,16 @@ impl Output {
         match self.var_location.get(&s).unwrap() {
             M::R(r) => *r,
             M::S(l) => {
+                // TODO
                 let target = Register(18);
                 asm.push(ASM::ReadStack(target, self.stack-l));
-                self.var_location.insert(s, M::R(target));
+                //self.var_location.insert(s, M::R(target));
                 target
             }
         }
     }
 
+    // TODO: Option
     fn lookup_register(&self, s: Symbol) -> Register {
         if let Some(&r) = self.var_mapping.get(&s) {
             r
