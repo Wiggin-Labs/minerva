@@ -289,7 +289,11 @@ impl Value {
         // Amd64 currently only uses the lower 48 bits for pointers, which is what makes NANboxing
         // possible. However, it requires that the upper 16 bits of a pointer be the same as the
         // 48th bit, so here we check whether it is 1 or 0 and set them appropriately.
-        ((self.0.checked_shl(16).unwrap() as i64) >> 16) as u64
+        Self::sign_extend(self.0, 47)
+    }
+
+    fn sign_extend(n: u64, at: u32) -> u64 {
+        ((n.checked_shl(63-at).unwrap() as i64) >> 63-at) as u64
     }
 
     pub(crate) fn mark(self) {
@@ -348,11 +352,15 @@ impl Value {
 
     pub(crate) fn set_gc(p: u64, gc: u64) {
         let ty = VType::from(p >> 56);
+        // TODO
+        let ptr = Self::sign_extend(p, 55) & !7;
+        /*
         let ptr = if (p >> 55) & 1 == 1 {
             p & 0xFF_FF_FF_FF_FF_FF_FF_FE
         } else {
             p & 0x00_00_FF_FF_FF_FF_FF_FE
         };
+        */
 
         match ty {
             VType::Lambda => {

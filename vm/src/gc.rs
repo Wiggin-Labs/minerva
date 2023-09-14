@@ -1,10 +1,9 @@
 use value::VType;
 
 use std::num::NonZeroU64;
-use std::lazy::SyncLazy;
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 
-pub static VMGC: SyncLazy<Mutex<Gc>> = SyncLazy::new(|| Mutex::new(Gc::new()));
+pub static VMGC: LazyLock<Mutex<Gc>> = LazyLock::new(|| Mutex::new(Gc::new()));
 
 pub fn get_head() -> u64 {
     VMGC.lock().unwrap().get_head()

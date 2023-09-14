@@ -106,7 +106,8 @@ macro_rules! register_gotovalue {
         }
 
         pub fn $register(self) -> Register {
-            Register::from((self.0 >> 8) & 15)
+            //Register::from((self.0 >> 8) & 15)
+            Register::from((self.0 >> 8) & 31)
         }
 
         pub fn $goto(self) -> Option<usize> {
