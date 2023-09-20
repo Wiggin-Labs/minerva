@@ -75,8 +75,8 @@ impl Compiler {
         cons.insert(0, IR::Label(alt_label));
         alt.push(IR::Move(target, alt_var));
 
-        pred.push(IR::Label(after_if));
         pred.push(IR::Phi(target, cons_var, cons, alt_var, alt));
+        pred.push(IR::Label(after_if));
         pred
         /*
         let (pred, cons, alt) = exp.unwrap_if();

@@ -1,4 +1,4 @@
-#![feature(once_cell)]
+#![feature(lazy_cell)]
 
 extern crate regex;
 extern crate string_interner;

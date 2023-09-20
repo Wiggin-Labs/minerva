@@ -51,7 +51,18 @@ impl fmt::Display for IR {
                 }
                 Ok(())
             }
-            IR::Phi(s1, s2, s3) => write!(f, "{} PHI {}, {}", get_value(*s1).unwrap(), get_value(*s2).unwrap(), get_value(*s3).unwrap()),
+            // TODO
+            IR::Phi(s1, conss, cons, alts, alt) => {
+                writeln!(f, "{} PHI {}, {}", get_value(*s1).unwrap(), get_value(*conss).unwrap(), get_value(*alts).unwrap())?;
+                writeln!(f, "{}", cons[0])?;
+                for i in &cons[1..] {
+                    writeln!(f, "\t{}", i)?;
+                }
+                for i in &alt[1..] {
+                    writeln!(f, "\t{}", i)?;
+                }
+                writeln!(f, "")
+            }
             IR::Label(s) => write!(f, "{}:", get_value(*s).unwrap()),
             IR::Goto(s) => write!(f, "GOTO {}", get_value(*s).unwrap()),
             IR::GotoIf(s1, s2) => write!(f, "GOTOIF {}, {}", get_value(*s1).unwrap(), get_value(*s2).unwrap()),
