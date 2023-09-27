@@ -45,6 +45,7 @@ fn optimize_tail_call(ir: &mut Vec<IR>) {
 */
 
 fn optimize_lambda_formals(ir: &mut Vec<IR>) {
+    /*
     fn inner(f: &mut IR) {
         let (formals, ir) = if let IR::Fn(_, b, c) = f { (b, c) } else { unreachable!() };
         for i in ir.iter_mut() {
@@ -53,36 +54,63 @@ fn optimize_lambda_formals(ir: &mut Vec<IR>) {
                 IR::Lookup(t, ident) => if formals.contains(&ident) {
                     *i = IR::Copy(t, ident);
                 },
+                IR::Phi(_, _, cons, _, alt) => {
+                    for i in cons.iter_mut() {
+                    }
+                },
+                _ => (),
+            }
+        }
+    }
+    */
+    fn inner(formals: &[Symbol], ir: &mut Vec<IR>) {
+        for i in ir.iter_mut() {
+            match i {
+                IR::Fn(_, f, i) => inner(&f, i),
+                IR::Lookup(t, ident) => if formals.contains(&ident) {
+                    *i = IR::Copy(*t, *ident);
+                },
+                IR::Phi(_, _, ref mut cons, _, ref mut alt) => {
+                    inner(formals, cons);
+                    inner(formals, alt);
+                },
                 _ => (),
             }
         }
     }
 
     for i in ir.iter_mut() {
-        if let IR::Fn(_, _, _) = *i {
-            inner(i);
+        if let IR::Fn(_, formals, ref mut ir) = i {
+            inner(&formals, ir);
         }
     }
 }
 
 fn optimize_lookups(ir: &mut Vec<IR>) {
-    let mut lookups = HashMap::new();
-
-    for i in ir.iter_mut() {
-        match i {
-            IR::Lookup(target, ident) => {
-                // Shitty bc
-                let ident = *ident;
-                if let Some(t) = lookups.get(&ident) {
-                    *i = IR::Copy(*target, *t);
-                } else {
-                    lookups.insert(ident, *target);
+    fn inner(ir: &mut Vec<IR>, lookups: &mut HashMap<Symbol, Symbol>) {
+        for i in ir.iter_mut() {
+            match i {
+                IR::Lookup(target, ident) => {
+                    // Shitty bc
+                    let ident = *ident;
+                    if let Some(t) = lookups.get(&ident) {
+                        *i = IR::Copy(*target, *t);
+                    } else {
+                        lookups.insert(ident, *target);
+                    }
                 }
+                IR::Fn(_, _, ir) => optimize_lookups(ir),
+                IR::Phi(_, _, cons, _, alt) => {
+                    inner(cons, lookups);
+                    inner(alt, lookups);
+                },
+                _ => (),
             }
-            IR::Fn(_, _, ir) => optimize_lookups(ir),
-            _ => (),
         }
     }
+    let mut lookups = HashMap::new();
+    inner(ir, &mut lookups);
+
 }
 
 fn optimize_dead_code(ir: &mut Vec<IR>) {
@@ -165,6 +193,8 @@ fn optimize_copies(ir: &mut Vec<IR>) {
                 },
                 // TODO: PHI
                 IR::Phi(_, s1, ir1, s2, ir2) => {
+                    intern(ir1, copies);
+                    intern(ir2, copies);
                     if let Some(t) = copies.get(s1) {
                         //*t
                         *s1 = *t;
@@ -172,8 +202,6 @@ fn optimize_copies(ir: &mut Vec<IR>) {
                     if let Some(t) = copies.get(s2) {
                         *s2 = *t;
                     }
-                    intern(ir1, copies);
-                    intern(ir2, copies);
                 }
                 IR::Define(b, s) => if let Some(t) = copies.get(s) {
                     ir[idx] = IR::Define(*b, *t);
@@ -205,10 +233,10 @@ fn optimize_copies(ir: &mut Vec<IR>) {
 
 pub fn output_asm(ir: Vec<IR>) -> Vec<ASM> {
     let mut output = Output {
-        //var_reg: HashMap::new(),
-        //var_stack: HashMap::new(),
+        var_reg: [None; 32],
+        var_stack: Vec::new(),
         var_mapping: HashMap::new(),
-        var_location: HashMap::new(),
+        //var_location: HashMap::new(),
         used: HashMap::new(),
         live: HashMap::new(),
         //stack: Vec::new(),
@@ -225,10 +253,10 @@ enum M {
 
 #[derive(Clone)]
 struct Output {
-    //var_reg: HashMap<Symbol, Register>,
-    //var_stack: HashMap<Symbol, usize>,
+    var_reg: [Option<Symbol>; 32],
+    var_stack: Vec<Symbol>,
     var_mapping: HashMap<Symbol, Register>,
-    var_location: HashMap<Symbol, M>,
+    //var_location: HashMap<Symbol, M>,
     used: HashMap<Register, Symbol>,
     live: HashMap<Symbol, usize>,
     //stack: Vec<Symbol>,
@@ -249,7 +277,6 @@ impl Output {
             match i {
                 IR::Primitive(s, v) => {
                     let r = self.get_register(s, asm, idx);
-                    println!("{}", r);
                     asm.push(ASM::LoadConst(r, v));
                 },
                 IR::Define(n, s2) => {
@@ -267,7 +294,8 @@ impl Output {
                 IR::Call(s, proc, args) => {
                     for (r, s) in &self.used {
                         if idx < *self.live.get(s).unwrap() {
-                            self.var_location.insert(*s, M::S(self.stack));
+                            self.var_stack.push(*s);
+                            //self.var_location.insert(*s, M::S(self.stack));
                             self.stack += 1;
                             asm.push(ASM::Save(*r));
                         }
@@ -281,16 +309,18 @@ impl Output {
                     if Register(0) != self.lookup_register(s) {
                         asm.push(ASM::Move(self.lookup_register(s), Register(0)));
                     }
-                    self.var_location.insert(s, M::R(self.lookup_register(s)));
+                    //self.var_location.insert(s, M::R(self.lookup_register(s)));
+                    self.var_reg = [None; 32];
+                    self.var_reg[self.lookup_register(s).0 as usize] = Some(s);
                     self.used.clear();
                     self.used.insert(self.lookup_register(s), s);
                 }
                 IR::Fn(s, args, ir) => {
                     let mut output = Output {
-                        //var_reg: HashMap::new(),
-                        //var_stack: HashMap::new(),
+                        var_reg: [None; 32],
+                        var_stack: Vec::new(),
                         var_mapping: HashMap::new(),
-                        var_location: HashMap::new(),
+                        //var_location: HashMap::new(),
                         used: HashMap::new(),
                         live: HashMap::new(),
                         //stack: Vec::new(),
@@ -298,7 +328,8 @@ impl Output {
                     };
                     for (i, arg) in args.iter().enumerate() {
                         output.var_mapping.insert(*arg, Register(i as u8 + 1));
-                        output.var_location.insert(*arg, M::R(Register(i as u8 + 1)));
+                        //output.var_location.insert(*arg, M::R(Register(i as u8 + 1)));
+                        output.var_reg[i+1] = Some(*arg);
                         output.used.insert(Register(i as u8 + 1), *arg);
                     }
                     let instructions = output._output_asm(ir, Register(0));
@@ -319,29 +350,37 @@ impl Output {
                     asm.push(ASM::Return);
                 }
                 IR::Move(t, s) => {
-                    println!("move {} {}", ::string_interner::get_value(t).unwrap(), ::string_interner::get_value(s).unwrap());
                     self.load_symbol(s, *self.var_mapping.get(&t).unwrap(), asm);
                 }
                 // Not needed after register allocation
-                IR::Phi(a, conss, cons, alts, alt) => {
+                IR::Phi(union, conss, cons, alts, alt) => {
                     // TODO: save variables that outlive this PHI, convert cons to asm followed by
                     // alt
                     for (r, s) in &self.used {
                         if idx < *self.live.get(s).unwrap() {
-                            self.var_location.insert(*s, M::S(self.stack));
+                            //self.var_location.insert(*s, M::S(self.stack));
+                            self.var_stack.push(*s);
                             self.stack += 1;
                             asm.push(ASM::Save(*r));
                         }
                     }
 
+                    let mut c = self.clone();
                     for i in cons {
-                        self.clone()._output_asm_inner(idx, i, target, asm);
+                        c._output_asm_inner(idx, i, target, asm);
                     }
+                    let cons_pos = c.var_reg.iter().position(|x| *x == Some(conss)).unwrap();
+                    //self.var_location.insert(conss, *c.var_location.get(&conss).unwrap());
+                    let mut a = self.clone();
                     for i in alt {
-                        self.clone()._output_asm_inner(idx, i, target, asm);
+                        a._output_asm_inner(idx, i, target, asm);
                     }
-                    assert_eq!(self.var_location.get(&conss).unwrap(), self.var_location.get(&alts).unwrap());
-                    self.var_location.insert(a, *self.var_location.get(&conss).unwrap());
+                    let alt_pos = a.var_reg.iter().position(|x| *x == Some(alts)).unwrap();
+                    //self.var_location.insert(alts, *a.var_location.get(&alts).unwrap());
+                    //assert_eq!(self.var_location.get(&conss).unwrap(), self.var_location.get(&alts).unwrap());
+                    assert_eq!(cons_pos, alt_pos);
+                    //self.var_location.insert(union, *self.var_location.get(&conss).unwrap());
+                    self.var_reg[alt_pos] = Some(union);
                 }
                 //IR::Param(_) => (),
                 // Only used for optimization
@@ -418,23 +457,37 @@ impl Output {
         let r = self.lookup_register(s);
         if let Some(s) = self.used.get(&r) {
             if idx <= *self.live.get(s).unwrap() {
-                self.var_location.insert(*s, M::S(self.stack));
+                //self.var_location.insert(*s, M::S(self.stack));
+                self.var_stack.push(*s);
                 self.stack += 1;
                 asm.push(ASM::Save(r));
             }
         }
         self.used.insert(r, s);
-        self.var_location.insert(s, M::R(r));
+        //self.var_location.insert(s, M::R(r));
+        self.var_reg[r.0 as usize] = Some(s);
         r
     }
 
     fn load_symbol(&mut self, s: Symbol, target: Register, asm: &mut Vec<ASM>) {
-        println!("{} {}", ::string_interner::get_value(s).unwrap(), target);
+        if self.var_reg[target.0 as usize] != Some(s) {
+            if let Some(r) = self.var_reg.iter().position(|x| *x == Some(s)) {
+                asm.push(ASM::Move(target, Register(r as u8)));
+                self.var_reg[target.0 as usize] = Some(s);
+            } else if let Some(p) = self.var_stack.iter().rev().position(|x| *x == s) {
+                // TODO
+                asm.push(ASM::ReadStack(target, p+1));
+                self.var_reg[target.0 as usize] = Some(s);
+            } else {
+                println!("{}", ::string_interner::get_value(s).unwrap());
+                unreachable!();
+            }
+        }
+        /*
         match self.var_location.get(&s) {
             Some(M::R(t)) if *t == target => (),
-            None => (),
+            None => unreachable!("stens"),
             Some(M::R(r)) => {
-                println!("in");
                 asm.push(ASM::Move(target, *r));
                 self.var_location.insert(s, M::R(target));
             },
@@ -443,10 +496,23 @@ impl Output {
                 self.var_location.insert(s, M::R(target));
             },
         }
+        */
     }
 
     fn find_symbol(&mut self, s: Symbol, asm: &mut Vec<ASM>) -> Register {
-        println!("{}", ::string_interner::get_value(s).unwrap());
+        if let Some(r) = self.var_reg.iter().position(|x| *x == Some(s)) {
+            Register(r as u8)
+        } else if let Some(p) = self.var_stack.iter().rev().position(|x| *x == s) {
+            // TODO
+            let target = Register(18);
+            asm.push(ASM::ReadStack(target, p+1));
+            target
+        } else {
+            println!("{}", ::string_interner::get_value(s).unwrap());
+            println!("{}", self.live.get(&s).unwrap());
+            unreachable!();
+        }
+        /*
         match self.var_location.get(&s).unwrap() {
             M::R(r) => *r,
             M::S(l) => {
@@ -457,6 +523,7 @@ impl Output {
                 target
             }
         }
+        */
     }
 
     // TODO: Option

@@ -72,8 +72,8 @@ impl Compiler {
 
         let alt_var = gen_var();
         let mut alt = self._compile(alt, alt_var);
-        cons.insert(0, IR::Label(alt_label));
         alt.push(IR::Move(target, alt_var));
+        alt.insert(0, IR::Label(alt_label));
 
         pred.push(IR::Phi(target, cons_var, cons, alt_var, alt));
         pred.push(IR::Label(after_if));
